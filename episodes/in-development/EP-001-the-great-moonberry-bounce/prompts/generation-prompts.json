@@ -1,0 +1,503 @@
+{
+  "$schema": "../../../../schemas/generation-prompts.schema.json",
+  "schema_version": "1.0.0",
+  "episode_id": "EP-001",
+  "provider_status": "not_connected",
+  "global_style_reference": "STYLE-2D-MOSSY-HOLLOW",
+  "prompt_coverage": "Five provider-neutral planning examples only. Required character reference asset IDs are intentionally empty; no generation may occur yet.",
+  "prompts": [
+    {
+      "prompt_id": "PROMPT-001",
+      "shot_id": "SHOT-001",
+      "scene_id": "SC-001",
+      "media_kind": "video",
+      "duration_seconds": 6,
+      "aspect_ratio": "16:9",
+      "character_ids": [
+        "CHAR-YETI",
+        "CHAR-JUNIPER",
+        "CHAR-MARA"
+      ],
+      "location_id": "LOC-BIG-CEDAR-HOME",
+      "positive_prompt": {
+        "style": "2D animation matching the line, shape, texture, and color treatment of the attached approved creator artwork; clear family-friendly visual storytelling.",
+        "subject": "Yeti, Juniper, and Mara, each matching their attached approved creator-provided character references exactly.",
+        "setting": "Canonical round Big Cedar kitchen in honey morning light, crescent east window, heavy central table, blue kettle and peg wall visible.",
+        "action": "A single purple-blue moonberry pops from a sliced loaf, rebounds from the blue kettle and two bowls, then falls neatly into the basket Yeti raises; clear anticipation and safe soft impacts.",
+        "camera": "Wide locked kitchen master with two quick readable pans following one berry, ending on Yeti's surprised basket catch.",
+        "lighting": "Warm soft morning light from camera left with gentle interior fill, no harsh contrast.",
+        "barefoot_lock": "Every visible character (CHAR-YETI, CHAR-JUNIPER, CHAR-MARA) is barefoot or has uncovered natural bare paws exactly as shown in approved creator artwork. No footwear appears.",
+        "creator_design_lock": "Creator-provided character artwork is authoritative. Preserve each exact official silhouette, anatomy, proportions, face, features, markings, colors, clothing, accessories, hands, bare feet or paws, and relative scale. Do not invent unsupported views; block for creator review if references are insufficient."
+      },
+      "continuity": [
+        "Official creator-approved designs remain exact",
+        "one loose moonberry only"
+      ],
+      "negative_constraints": [
+        "no shoes",
+        "no socks",
+        "no boots",
+        "no sandals",
+        "no slippers",
+        "no skates",
+        "no cleats",
+        "no footwear of any kind",
+        "no photorealism",
+        "no 3D CGI",
+        "no uncanny anatomy",
+        "no horror lighting",
+        "no injury",
+        "no extra characters",
+        "no extra berries",
+        "no character redesign",
+        "no character reinterpretation",
+        "no simplified or replacement character design",
+        "no changed anatomy, proportions, features, markings, colors, clothing, or accessories",
+        "no model drift",
+        "no unapproved reference images",
+        "no AI-generated character identity reference"
+      ],
+      "dialogue_line_ids": [
+        "LINE-001",
+        "LINE-002"
+      ],
+      "audio_cue_ids": [
+        "AUDIO-SC-001"
+      ],
+      "provider_overrides": {},
+      "reference_images": [
+        {
+          "entity_id": "CHAR-YETI",
+          "purpose": "identity",
+          "required": true,
+          "asset_ids": [],
+          "accepted_asset_classes": [
+            "creator_source_artwork",
+            "approved_canon_reference"
+          ],
+          "manifest_path": "assets/asset-manifest.json",
+          "missing_reference_behavior": "block_generation"
+        },
+        {
+          "entity_id": "CHAR-JUNIPER",
+          "purpose": "identity",
+          "required": true,
+          "asset_ids": [],
+          "accepted_asset_classes": [
+            "creator_source_artwork",
+            "approved_canon_reference"
+          ],
+          "manifest_path": "assets/asset-manifest.json",
+          "missing_reference_behavior": "block_generation"
+        },
+        {
+          "entity_id": "CHAR-MARA",
+          "purpose": "identity",
+          "required": true,
+          "asset_ids": [],
+          "accepted_asset_classes": [
+            "creator_source_artwork",
+            "approved_canon_reference"
+          ],
+          "manifest_path": "assets/asset-manifest.json",
+          "missing_reference_behavior": "block_generation"
+        }
+      ]
+    },
+    {
+      "prompt_id": "PROMPT-002",
+      "shot_id": "SHOT-004",
+      "scene_id": "SC-002",
+      "media_kind": "video",
+      "duration_seconds": 5,
+      "aspect_ratio": "16:9",
+      "character_ids": [
+        "CHAR-YETI",
+        "CHAR-TUMBLE"
+      ],
+      "location_id": "LOC-MOSSY-HOLLOW",
+      "positive_prompt": {
+        "style": "2D animation matching the line, shape, texture, and color treatment of the attached approved creator artwork; clear family-friendly visual storytelling.",
+        "subject": "Yeti on the left rail of a wooden handcart and Tumble on the rear edge, each matching attached approved creator-provided references exactly.",
+        "setting": "Sunny cedar path descending toward Mossy Hollow gathering green, background moving but readable.",
+        "action": "Yeti pulls a homemade lever tagged GENTLE-GO; the basket strap tightens while the wooden brake bar drops loose; both characters stare forward in one perfectly still alarmed beat as the cart accelerates safely.",
+        "camera": "Tight two-shot locked to the cart, lever and loose brake both visible; no shaky camera.",
+        "lighting": "Soft broken forest sunlight, cheerful and non-threatening.",
+        "barefoot_lock": "Every visible character (CHAR-YETI, CHAR-TUMBLE) is barefoot or has uncovered natural bare paws exactly as shown in approved creator artwork. No footwear appears.",
+        "creator_design_lock": "Creator-provided character artwork is authoritative. Preserve each exact official silhouette, anatomy, proportions, face, features, markings, colors, clothing, accessories, hands, bare feet or paws, and relative scale. Do not invent unsupported views; block for creator review if references are insufficient."
+      },
+      "continuity": [
+        "Official creator-approved designs remain exact",
+        "basket stays closed",
+        "screen direction left-to-right downhill",
+        "Yeti on left rail",
+        "Tumble on rear edge"
+      ],
+      "negative_constraints": [
+        "no shoes",
+        "no socks",
+        "no boots",
+        "no sandals",
+        "no slippers",
+        "no skates",
+        "no cleats",
+        "no footwear of any kind",
+        "no crash",
+        "no injury",
+        "no frightened horror expressions",
+        "no loose berries",
+        "no photorealism",
+        "no 3D CGI",
+        "no character redesign",
+        "no character reinterpretation",
+        "no simplified or replacement character design",
+        "no changed anatomy, proportions, features, markings, colors, clothing, or accessories",
+        "no model drift",
+        "no unapproved reference images",
+        "no AI-generated character identity reference"
+      ],
+      "dialogue_line_ids": [
+        "LINE-009",
+        "LINE-010"
+      ],
+      "audio_cue_ids": [
+        "AUDIO-SC-002"
+      ],
+      "provider_overrides": {},
+      "reference_images": [
+        {
+          "entity_id": "CHAR-YETI",
+          "purpose": "identity",
+          "required": true,
+          "asset_ids": [],
+          "accepted_asset_classes": [
+            "creator_source_artwork",
+            "approved_canon_reference"
+          ],
+          "manifest_path": "assets/asset-manifest.json",
+          "missing_reference_behavior": "block_generation"
+        },
+        {
+          "entity_id": "CHAR-TUMBLE",
+          "purpose": "identity",
+          "required": true,
+          "asset_ids": [],
+          "accepted_asset_classes": [
+            "creator_source_artwork",
+            "approved_canon_reference"
+          ],
+          "manifest_path": "assets/asset-manifest.json",
+          "missing_reference_behavior": "block_generation"
+        }
+      ]
+    },
+    {
+      "prompt_id": "PROMPT-003",
+      "shot_id": "SHOT-010",
+      "scene_id": "SC-004",
+      "media_kind": "video",
+      "duration_seconds": 8,
+      "aspect_ratio": "16:9",
+      "character_ids": [
+        "CHAR-YETI",
+        "CHAR-JUNIPER",
+        "CHAR-TUMBLE",
+        "CHAR-MARA"
+      ],
+      "location_id": "LOC-MOONBERRY-MARKET",
+      "positive_prompt": {
+        "style": "2D animation matching the line, shape, texture, and color treatment of the attached approved creator artwork; clear family-friendly visual storytelling.",
+        "subject": "Yeti center foreground; Juniper quietly gathers slate signs behind him; Tumble sits unharmed in a loose purple banner; Mara holds one moonberry and waits calmly. All character designs exactly match attached approved creator references.",
+        "setting": "Canonical Moonberry Market lane with three patchwork awnings and mussed but unbroken displays in warm open shade.",
+        "action": "Yeti starts a quick excuse, notices his friends, stops completely, lets his end of the awning settle harmlessly, tells the truth, and opens his empty hands to ask for help.",
+        "camera": "Medium close slow push toward Yeti, then become still; friends remain readable in soft background focus.",
+        "lighting": "Warm soft morning shade, open faces, no melodramatic darkness.",
+        "barefoot_lock": "Every visible character (CHAR-YETI, CHAR-JUNIPER, CHAR-TUMBLE, CHAR-MARA) is barefoot or has uncovered natural bare paws exactly as shown in approved creator artwork. No footwear appears.",
+        "creator_design_lock": "Creator-provided character artwork is authoritative. Preserve each exact official silhouette, anatomy, proportions, face, features, markings, colors, clothing, accessories, hands, bare feet or paws, and relative scale. Do not invent unsupported views; block for creator review if references are insufficient."
+      },
+      "continuity": [
+        "Official creator-approved designs remain exact",
+        "Tumble is unharmed",
+        "six berries remain corralled around market",
+        "three displays mussed not broken"
+      ],
+      "negative_constraints": [
+        "no shoes",
+        "no socks",
+        "no boots",
+        "no sandals",
+        "no slippers",
+        "no skates",
+        "no cleats",
+        "no footwear of any kind",
+        "no crying melodrama",
+        "no humiliation",
+        "no anger from Mara",
+        "no injury",
+        "no broken stalls",
+        "no horror mood",
+        "no photorealism",
+        "no 3D CGI",
+        "no character redesign",
+        "no character reinterpretation",
+        "no simplified or replacement character design",
+        "no changed anatomy, proportions, features, markings, colors, clothing, or accessories",
+        "no model drift",
+        "no unapproved reference images",
+        "no AI-generated character identity reference"
+      ],
+      "dialogue_line_ids": [
+        "LINE-017",
+        "LINE-018",
+        "LINE-019",
+        "LINE-020"
+      ],
+      "audio_cue_ids": [
+        "AUDIO-SC-004"
+      ],
+      "provider_overrides": {},
+      "reference_images": [
+        {
+          "entity_id": "CHAR-YETI",
+          "purpose": "identity",
+          "required": true,
+          "asset_ids": [],
+          "accepted_asset_classes": [
+            "creator_source_artwork",
+            "approved_canon_reference"
+          ],
+          "manifest_path": "assets/asset-manifest.json",
+          "missing_reference_behavior": "block_generation"
+        },
+        {
+          "entity_id": "CHAR-JUNIPER",
+          "purpose": "identity",
+          "required": true,
+          "asset_ids": [],
+          "accepted_asset_classes": [
+            "creator_source_artwork",
+            "approved_canon_reference"
+          ],
+          "manifest_path": "assets/asset-manifest.json",
+          "missing_reference_behavior": "block_generation"
+        },
+        {
+          "entity_id": "CHAR-TUMBLE",
+          "purpose": "identity",
+          "required": true,
+          "asset_ids": [],
+          "accepted_asset_classes": [
+            "creator_source_artwork",
+            "approved_canon_reference"
+          ],
+          "manifest_path": "assets/asset-manifest.json",
+          "missing_reference_behavior": "block_generation"
+        },
+        {
+          "entity_id": "CHAR-MARA",
+          "purpose": "identity",
+          "required": true,
+          "asset_ids": [],
+          "accepted_asset_classes": [
+            "creator_source_artwork",
+            "approved_canon_reference"
+          ],
+          "manifest_path": "assets/asset-manifest.json",
+          "missing_reference_behavior": "block_generation"
+        }
+      ]
+    },
+    {
+      "prompt_id": "PROMPT-004",
+      "shot_id": "SHOT-013",
+      "scene_id": "SC-005",
+      "media_kind": "video",
+      "duration_seconds": 5,
+      "aspect_ratio": "16:9",
+      "character_ids": [
+        "CHAR-YETI"
+      ],
+      "location_id": "LOC-MOONBERRY-MARKET",
+      "positive_prompt": {
+        "style": "2D animation matching the line, shape, texture, and color treatment of the attached approved creator artwork; clear family-friendly visual storytelling.",
+        "subject": "Yeti focused at the handcart lever, matching attached approved creator-provided references exactly.",
+        "setting": "Restoring Moonberry Market lane; padded wooden cart moves under converging purple-blue berry bounces.",
+        "action": "Yeti waits for the exact count, plants his feet, pulls once, and the teal lever tag flips from GENTLE-GO to ACTUAL GENTLE-GO while exactly six berries land softly in the padded catcher.",
+        "camera": "Low medium tracking shot keeping Yeti's timing, bare feet, lever label, moving cart, and berry catch legible.",
+        "lighting": "Cheerful late-morning market shade with berry-purple accents.",
+        "barefoot_lock": "Every visible character (CHAR-YETI) is barefoot or has uncovered natural bare paws exactly as shown in approved creator artwork. No footwear appears.",
+        "creator_design_lock": "Creator-provided character artwork is authoritative. Preserve each exact official silhouette, anatomy, proportions, face, features, markings, colors, clothing, accessories, hands, bare feet or paws, and relative scale. Do not invent unsupported views; block for creator review if references are insufficient."
+      },
+      "continuity": [
+        "Official creator-approved Yeti design remains exact",
+        "exactly six berries",
+        "purple banner pads cart",
+        "no display damage",
+        "lever tag flips only after pull"
+      ],
+      "negative_constraints": [
+        "no shoes",
+        "no socks",
+        "no boots",
+        "no sandals",
+        "no slippers",
+        "no skates",
+        "no cleats",
+        "no footwear of any kind",
+        "no extra berries",
+        "no collision",
+        "no injury",
+        "no photorealism",
+        "no 3D CGI",
+        "no illegible lever tag",
+        "no character redesign",
+        "no character reinterpretation",
+        "no simplified or replacement character design",
+        "no changed anatomy, proportions, features, markings, colors, clothing, or accessories",
+        "no model drift",
+        "no unapproved reference images",
+        "no AI-generated character identity reference"
+      ],
+      "dialogue_line_ids": [
+        "LINE-024"
+      ],
+      "audio_cue_ids": [
+        "AUDIO-SC-005"
+      ],
+      "provider_overrides": {},
+      "reference_images": [
+        {
+          "entity_id": "CHAR-YETI",
+          "purpose": "identity",
+          "required": true,
+          "asset_ids": [],
+          "accepted_asset_classes": [
+            "creator_source_artwork",
+            "approved_canon_reference"
+          ],
+          "manifest_path": "assets/asset-manifest.json",
+          "missing_reference_behavior": "block_generation"
+        }
+      ]
+    },
+    {
+      "prompt_id": "PROMPT-005",
+      "shot_id": "SHOT-016",
+      "scene_id": "SC-006",
+      "media_kind": "video",
+      "duration_seconds": 6,
+      "aspect_ratio": "16:9",
+      "character_ids": [
+        "CHAR-YETI",
+        "CHAR-JUNIPER",
+        "CHAR-TUMBLE",
+        "CHAR-MARA"
+      ],
+      "location_id": "LOC-MOONBERRY-MARKET",
+      "positive_prompt": {
+        "style": "2D animation matching the line, shape, texture, and color treatment of the attached approved creator artwork; clear family-friendly visual storytelling.",
+        "subject": "Yeti, Juniper, Tumble, and Mara relaxed at Mara’s bakery counter, each matching attached approved creator-provided references exactly.",
+        "setting": "Restored open Moonberry Market, bakery counter beneath patchwork awning, soft late-morning light.",
+        "action": "A tiny flatcake bounces upward; June silently slides the empty basket; seated Yeti waits and catches the flatcake; all four raise one eyebrow in unison, then Yeti gives a small grin.",
+        "camera": "Medium group tableau, tiny pan with flatcake then a held reaction frame suitable for the end card.",
+        "lighting": "Warm, soft, cozy market light with no dramatic contrast.",
+        "barefoot_lock": "Every visible character (CHAR-YETI, CHAR-JUNIPER, CHAR-TUMBLE, CHAR-MARA) is barefoot or has uncovered natural bare paws exactly as shown in approved creator artwork. No footwear appears.",
+        "creator_design_lock": "Creator-provided character artwork is authoritative. Preserve each exact official silhouette, anatomy, proportions, face, features, markings, colors, clothing, accessories, hands, bare feet or paws, and relative scale. Do not invent unsupported views; block for creator review if references are insufficient."
+      },
+      "continuity": [
+        "All official creator-approved designs remain exact",
+        "market fully restored",
+        "empty auxiliary basket",
+        "secured delivery basket remains at stall"
+      ],
+      "negative_constraints": [
+        "no shoes",
+        "no socks",
+        "no boots",
+        "no sandals",
+        "no slippers",
+        "no skates",
+        "no cleats",
+        "no footwear of any kind",
+        "no extra flatcakes",
+        "no large explosion",
+        "no food mess",
+        "no exaggerated fear",
+        "no horror",
+        "no photorealism",
+        "no 3D CGI",
+        "no character redesign",
+        "no character reinterpretation",
+        "no simplified or replacement character design",
+        "no changed anatomy, proportions, features, markings, colors, clothing, or accessories",
+        "no model drift",
+        "no unapproved reference images",
+        "no AI-generated character identity reference"
+      ],
+      "dialogue_line_ids": [
+        "LINE-027"
+      ],
+      "audio_cue_ids": [
+        "AUDIO-SC-006"
+      ],
+      "provider_overrides": {},
+      "reference_images": [
+        {
+          "entity_id": "CHAR-YETI",
+          "purpose": "identity",
+          "required": true,
+          "asset_ids": [],
+          "accepted_asset_classes": [
+            "creator_source_artwork",
+            "approved_canon_reference"
+          ],
+          "manifest_path": "assets/asset-manifest.json",
+          "missing_reference_behavior": "block_generation"
+        },
+        {
+          "entity_id": "CHAR-JUNIPER",
+          "purpose": "identity",
+          "required": true,
+          "asset_ids": [],
+          "accepted_asset_classes": [
+            "creator_source_artwork",
+            "approved_canon_reference"
+          ],
+          "manifest_path": "assets/asset-manifest.json",
+          "missing_reference_behavior": "block_generation"
+        },
+        {
+          "entity_id": "CHAR-TUMBLE",
+          "purpose": "identity",
+          "required": true,
+          "asset_ids": [],
+          "accepted_asset_classes": [
+            "creator_source_artwork",
+            "approved_canon_reference"
+          ],
+          "manifest_path": "assets/asset-manifest.json",
+          "missing_reference_behavior": "block_generation"
+        },
+        {
+          "entity_id": "CHAR-MARA",
+          "purpose": "identity",
+          "required": true,
+          "asset_ids": [],
+          "accepted_asset_classes": [
+            "creator_source_artwork",
+            "approved_canon_reference"
+          ],
+          "manifest_path": "assets/asset-manifest.json",
+          "missing_reference_behavior": "block_generation"
+        }
+      ]
+    }
+  ],
+  "reference_status": "blocked_until_creator_artwork_is_imported_registered_and_approved",
+  "reference_policy": {
+    "manifest_path": "assets/asset-manifest.json",
+    "creator_artwork_is_authoritative": true,
+    "allow_ai_generated_test_material_for_character_identity": false,
+    "missing_required_reference_behavior": "block_generation"
+  }
+}

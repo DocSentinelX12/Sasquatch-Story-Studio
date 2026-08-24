@@ -1,0 +1,74 @@
+{
+  "$schema": "../../../schemas/character-visual-reference.schema.json",
+  "schema_version": "1.1.0",
+  "character_id": "CHAR-JUNIPER",
+  "character_name": "Juniper",
+  "species": "Sasquatch",
+  "character_kind": "person",
+  "family_id": "FAMILY-BIG-CEDAR",
+  "age_group": "unconfirmed",
+  "approximate_age": "older than Yeti; confirm age band from creator sheets",
+  "canon_role": "Recurring family character; Yeti's older sister",
+  "parent_character_ids": ["CHAR-MARA"],
+  "child_character_ids": [],
+  "pet_character_ids": [],
+  "caretaker_character_ids": [],
+  "character_versions": [
+    {
+      "version_id": "VER-JUNIPER-CURRENT",
+      "label": "Current series age",
+      "age_group": "unconfirmed",
+      "approximate_age": "older than Yeti; confirm age band from creator sheets",
+      "story_period": "main-series-present",
+      "is_primary": true,
+      "reference_asset_ids": [],
+      "notes": "Add further versions only when creator artwork canonizes a different age or story period."
+    }
+  ],
+  "personality": {
+    "core_traits": ["observant", "capable", "artistic", "dryly funny", "protective"],
+    "strengths": ["planning", "visual memory", "calm under pressure", "seeing patterns"],
+    "growth_edges": ["assumes seeing the answer is the same as explaining it kindly", "can over-manage Yeti"],
+    "performance_summary": "Economical and warm; precise without being cruel."
+  },
+  "relationships": [
+    {"character_id": "CHAR-YETI", "relationship": "Older sister; protective and proud, learning not to take over."},
+    {"character_id": "CHAR-MARA", "relationship": "Daughter; shares practical instincts but is not a substitute parent."},
+    {"character_id": "CHAR-TUMBLE", "relationship": "Friendly rival in practical problem-solving."}
+  ],
+  "visual_authority": "Creator-provided character artwork is authoritative. AI must preserve Juniper's established design and must not redesign, reinterpret, replace, or simplify her.",
+  "source_artwork_location": "assets/characters/source/juniper/",
+  "source_artwork_asset_ids": [],
+  "approved_reference_images": [],
+  "turnaround_reference": {"asset_id": null, "status": "not_imported", "notes": "Link the creator's approved Juniper turnaround after import; do not invent unseen views."},
+  "expression_reference": {"asset_id": null, "status": "not_imported", "notes": "Link only creator-provided or creator-approved expression art."},
+  "pose_reference": {"asset_id": null, "status": "not_imported", "notes": "Link only creator-provided or creator-approved pose art."},
+  "scale_reference": {"asset_id": null, "status": "not_imported", "notes": "Relative size must come from creator-approved scale artwork."},
+  "clothing_reference": {"asset_id": null, "status": "not_imported", "notes": "All clothing and accessory details must come from creator artwork. Juniper is always barefoot."},
+  "color_reference": {"asset_id": null, "status": "not_imported", "notes": "Do not infer fur, skin, eye, clothing, or accessory colors; link the approved creator color reference."},
+  "animation_notes": [
+    "Express Juniper's observation, capability, artistry, dry warmth, and protectiveness through acting without changing her official construction.",
+    "Preserve every design detail, proportion, silhouette, marking, color, clothing item, accessory, hand, and foot exactly as shown in approved creator references.",
+    "Her humor is dry rather than cruel; visual reactions should support that distinction.",
+    "Juniper is always barefoot; match the exact bare-foot design shown in creator artwork."
+  ],
+  "master_generation_prompt": "Using the attached approved creator-provided reference images as the absolute visual source of truth, depict Juniper in the requested scene and action. Preserve her exact official silhouette, anatomy, proportions, facial construction, features, markings, colors, clothing, accessories, hands, and bare feet in every frame. Keep her performance observant, capable, artistic, dryly funny, protective, and warm. Match approved references rather than inferring or redesigning any unseen detail. If the approved images do not support the requested angle or action, stop for creator review instead of inventing a new view. Juniper and every other character are always barefoot.",
+  "negative_prompt": "character redesign, reinterpretation, replacement design, simplified design, alternate costume, invented accessory, changed silhouette, changed anatomy, changed proportions, changed face, changed features, changed markings, changed colors, model drift, inconsistent hands, inconsistent feet, unapproved reference, AI-generated identity reference, shoes, socks, boots, sandals, slippers, skates, cleats, or any other footwear, photorealism unless present in creator source, horror, disturbing imagery, cruelty",
+  "continuity_rules": [
+    "Creator artwork overrides all written visual assumptions and all generated material.",
+    "Use only manifest-registered creator source artwork approved for provider use and approved canon references.",
+    "Never use AI-generated test material as Juniper's identity reference.",
+    "Do not fill missing visual information by inference; block and request creator review.",
+    "Juniper's personality and relationships remain consistent with the series bible.",
+    "ALL CHARACTERS ARE ALWAYS BAREFOOT. NO SHOES, SOCKS, BOOTS, SANDALS, SLIPPERS, OR ANY OTHER FOOTWEAR."
+  ],
+  "provider_neutral_reference_support": {
+    "manifest_path": "assets/asset-manifest.json",
+    "accepted_asset_classes": ["creator_source_artwork", "approved_canon_reference"],
+    "ordered_asset_ids": [],
+    "required_purposes": ["identity"],
+    "allow_ai_generated_test_material": false,
+    "missing_reference_behavior": "block_and_request_creator_review"
+  },
+  "approval_status": "awaiting_creator_source_artwork"
+}

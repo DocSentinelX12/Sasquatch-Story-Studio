@@ -1,0 +1,15 @@
+{
+  "$schema": "../../../schemas/family.schema.json",
+  "schema_version": "1.0.0",
+  "family_id": "FAMILY-DARK-CHOCOLATE-BROWN-SASQUATCH",
+  "display_name": "Dark Chocolate Brown Sasquatch Family",
+  "family_kind": "sasquatch_family",
+  "status": "awaiting_import",
+  "home_location_id": null,
+  "member_character_ids": [],
+  "parent_character_ids": [],
+  "child_character_ids": [],
+  "pet_character_ids": [],
+  "source_folder": "assets/characters/source/dark-chocolate-brown-sasquatch-family/",
+  "notes": "Intake group for the creator's dark-chocolate/reddish-brown Sasquatch family sheets. Members stay unidentified until the creator confirms which sheets depict which characters; imported files register against this family_id until then."
+}

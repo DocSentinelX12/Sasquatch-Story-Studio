@@ -1,0 +1,107 @@
+{
+  "$schema": "../../../../schemas/continuity-check.schema.json",
+  "schema_version": "1.0.0",
+  "episode_id": "EP-001",
+  "check_status": "in_review",
+  "reviewed_canon_version": "1.1.0",
+  "checks": [
+    {
+      "check_id": "CREATOR-VISUAL-AUTHORITY",
+      "category": "non-negotiable",
+      "requirement": "Every character exactly preserves creator-provided artwork; no redesign, reinterpretation, replacement, simplification, or invented visual detail.",
+      "status": "pending",
+      "notes": "Written prompts now defer to creator artwork, but source artwork has not yet been imported or reviewed in this repository."
+    },
+    {
+      "check_id": "APPROVED-REFERENCE-IMAGES",
+      "category": "assets",
+      "requirement": "Required character reference images resolve through assets/asset-manifest.json and are creator source artwork approved for reference use or approved canon references; AI tests are excluded.",
+      "status": "pending",
+      "notes": "Manifest intentionally has no image entries yet. Generation remains blocked."
+    },
+    {
+      "check_id": "BAREFOOT-VISUAL",
+      "category": "non-negotiable",
+      "requirement": "Every character is barefoot or has uncovered natural bare paws in every appearance.",
+      "status": "pass",
+      "notes": "Scene and key-shot continuity explicitly lock bare feet/paws, including all background characters."
+    },
+    {
+      "check_id": "BAREFOOT-PROMPTS",
+      "category": "non-negotiable",
+      "requirement": "Every visual prompt positively locks bare feet/paws and excludes shoes, socks, boots, sandals, slippers, skates, cleats, and all footwear.",
+      "status": "pass",
+      "notes": "All five planning prompts include the barefoot positive lock and complete exclusions; recheck against creator art when references are imported."
+    },
+    {
+      "check_id": "CHARACTER-VISUAL",
+      "category": "character",
+      "requirement": "Silhouette, palette, scale, features, and accessories match reference cards.",
+      "status": "pending",
+      "notes": "Unverified written design assumptions were removed. Pass only after creator artwork is imported, linked, and reviewed."
+    },
+    {
+      "check_id": "CHARACTER-PERSONALITY",
+      "category": "character",
+      "requirement": "Choices, voice, and behavior match character cards and current growth.",
+      "status": "pass",
+      "notes": "Yeti's mistake grows from understandable self-reliance; June, Mara, and Tumble retain agency."
+    },
+    {
+      "check_id": "RELATIONSHIPS",
+      "category": "continuity",
+      "requirement": "Relationship behavior matches relationships.json.",
+      "status": "pass",
+      "notes": "Sibling friction is warm, Mara invites honesty, and Tumble can object."
+    },
+    {
+      "check_id": "LOCATION",
+      "category": "continuity",
+      "requirement": "Landmarks, layout, weather, season, and time are coherent.",
+      "status": "pass",
+      "notes": "Route moves Big Cedar Home to gathering green to uphill market edge using canonical screen direction."
+    },
+    {
+      "check_id": "SHOT-STATE",
+      "category": "continuity",
+      "requirement": "Props, hands, stains, damage, direction, and entrances/exits persist shot to shot.",
+      "status": "pending",
+      "notes": "Scene-level state is tracked; full shot list does not yet cover the entire episode."
+    },
+    {
+      "check_id": "STORY-SHAPE",
+      "category": "story",
+      "requirement": "Hook, escalation, emotional turn, satisfying resolution, and memorable ending are present.",
+      "status": "pass",
+      "notes": "Present in outline and represented by key boards."
+    },
+    {
+      "check_id": "LESSON",
+      "category": "story",
+      "requirement": "The lesson changes the climax and is not delivered as a sermon.",
+      "status": "pass",
+      "notes": "Listening and asking for help directly create the catch; the ending demonstrates rather than states growth."
+    },
+    {
+      "check_id": "FAMILY-SAFE",
+      "category": "tone",
+      "requirement": "Nothing is horror, disturbing, cruel, mean-spirited, or visually uncanny.",
+      "status": "pass",
+      "notes": "Action is mild, characters are unharmed, and prompt negatives protect tone."
+    },
+    {
+      "check_id": "FULL-COVERAGE",
+      "category": "production",
+      "requirement": "Every final shot has a board, prompt, and audio reference before prompt-ready.",
+      "status": "pending",
+      "notes": "Current boards and prompts intentionally cover key examples only."
+    }
+  ],
+  "canon_proposals": [],
+  "blocking_notes": [
+    "Creator source artwork and approved character references have not yet been imported; visual generation is blocked.",
+    "Episode remains at outline status.",
+    "Create the full timed shot list and prompt package before advancing to prompt-ready.",
+    "Run a final line-by-line dialogue and continuity review after script lock."
+  ]
+}

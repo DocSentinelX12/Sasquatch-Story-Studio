@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "scene.schema.json",
+  "title": "Scene Plan",
+  "type": "object",
+  "required": ["schema_version", "episode_id", "scene_id", "sequence", "title", "location_id", "time", "estimated_duration_seconds", "character_ids", "purpose", "visual_action", "conflict", "emotional_shift", "props_in", "props_out", "continuity_in", "continuity_out", "transition_out"],
+  "properties": {
+    "episode_id": {"type": "string", "pattern": "^EP-[0-9]{3,}$"},
+    "scene_id": {"type": "string", "pattern": "^SC-[0-9]{3,}$"},
+    "sequence": {"type": "integer", "minimum": 1},
+    "location_id": {"type": "string", "pattern": "^LOC-[A-Z0-9-]+$"},
+    "estimated_duration_seconds": {"type": "number", "exclusiveMinimum": 0},
+    "character_ids": {"type": "array", "items": {"type": "string", "pattern": "^CHAR-[A-Z0-9-]+$"}, "uniqueItems": true},
+    "props_in": {"type": "array", "items": {"type": "string"}},
+    "props_out": {"type": "array", "items": {"type": "string"}},
+    "continuity_in": {"type": "array", "items": {"type": "string"}},
+    "continuity_out": {"type": "array", "items": {"type": "string"}}
+  },
+  "additionalProperties": true
+}

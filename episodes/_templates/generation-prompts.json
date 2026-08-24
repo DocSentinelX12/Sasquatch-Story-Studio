@@ -1,0 +1,14 @@
+{
+  "$schema": "../../../../schemas/generation-prompts.schema.json",
+  "schema_version": "1.0.0",
+  "episode_id": "{{EPISODE_ID}}",
+  "provider_status": "not_connected",
+  "global_style_reference": "STYLE-2D-MOSSY-HOLLOW",
+  "reference_policy": {
+    "manifest_path": "assets/asset-manifest.json",
+    "creator_artwork_is_authoritative": true,
+    "allow_ai_generated_test_material_for_character_identity": false,
+    "missing_required_reference_behavior": "block_generation"
+  },
+  "prompts": []
+}

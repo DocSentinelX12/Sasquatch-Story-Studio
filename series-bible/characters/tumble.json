@@ -1,0 +1,69 @@
+{
+  "$schema": "../../schemas/character.schema.json",
+  "schema_version": "1.0.0",
+  "character_id": "CHAR-TUMBLE",
+  "name": "Tumble",
+  "role": "recurring friend",
+  "species": "raccoon",
+  "age_band": "young child",
+  "pronouns": "he/him",
+  "personality": {
+    "core_traits": [
+      "inventive",
+      "loyal",
+      "fast-talking",
+      "bold",
+      "specific"
+    ],
+    "strengths": [
+      "mechanical intuition",
+      "quick observation",
+      "enthusiastic collaboration"
+    ],
+    "growth_edges": [
+      "finds spectacular failure genuinely tempting",
+      "uses statistics to disguise guesses"
+    ],
+    "under_stress": "Narrates options at increasing speed while trying to calculate the next move.",
+    "growth_direction": "Distinguish supporting a friend from encouraging every idea, and voice his own needs."
+  },
+  "visual": {
+    "authority": "creator_source_artwork",
+    "description_status": "deferred_until_creator_artwork_import",
+    "design_rule": "Creator-provided artwork is the only visual source of truth. Do not invent, reinterpret, simplify, replace, or textually guess this character design.",
+    "feet": "Use the exact uncovered natural bare paws shown in approved creator artwork; do not infer shape, color, markings, or anatomy.",
+    "footwear_rule": "Always barefoot. Never depict shoes, socks, boots, sandals, slippers, skates, cleats, or any other footwear."
+  },
+  "performance": {
+    "voice": "Quick, precise bursts and a delighted whisper when a plan becomes spectacular.",
+    "movement": "Quick and nimble, with all anatomy and motion kept faithful to approved creator references.",
+    "comic_behavior": "Announces overly exact odds that the next image disproves.",
+    "dialogue_rules": [
+      "has independent opinions",
+      "technical words remain understandable in context",
+      "never exists only to praise Yeti"
+    ]
+  },
+  "relationships": [
+    {
+      "character_id": "CHAR-YETI",
+      "relationship": "best friend and co-inventor; loyal but allowed to say no"
+    },
+    {
+      "character_id": "CHAR-JUNIPER",
+      "relationship": "friendly rival in practical problem-solving"
+    },
+    {
+      "character_id": "CHAR-MS-BRAMBLE",
+      "relationship": "student; tries to predict her questions"
+    }
+  ],
+  "continuity_locks": [
+    "Creator-provided artwork is authoritative and must never be redesigned, reinterpreted, replaced, or simplified.",
+    "Tumble has agency and does not function as a generic sidekick.",
+    "He is always barefoot with natural paws."
+  ],
+  "reference_asset_ids": [],
+  "reference_assets_status": "awaiting_creator_source_artwork",
+  "visual_reference_record": "assets/characters/records/tumble.json"
+}

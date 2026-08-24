@@ -1,0 +1,21 @@
+{
+  "$schema": "../../../../schemas/audio-notes.schema.json",
+  "schema_version": "1.0.0",
+  "episode_id": "{{EPISODE_ID}}",
+  "audio_status": "placeholder",
+  "voice_direction": [],
+  "scene_audio": [
+    {
+      "scene_id": "SC-001",
+      "ambience": ["TODO"],
+      "foley": ["TODO"],
+      "music_intent": "TODO: emotion, pacing, and instrumentation family; do not reference imitation of a copyrighted track.",
+      "silence_or_space": "TODO: note where sound should make room for a reaction or line."
+    }
+  ],
+  "mix_principles": [
+    "Dialogue remains intelligible without flattening ambience.",
+    "Foley supports physical comedy but never makes mild action sound painful.",
+    "Music supports the emotional turn without dictating the lesson."
+  ]
+}

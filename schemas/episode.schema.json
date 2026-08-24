@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "episode.schema.json",
+  "title": "Episode Record",
+  "type": "object",
+  "required": ["schema_version", "episode_id", "slug", "title", "status", "premise", "character_want", "emotional_need", "lesson", "cast_ids", "location_ids", "scene_ids", "created_on", "last_updated_on"],
+  "properties": {
+    "schema_version": {"type": "string"},
+    "episode_id": {"type": "string", "pattern": "^EP-[0-9]{3,}$"},
+    "slug": {"type": "string", "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"},
+    "title": {"type": "string", "minLength": 1},
+    "status": {"enum": ["concept", "outline", "script", "storyboard", "prompt-ready", "production", "completed"]},
+    "premise": {"type": "string"},
+    "character_want": {"type": "string"},
+    "emotional_need": {"type": "string"},
+    "lesson": {"type": "string"},
+    "cast_ids": {"type": "array", "items": {"type": "string", "pattern": "^CHAR-[A-Z0-9-]+$"}, "uniqueItems": true},
+    "location_ids": {"type": "array", "items": {"type": "string", "pattern": "^LOC-[A-Z0-9-]+$"}, "uniqueItems": true},
+    "scene_ids": {"type": "array", "items": {"type": "string", "pattern": "^SC-[0-9]{3,}$"}, "uniqueItems": true},
+    "canon_proposals": {"type": "array", "items": {"type": "string"}},
+    "created_on": {"type": "string", "format": "date"},
+    "last_updated_on": {"type": "string", "format": "date"}
+  },
+  "additionalProperties": true
+}

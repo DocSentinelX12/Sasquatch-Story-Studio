@@ -1,0 +1,44 @@
+{
+  "$schema": "../../../../schemas/scene.schema.json",
+  "schema_version": "1.0.0",
+  "episode_id": "EP-001",
+  "scene_id": "SC-006",
+  "sequence": 6,
+  "title": "The last little bounce",
+  "location_id": "LOC-MOONBERRY-MARKET",
+  "time": "late morning",
+  "estimated_duration_seconds": 45,
+  "character_ids": [
+    "CHAR-YETI",
+    "CHAR-TUMBLE",
+    "CHAR-JUNIPER",
+    "CHAR-MARA"
+  ],
+  "purpose": "Land the warm resolution and finish on a visual callback rather than a spoken moral.",
+  "visual_action": "At the open bakery stall, the four share small moonberry flatcakes. Yeti thanks each friend for a specific part of the catch. One overlooked berry under Mara's counter puffs a tiny flatcake into the air. June silently slides the empty basket toward Yeti; he waits for the bounce and catches it without standing.",
+  "conflict": "A final miniature surprise tests whether Yeti will lunge first or notice the help already offered.",
+  "emotional_shift": "Pride becomes grateful, relaxed belonging.",
+  "props_in": [
+    "empty auxiliary basket",
+    "small moonberry flatcakes",
+    "one overlooked moonberry",
+    "open market sign",
+    "secured delivery basket"
+  ],
+  "props_out": [
+    "tiny flatcake caught in empty basket",
+    "clean open market",
+    "secured delivery basket"
+  ],
+  "continuity_in": [
+    "Yeti carries the empty auxiliary basket from SC-005.",
+    "All characters preserve the exact creator-approved designs and restored state from SC-005.",
+    "Mara and all market characters remain barefoot or on uncovered natural bare paws."
+  ],
+  "continuity_out": [
+    "No new canon facts are established.",
+    "Market remains open and restored.",
+    "Episode ends on the group eyebrow reaction and Yeti's quiet grin."
+  ],
+  "transition_out": "Hold on the basket catch and four raised eyebrows, then cut to end card on Yeti's quiet grin."
+}

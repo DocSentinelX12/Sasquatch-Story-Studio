@@ -1,0 +1,23 @@
+{
+  "$schema": "../../../../schemas/continuity-check.schema.json",
+  "schema_version": "1.0.0",
+  "episode_id": "{{EPISODE_ID}}",
+  "check_status": "not_started",
+  "reviewed_canon_version": "1.1.0",
+  "checks": [
+    {"check_id": "CREATOR-VISUAL-AUTHORITY", "category": "non-negotiable", "requirement": "Every character exactly preserves creator-provided artwork; no redesign, reinterpretation, replacement, simplification, or invented visual detail.", "status": "pending", "notes": ""},
+    {"check_id": "APPROVED-REFERENCE-IMAGES", "category": "assets", "requirement": "Required character reference images resolve through assets/asset-manifest.json and are creator source artwork approved for reference use or approved canon references; AI tests are excluded.", "status": "pending", "notes": ""},
+    {"check_id": "BAREFOOT-VISUAL", "category": "non-negotiable", "requirement": "Every character is barefoot or has uncovered natural bare paws in every appearance.", "status": "pending", "notes": ""},
+    {"check_id": "BAREFOOT-PROMPTS", "category": "non-negotiable", "requirement": "Every visual prompt positively locks bare feet/paws and excludes shoes, socks, boots, sandals, slippers, skates, cleats, and all footwear.", "status": "pending", "notes": ""},
+    {"check_id": "CHARACTER-VISUAL", "category": "character", "requirement": "Silhouette, palette, scale, features, and accessories match reference cards.", "status": "pending", "notes": ""},
+    {"check_id": "CHARACTER-PERSONALITY", "category": "character", "requirement": "Choices, voice, and behavior match character cards and current growth.", "status": "pending", "notes": ""},
+    {"check_id": "RELATIONSHIPS", "category": "continuity", "requirement": "Relationship behavior matches relationships.json.", "status": "pending", "notes": ""},
+    {"check_id": "LOCATION", "category": "continuity", "requirement": "Landmarks, layout, weather, season, and time are coherent.", "status": "pending", "notes": ""},
+    {"check_id": "SHOT-STATE", "category": "continuity", "requirement": "Props, hands, stains, damage, direction, and entrances/exits persist shot to shot.", "status": "pending", "notes": ""},
+    {"check_id": "STORY-SHAPE", "category": "story", "requirement": "Hook, escalation, emotional turn, satisfying resolution, and memorable ending are present.", "status": "pending", "notes": ""},
+    {"check_id": "LESSON", "category": "story", "requirement": "The lesson changes the climax and is not delivered as a sermon.", "status": "pending", "notes": ""},
+    {"check_id": "FAMILY-SAFE", "category": "tone", "requirement": "Nothing is horror, disturbing, cruel, mean-spirited, or visually uncanny.", "status": "pending", "notes": ""}
+  ],
+  "canon_proposals": [],
+  "blocking_notes": ["Planning has not yet passed continuity review."]
+}

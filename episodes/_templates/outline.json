@@ -1,0 +1,38 @@
+{
+  "$schema": "../../../../schemas/outline.schema.json",
+  "schema_version": "1.0.0",
+  "episode_id": "{{EPISODE_ID}}",
+  "story_question": "TODO: can Yeti achieve the goal while learning what the situation really needs?",
+  "hook": {
+    "image": "TODO",
+    "question_created": "TODO"
+  },
+  "setup": {
+    "goal": "TODO",
+    "plan": "TODO",
+    "overlooked_flaw": "TODO"
+  },
+  "escalations": [
+    {"beat": 1, "cause": "TODO", "comic_result": "TODO", "new_stakes": "TODO"},
+    {"beat": 2, "cause": "TODO", "comic_result": "TODO", "new_stakes": "TODO"},
+    {"beat": 3, "cause": "TODO", "comic_result": "TODO", "new_stakes": "TODO"}
+  ],
+  "low_point": {
+    "choice": "TODO: the character choice that causes the emotional cost.",
+    "cost": "TODO"
+  },
+  "emotional_turn": {
+    "realization": "TODO",
+    "action": "TODO: a visible choice that proves the realization."
+  },
+  "resolution": {
+    "plan": "TODO",
+    "planted_payoff": "TODO",
+    "repair": "TODO"
+  },
+  "ending_button": {
+    "image": "TODO",
+    "callback": "TODO"
+  },
+  "lesson_in_action": "TODO: explain how the climax demonstrates the lesson without stating it."
+}

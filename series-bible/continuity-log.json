@@ -1,0 +1,42 @@
+{
+  "schema_version": "1.0.0",
+  "policy": "Append-only. Record accepted canon changes; never delete prior entries. Corrections reference the entry they supersede.",
+  "entries": [
+    {
+      "entry_id": "CANON-0001",
+      "date": "2026-08-24",
+      "source": "FOUNDATION",
+      "category": "series",
+      "summary": "Established series identity, creative rules, barefoot requirement, visual language, core world, five recurring characters, four recurring locations, relationships, running jokes, and open mysteries.",
+      "affected_ids": [
+        "SERIES-SASQUATCH-STORY-STUDIO",
+        "CHAR-YETI",
+        "CHAR-JUNIPER",
+        "CHAR-MARA",
+        "CHAR-TUMBLE",
+        "CHAR-MS-BRAMBLE",
+        "LOC-MOSSY-HOLLOW",
+        "LOC-BIG-CEDAR-HOME",
+        "LOC-CANOPY-CREEK-SCHOOL",
+        "LOC-MOONBERRY-MARKET"
+      ],
+      "supersedes": null
+    },
+    {
+      "entry_id": "CANON-0002",
+      "date": "2026-08-24",
+      "source": "CREATOR-DIRECTION",
+      "category": "visual-authority",
+      "summary": "Established creator-provided artwork as authoritative visual canon; removed unverified invented visual descriptions and placeholder character reference IDs; added manifest-controlled visual reference records and explicit AI-test non-canon rules.",
+      "affected_ids": [
+        "SERIES-SASQUATCH-STORY-STUDIO",
+        "CHAR-YETI",
+        "CHAR-JUNIPER",
+        "CHAR-MARA",
+        "CHAR-TUMBLE",
+        "CHAR-MS-BRAMBLE"
+      ],
+      "supersedes": "CANON-0001 visual-design details only"
+    }
+  ]
+}

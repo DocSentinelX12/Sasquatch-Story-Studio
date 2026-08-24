@@ -1,0 +1,30 @@
+{
+  "$schema": "../../../schemas/completed-record.schema.json",
+  "schema_version": "1.0.0",
+  "record_id": "COMPLETE-{{EPISODE_ID}}-R1",
+  "episode_id": "{{EPISODE_ID}}",
+  "episode_revision": 1,
+  "title": "{{TITLE}}",
+  "completed_on": "{{COMPLETED_DATE}}",
+  "canon_version": "TODO",
+  "source_commit": "TODO",
+  "asset_manifest": "assets/asset-manifest.json",
+  "final_assets": [
+    {
+      "asset_id": "TODO: registered ASSET-* manifest ID",
+      "asset_class": "final_approved_production_asset",
+      "kind": "final_master",
+      "status": "verified"
+    }
+  ],
+  "production_provenance": [],
+  "approvals": [],
+  "release": {
+    "status": "not_released",
+    "platform": null,
+    "url": null,
+    "published_on": null
+  },
+  "canon_changes": [],
+  "notes": "Create this record only after real media is finished and verified."
+}

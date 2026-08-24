@@ -1,0 +1,62 @@
+{
+  "$schema": "../../schemas/location.schema.json",
+  "schema_version": "1.0.0",
+  "location_id": "LOC-BIG-CEDAR-HOME",
+  "name": "Big Cedar Home",
+  "type": "family home",
+  "story_uses": [
+    "family stories",
+    "invention setups",
+    "quiet emotional turns",
+    "breakfast hooks",
+    "episode buttons"
+  ],
+  "description": "Yeti's warm family home is built into the sheltered base of a living cedar without harming the tree.",
+  "visual": {
+    "palette": [
+      "warm cedar",
+      "oven amber",
+      "kettle blue",
+      "moss green",
+      "plum accents"
+    ],
+    "materials": [
+      "curved cedar",
+      "smooth stone",
+      "woven rugs",
+      "clay",
+      "copper",
+      "cloth"
+    ],
+    "landmarks": [
+      "round kitchen",
+      "crescent east window",
+      "heavy central table",
+      "blue kettle",
+      "peg wall",
+      "height-mark post",
+      "curved stair to the loft"
+    ],
+    "lighting": "Honey morning light through the crescent window and warm practical light at night.",
+    "scale_notes": "Furniture fits Sasquatches; one low stool and narrow shelf accommodate Tumble."
+  },
+  "layout_rules": [
+    "The crescent window is over the wash basin on the east wall.",
+    "The stove sits opposite the window; the central table leaves a clear loop around it.",
+    "Yeti and June share a divided loft above the kitchen; Yeti's side is left of the stair."
+  ],
+  "continuity_locks": [
+    "The living cedar remains visibly healthy.",
+    "The blue kettle and height-mark post remain in the kitchen.",
+    "The home is snug, handmade, and comfortably imperfect rather than luxurious."
+  ],
+  "sound": [
+    "cedar creaks",
+    "kettle ticks",
+    "soft fire",
+    "spoons and bowls",
+    "muffled forest birds"
+  ],
+  "reference_asset_ids": [],
+  "reference_assets_status": "planned_not_created"
+}

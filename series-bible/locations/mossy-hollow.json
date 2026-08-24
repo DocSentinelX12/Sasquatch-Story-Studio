@@ -1,0 +1,60 @@
+{
+  "$schema": "../../schemas/location.schema.json",
+  "schema_version": "1.0.0",
+  "location_id": "LOC-MOSSY-HOLLOW",
+  "name": "Mossy Hollow",
+  "type": "forest community",
+  "story_uses": [
+    "community adventures",
+    "chases",
+    "celebrations",
+    "neighborhood problems",
+    "episode transitions"
+  ],
+  "description": "A warm, walkable hidden forest town arranged around giant cedar trunks, a creek, and a circular gathering green.",
+  "visual": {
+    "palette": [
+      "cedar brown",
+      "fern green",
+      "creek blue",
+      "berry purple",
+      "honey sunlight"
+    ],
+    "materials": [
+      "living wood",
+      "creek stone",
+      "woven fiber",
+      "canvas",
+      "rope",
+      "leaves"
+    ],
+    "landmarks": [
+      "circular gathering green",
+      "carved wooden community bell",
+      "root bridge",
+      "creek-stone main path",
+      "three giant cedar trunks"
+    ],
+    "lighting": "Soft broken sunlight by day; warm lantern pools at dusk; never ominous.",
+    "scale_notes": "Paths and rails accommodate adult Sasquatches; small woodland neighbors use lower rails and narrow side paths."
+  },
+  "layout_rules": [
+    "The gathering green sits east of the creek and west of Moonberry Market's awning row.",
+    "The root bridge is the main route toward Canopy Creek School.",
+    "Big Cedar Home is a short uphill walk north of the green."
+  ],
+  "continuity_locks": [
+    "Cozy old-growth valley, never an urban street or medieval village.",
+    "Buildings and props use tactile, repairable materials.",
+    "Background characters follow the global barefoot rule."
+  ],
+  "sound": [
+    "soft creek",
+    "leaf movement",
+    "wooden cart wheels",
+    "distant friendly chatter",
+    "occasional woodpecker tap"
+  ],
+  "reference_asset_ids": [],
+  "reference_assets_status": "planned_not_created"
+}

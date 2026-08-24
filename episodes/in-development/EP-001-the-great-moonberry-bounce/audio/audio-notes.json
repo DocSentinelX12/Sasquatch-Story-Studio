@@ -1,0 +1,69 @@
+{
+  "$schema": "../../../../schemas/audio-notes.schema.json",
+  "schema_version": "1.0.0",
+  "episode_id": "EP-001",
+  "audio_status": "notes",
+  "voice_direction": [
+    {"character_id": "CHAR-YETI", "direction": "Quick and buoyant while fixing; slow naturally at the honest admission. Do not force a sad voice."},
+    {"character_id": "CHAR-JUNIPER", "direction": "Dry warmth, never eye-rolling contempt. 'Our way' is an invitation."},
+    {"character_id": "CHAR-MARA", "direction": "Calm and direct. 'What happened?' contains concern, not accusation."},
+    {"character_id": "CHAR-TUMBLE", "direction": "Crisp exact numbers and delighted underplaying; banner lines sound comfortable, not trapped."}
+  ],
+  "scene_audio": [
+    {
+      "audio_cue_id": "AUDIO-SC-001",
+      "scene_id": "SC-001",
+      "ambience": ["soft cedar room tone", "morning birds through crescent window", "low stove tick"],
+      "foley": ["loaf crust", "rubbery berry pocks in three pitches", "blue kettle wobble", "basket wicker catch", "three soft bare-foot recovery pats"],
+      "music_intent": "Light plucked-wood motif starts after the first ricochet and lands on the basket catch; curious, not magical.",
+      "silence_or_space": "Leave a half beat after the perfect catch before Yeti speaks."
+    },
+    {
+      "audio_cue_id": "AUDIO-SC-002",
+      "scene_id": "SC-002",
+      "ambience": ["leafy path", "wood wheels", "distant creek"],
+      "foley": ["lever wood click", "rope tightening", "brake bar clunk", "bare feet and paws shifting on cart wood", "increasing wheel rattle"],
+      "music_intent": "Playful walking rhythm loses one beat when the brake drops, then holds a sustained comic tone during the silent stare.",
+      "silence_or_space": "Drop all but wheels and wind for the alarmed two-shot and Yeti's quiet line."
+    },
+    {
+      "audio_cue_id": "AUDIO-SC-003",
+      "scene_id": "SC-003",
+      "ambience": ["gathering green chatter safely moving aside", "community bell wood creak", "open creek air"],
+      "foley": ["laundry line stretch", "soft grass cart stop", "basket arc whistle", "six distinct berry bounce pitches", "bare-foot running and recovery pats", "awning rope release"],
+      "music_intent": "Six-note rhythmic layer makes the repeating bounce pattern audible without becoming frantic.",
+      "silence_or_space": "Clear June's pattern line by thinning bounce pitches beneath it."
+    },
+    {
+      "audio_cue_id": "AUDIO-SC-004",
+      "scene_id": "SC-004",
+      "ambience": ["market setup chatter", "canvas awning flap", "slate signs"],
+      "foley": ["canvas sag and release", "soft berry impacts", "three display rotation clicks", "loose banner wrap", "one woodpecker tap"],
+      "music_intent": "Comedy peaks with the synchronized return, then music recedes completely when Yeti sees his friends.",
+      "silence_or_space": "Protect two breaths before Yeti says 'No.' Keep only one soft awning flap and distant market air."
+    },
+    {
+      "audio_cue_id": "AUDIO-SC-005",
+      "scene_id": "SC-005",
+      "ambience": ["focused market murmurs", "canvas ropes", "wood cart"],
+      "foley": ["chalk mapping", "banner folded into cart", "awning rope pulls", "six patterned bounce tones", "lever click", "soft basket catches", "OPEN sign flip", "wooden community bell"],
+      "music_intent": "Build the opening motif by adding one character-sized layer per contribution; resolve only when all six berries land.",
+      "silence_or_space": "Thin the score under Yeti's two waits so timing comes from the bounce sounds."
+    },
+    {
+      "audio_cue_id": "AUDIO-SC-006",
+      "scene_id": "SC-006",
+      "ambience": ["gentle open market", "distant friendly chatter", "awning breeze"],
+      "foley": ["small plates", "berry tremble", "tiny flatcake puff", "basket slide", "soft wicker catch"],
+      "music_intent": "Warm, minimal reprise. Stop on Tumble's question; finish with one light pluck on Yeti's grin.",
+      "silence_or_space": "Hold the synchronized eyebrow reaction without added comedy effects."
+    }
+  ],
+  "mix_principles": [
+    "Dialogue remains intelligible without flattening the forest and market ambience.",
+    "Each of the six berries gets a stable, gentle bounce pitch so the solution is audible and visual.",
+    "Runaway sounds stay wooden, soft, and playful; never use harsh crash or injury effects.",
+    "Music steps away from the emotional turn and never announces the lesson."
+  ],
+  "copyright_note": "All music directions describe original emotional and instrumental intent; no existing song or artist imitation is requested."
+}

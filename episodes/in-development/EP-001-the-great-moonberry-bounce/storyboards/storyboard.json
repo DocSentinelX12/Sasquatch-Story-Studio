@@ -1,0 +1,322 @@
+{
+  "$schema": "../../../../schemas/storyboard.schema.json",
+  "schema_version": "1.0.0",
+  "episode_id": "EP-001",
+  "board_status": "thumbnail",
+  "coverage": "Key story beats only; not a complete timed animatic.",
+  "shots": [
+    {
+      "shot_id": "SHOT-001",
+      "scene_id": "SC-001",
+      "sequence": 1,
+      "duration_seconds": 6,
+      "framing": "wide kitchen master",
+      "camera": "locked with quick pans following the berry",
+      "action": "Moonberry ricochets from loaf to blue kettle to bowls and drops into Yeti's raised basket.",
+      "story_purpose": "Immediate visual hook and bounce rule.",
+      "composition": "Crescent window, table, kettle, and all three characters establish canonical kitchen geography.",
+      "continuity": [
+        "Morning east light",
+        "Yeti, Juniper, and Mara exactly match creator-approved references",
+        "all three visibly barefoot"
+      ],
+      "dialogue_line_ids": [
+        "LINE-001",
+        "LINE-002"
+      ]
+    },
+    {
+      "shot_id": "SHOT-002",
+      "scene_id": "SC-001",
+      "sequence": 2,
+      "duration_seconds": 5,
+      "framing": "medium three-shot",
+      "camera": "small push toward Yeti",
+      "action": "Yeti volunteers and wobbles through three recovery steps; June gestures between him and the berry.",
+      "story_purpose": "Establish want and sibling tone.",
+      "composition": "Yeti foreground center, June and Mara forming a warm open triangle.",
+      "continuity": [
+        "Official character designs remain exact",
+        "loose berry remains in basket",
+        "bare feet visible in full pose"
+      ],
+      "dialogue_line_ids": [
+        "LINE-003",
+        "LINE-004"
+      ]
+    },
+    {
+      "shot_id": "SHOT-003",
+      "scene_id": "SC-002",
+      "sequence": 3,
+      "duration_seconds": 6,
+      "framing": "wide path fork",
+      "camera": "gentle lateral track",
+      "action": "Tumble points toward the level root bridge while Yeti steers the cart onto the downhill lane; June offers help uphill.",
+      "story_purpose": "Present safer options Yeti declines.",
+      "composition": "Bridge left and slope right make the choice instantly readable.",
+      "continuity": [
+        "Official character designs remain exact",
+        "basket strapped closed",
+        "all three barefoot or on bare paws",
+        "downhill screen direction left-to-right"
+      ],
+      "dialogue_line_ids": [
+        "LINE-005",
+        "LINE-006",
+        "LINE-007"
+      ]
+    },
+    {
+      "shot_id": "SHOT-004",
+      "scene_id": "SC-002",
+      "sequence": 4,
+      "duration_seconds": 5,
+      "framing": "tight two-shot on cart",
+      "camera": "locked to accelerating cart",
+      "action": "Yeti pulls GENTLE-GO; lid tightens, brake drops, Yeti and Tumble stare ahead during one silent beat.",
+      "story_purpose": "First comic reversal.",
+      "composition": "Lever and dangling brake both readable in the same frame.",
+      "continuity": [
+        "Official Yeti and Tumble designs remain exact",
+        "Yeti left rail",
+        "Tumble rear edge",
+        "bare feet and paws braced on wooden cart"
+      ],
+      "dialogue_line_ids": [
+        "LINE-009",
+        "LINE-010"
+      ]
+    },
+    {
+      "shot_id": "SHOT-005",
+      "scene_id": "SC-003",
+      "sequence": 5,
+      "duration_seconds": 7,
+      "framing": "very wide gathering green",
+      "camera": "follow cart, stop, then tilt up",
+      "action": "Laundry line stretches, cart stops, basket arcs overhead and lands upright.",
+      "story_purpose": "Escalate while keeping geography and mild stakes clear.",
+      "composition": "Soft grass landing zone centered; community remains well clear.",
+      "continuity": [
+        "No one injured",
+        "basket lid develops small gap",
+        "all background characters barefoot"
+      ],
+      "dialogue_line_ids": [
+        "LINE-011",
+        "LINE-012"
+      ]
+    },
+    {
+      "shot_id": "SHOT-006",
+      "scene_id": "SC-003",
+      "sequence": 6,
+      "duration_seconds": 6,
+      "framing": "top-down graphic wide",
+      "camera": "locked",
+      "action": "Six berries leave the basket in six distinct repeating bounce paths as Yeti turns in the center.",
+      "story_purpose": "Define the comic chase pattern.",
+      "composition": "Clear radial paths with no crowd danger.",
+      "continuity": [
+        "Exactly six escaped berries",
+        "official Yeti design remains exact",
+        "bare feet visible from above"
+      ],
+      "dialogue_line_ids": [
+        "LINE-013"
+      ]
+    },
+    {
+      "shot_id": "SHOT-007",
+      "scene_id": "SC-003",
+      "sequence": 7,
+      "duration_seconds": 5,
+      "framing": "medium on June and Yeti",
+      "camera": "pan from June's four-arc sketch to Yeti grabbing awning",
+      "action": "June explains the repeat while Yeti hears only a number and runs.",
+      "story_purpose": "Make the listening failure visual.",
+      "composition": "Sketch foreground, Yeti leaving frame before June finishes.",
+      "continuity": [
+        "June has chalk and sketch page",
+        "Yeti takes near awning end"
+      ],
+      "dialogue_line_ids": [
+        "LINE-014",
+        "LINE-015"
+      ]
+    },
+    {
+      "shot_id": "SHOT-008",
+      "scene_id": "SC-004",
+      "sequence": 8,
+      "duration_seconds": 7,
+      "framing": "wide market lane",
+      "camera": "locked for staging clarity",
+      "action": "Awning catches six berries, sags, then returns all six through market displays in a soft synchronized barrage.",
+      "story_purpose": "Largest physical-comedy escalation.",
+      "composition": "Three displays rotate like dials; Tumble's banner wrap occurs at frame edge without impact.",
+      "continuity": [
+        "Exactly six berries",
+        "displays mussed not broken",
+        "market crowd barefoot and safely out of path"
+      ],
+      "dialogue_line_ids": []
+    },
+    {
+      "shot_id": "SHOT-009",
+      "scene_id": "SC-004",
+      "sequence": 9,
+      "duration_seconds": 4,
+      "framing": "medium Tumble",
+      "camera": "locked",
+      "action": "Tumble sits unharmed inside the purple banner and raises one paw.",
+      "story_purpose": "Release tension before emotional turn.",
+      "composition": "Tumble’s unharmed reaction and official creator-approved design remain clearly visible.",
+      "continuity": [
+        "Official Tumble design remains exact",
+        "natural bare paws uncovered",
+        "banner loose, never restraining neck or face"
+      ],
+      "dialogue_line_ids": [
+        "LINE-016"
+      ]
+    },
+    {
+      "shot_id": "SHOT-010",
+      "scene_id": "SC-004",
+      "sequence": 10,
+      "duration_seconds": 8,
+      "framing": "medium close on Yeti",
+      "camera": "slow push, then still",
+      "action": "Yeti begins a cover story, looks to June and Tumble, lets the awning drop, and opens his hands.",
+      "story_purpose": "Protect the emotional turning point.",
+      "composition": "Friends visible softly behind him so his change follows what he sees.",
+      "continuity": [
+        "Official character designs remain exact",
+        "Yeti’s bare open hands and bare feet communicate he has stopped scrambling"
+      ],
+      "dialogue_line_ids": [
+        "LINE-017",
+        "LINE-018",
+        "LINE-019",
+        "LINE-020"
+      ]
+    },
+    {
+      "shot_id": "SHOT-011",
+      "scene_id": "SC-005",
+      "sequence": 11,
+      "duration_seconds": 6,
+      "framing": "overhead planning insert",
+      "camera": "locked",
+      "action": "June's sketch, Tumble's cart padding, Mara's awning ropes, and Yeti's listening finger trace the shared plan.",
+      "story_purpose": "Show collaboration without exposition overload.",
+      "composition": "Four contributions meet around the chalk map.",
+      "continuity": [
+        "Official character designs remain exact",
+        "character hands and paws match approved references",
+        "no footwear in frame or background"
+      ],
+      "dialogue_line_ids": [
+        "LINE-021",
+        "LINE-022",
+        "LINE-023"
+      ]
+    },
+    {
+      "shot_id": "SHOT-012",
+      "scene_id": "SC-005",
+      "sequence": 12,
+      "duration_seconds": 7,
+      "framing": "wide market geometry",
+      "camera": "pan across each teammate in sequence",
+      "action": "Awnings redirect six repeating bounces while the padded cart rolls into the converging path.",
+      "story_purpose": "Pay off the planted rhythm and every character's role.",
+      "composition": "Bounce arcs form a readable funnel toward the cart.",
+      "continuity": [
+        "Exactly six berries",
+        "all characters barefoot",
+        "no display damage"
+      ],
+      "dialogue_line_ids": [
+        "LINE-024"
+      ]
+    },
+    {
+      "shot_id": "SHOT-013",
+      "scene_id": "SC-005",
+      "sequence": 13,
+      "duration_seconds": 5,
+      "framing": "low medium on lever and cart",
+      "camera": "short track with cart",
+      "action": "Yeti waits, pulls once, and the lever tag flips from GENTLE-GO to ACTUAL GENTLE-GO as the berries land safely.",
+      "story_purpose": "Resolve plot through listening and callback.",
+      "composition": "Yeti's timing, bare planted feet, lever, label, and catcher all readable.",
+      "continuity": [
+        "Official Yeti design and bare feet match approved references exactly",
+        "basket padding is folded purple banner",
+        "six berries caught"
+      ],
+      "dialogue_line_ids": [
+        "LINE-024"
+      ]
+    },
+    {
+      "shot_id": "SHOT-014",
+      "scene_id": "SC-005",
+      "sequence": 14,
+      "duration_seconds": 5,
+      "framing": "wide restored market",
+      "camera": "gentle rise",
+      "action": "The four restore the final sign as the community bell rings and market opens.",
+      "story_purpose": "Show practical repair and shared success.",
+      "composition": "OPEN sign foreground, intact market and bell behind.",
+      "continuity": [
+        "Awnings reattached",
+        "basket double-knotted",
+        "all community characters barefoot"
+      ],
+      "dialogue_line_ids": []
+    },
+    {
+      "shot_id": "SHOT-015",
+      "scene_id": "SC-006",
+      "sequence": 15,
+      "duration_seconds": 6,
+      "framing": "warm four-shot at bakery counter",
+      "camera": "locked",
+      "action": "Yeti gives specific credit while the hidden berry begins to tremble beneath the counter.",
+      "story_purpose": "Land heartfelt change and plant final joke.",
+      "composition": "Group in relaxed semicircle; tiny purple motion visible to audience only.",
+      "continuity": [
+        "Official character designs remain exact",
+        "empty basket beside Juniper",
+        "bare feet/paws visible below open counter"
+      ],
+      "dialogue_line_ids": [
+        "LINE-025",
+        "LINE-026"
+      ]
+    },
+    {
+      "shot_id": "SHOT-016",
+      "scene_id": "SC-006",
+      "sequence": 16,
+      "duration_seconds": 6,
+      "framing": "medium ending tableau",
+      "camera": "small pan with flatcake, then hold",
+      "action": "June slides the basket, Yeti waits, and the tiny flatcake drops into it; all four raise one eyebrow before Yeti grins.",
+      "story_purpose": "Memorable callback showing growth without words.",
+      "composition": "Basket catch centered, group reactions readable in one frame.",
+      "continuity": [
+        "Yeti catches from seated position",
+        "all characters barefoot",
+        "market remains restored"
+      ],
+      "dialogue_line_ids": [
+        "LINE-027"
+      ]
+    }
+  ]
+}

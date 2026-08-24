@@ -1,0 +1,28 @@
+{
+  "$schema": "../../../schemas/episode.schema.json",
+  "schema_version": "1.0.0",
+  "episode_id": "EP-001",
+  "slug": "the-great-moonberry-bounce",
+  "title": "The Great Moonberry Bounce",
+  "status": "outline",
+  "target_length_minutes": 8,
+  "premise": "When Yeti insists on delivering a basket of overripe, extra-bouncy moonberries by himself, one clever shortcut turns Mossy Hollow into a purple pinball course.",
+  "character_want": "Yeti wants to prove he can handle an important market delivery without anyone checking on him.",
+  "emotional_need": "He needs to understand that being responsible includes telling the truth and asking for help before a problem grows.",
+  "lesson": "Asking for help and owning a mistake are parts of responsibility, not signs that you have failed.",
+  "hook_summary": "An overripe moonberry blasts from breakfast, ricochets around the kitchen, and lands neatly in Yeti's basket just as he volunteers to deliver the whole batch.",
+  "ending_image": "One overlooked berry launches a tiny flatcake; Yeti calmly catches it in the now-empty delivery basket while everybody raises an eyebrow.",
+  "cast_ids": ["CHAR-YETI", "CHAR-JUNIPER", "CHAR-MARA", "CHAR-TUMBLE"],
+  "location_ids": ["LOC-BIG-CEDAR-HOME", "LOC-MOSSY-HOLLOW", "LOC-MOONBERRY-MARKET"],
+  "scene_ids": ["SC-001", "SC-002", "SC-003", "SC-004", "SC-005", "SC-006"],
+  "running_joke_ids": ["JOKE-YETI-BRAKES", "JOKE-LEVER-LABEL", "JOKE-TUMBLE-ODDS"],
+  "open_thread_ids": [],
+  "canon_proposals": [],
+  "production": {
+    "external_services_connected": false,
+    "generated_media_exists": false,
+    "notes": "Example planning package only; no episode or media has been produced."
+  },
+  "created_on": "2026-08-24",
+  "last_updated_on": "2026-08-24"
+}

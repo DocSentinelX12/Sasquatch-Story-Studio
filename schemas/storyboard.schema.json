@@ -1,0 +1,27 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "storyboard.schema.json",
+  "title": "Episode Storyboard Plan",
+  "type": "object",
+  "required": ["schema_version", "episode_id", "board_status", "shots"],
+  "properties": {
+    "episode_id": {"type": "string", "pattern": "^EP-[0-9]{3,}$"},
+    "board_status": {"enum": ["placeholder", "thumbnail", "review", "locked"]},
+    "shots": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["shot_id", "scene_id", "sequence", "duration_seconds", "framing", "camera", "action", "story_purpose", "continuity", "dialogue_line_ids"],
+        "properties": {
+          "shot_id": {"type": "string", "pattern": "^SHOT-[0-9]{3,}$"},
+          "scene_id": {"type": "string", "pattern": "^SC-[0-9]{3,}$"},
+          "sequence": {"type": "integer", "minimum": 1},
+          "duration_seconds": {"type": "number", "exclusiveMinimum": 0},
+          "dialogue_line_ids": {"type": "array", "items": {"type": "string"}},
+          "continuity": {"type": "array", "items": {"type": "string"}}
+        }
+      }
+    }
+  },
+  "additionalProperties": true
+}

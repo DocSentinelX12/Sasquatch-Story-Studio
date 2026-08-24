@@ -1,0 +1,64 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "character-catalog.schema.json",
+  "title": "Scalable Character Asset Catalog Index",
+  "description": "The scalable index that can locate every character and every reference image in the studio. It supports an unlimited number of characters, shell entries for not-yet-identified source artwork, and animals/pets as full characters.",
+  "type": "object",
+  "required": ["schema_version", "catalog_id", "visual_authority", "barefoot_rule", "scale_notes", "entries"],
+  "properties": {
+    "schema_version": {"type": "string"},
+    "catalog_id": {"type": "string", "const": "CHARACTER-CATALOG-SASQUATCH-STORY-STUDIO"},
+    "visual_authority": {"type": "string", "minLength": 20},
+    "barefoot_rule": {"type": "string", "minLength": 20},
+    "scale_notes": {"type": "string"},
+    "entries": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/catalogEntry"}
+    }
+  },
+  "$defs": {
+    "catalogEntry": {
+      "type": "object",
+      "required": ["character_id", "character_name", "species", "character_kind", "family_id", "catalog_status", "record_path", "storage", "asset_counts"],
+      "properties": {
+        "character_id": {"type": "string", "pattern": "^CHAR-[A-Z0-9-]+$"},
+        "character_name": {"type": "string", "minLength": 1},
+        "species": {"type": "string", "minLength": 1},
+        "character_kind": {"enum": ["person", "animal"]},
+        "family_id": {"type": ["string", "null"], "pattern": "^FAMILY-[A-Z0-9-]+$"},
+        "catalog_status": {
+          "enum": ["active_record", "registered_shell", "retired"],
+          "description": "active_record = full series-bible card and visual record exist; registered_shell = flexible intake entry for source artwork not yet tied to a canon character; retired = no longer used."
+        },
+        "record_path": {
+          "type": ["string", "null"],
+          "description": "Path to the visual reference record; null for registered_shell entries that do not have a canonical record yet."
+        },
+        "storage": {
+          "type": "object",
+          "required": ["source_folder", "approved_folder", "generated_folder"],
+          "properties": {
+            "source_folder": {"type": ["string", "null"], "pattern": "^assets/characters/source/.+/$"},
+            "approved_folder": {"type": ["string", "null"], "pattern": "^assets/characters/approved/.+/$"},
+            "generated_folder": {"type": ["string", "null"], "pattern": "^assets/characters/generated/.+/$"}
+          },
+          "additionalProperties": false
+        },
+        "asset_counts": {
+          "type": "object",
+          "description": "Must exactly match counts derived from assets/asset-manifest.json for this character.",
+          "required": ["source_artwork", "approved_references", "generated_tests"],
+          "properties": {
+            "source_artwork": {"type": "integer", "minimum": 0},
+            "approved_references": {"type": "integer", "minimum": 0},
+            "generated_tests": {"type": "integer", "minimum": 0}
+          },
+          "additionalProperties": false
+        },
+        "notes": {"type": "string"}
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}

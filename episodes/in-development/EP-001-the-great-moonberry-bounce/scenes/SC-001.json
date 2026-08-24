@@ -1,0 +1,42 @@
+{
+  "$schema": "../../../../schemas/scene.schema.json",
+  "schema_version": "1.0.0",
+  "episode_id": "EP-001",
+  "scene_id": "SC-001",
+  "sequence": 1,
+  "title": "Breakfast has bounce",
+  "location_id": "LOC-BIG-CEDAR-HOME",
+  "time": "morning",
+  "estimated_duration_seconds": 45,
+  "character_ids": [
+    "CHAR-YETI",
+    "CHAR-JUNIPER",
+    "CHAR-MARA"
+  ],
+  "purpose": "Deliver the visual hook, establish the unusual moonberries, and motivate Yeti's need to prove he can help.",
+  "visual_action": "A moonberry pops from a sliced breakfast loaf, ricochets around the canonical kitchen landmarks, and drops into the basket Yeti raises. Mara explains that the overripe batch must reach market gently. Yeti volunteers before June can offer to join.",
+  "conflict": "June doubts that speed and gentle delivery belong in the same Yeti sentence; Yeti hears concern as a challenge to his capability.",
+  "emotional_shift": "Yeti moves from delighted surprise to determined self-reliance.",
+  "props_in": [
+    "blue kettle",
+    "breakfast loaf",
+    "one loose moonberry",
+    "lidded moonberry basket",
+    "wooden handcart outside"
+  ],
+  "props_out": [
+    "closed moonberry basket loaded onto handcart",
+    "GENTLE-GO lever tag in Yeti’s hand"
+  ],
+  "continuity_in": [
+    "Morning honey light enters the crescent east window.",
+    "Yeti, Juniper, and Mara match their creator-approved character references exactly.",
+    "Yeti, Juniper, and Mara are barefoot with their official bare feet visible whenever framed full-body."
+  ],
+  "continuity_out": [
+    "Basket lid is secured with one plain strap.",
+    "No mess or damage remains in the kitchen.",
+    "Yeti exits downhill toward Mossy Hollow with the cart."
+  ],
+  "transition_out": "Match cut from Yeti proudly patting the basket lid to the same lid wobbling on the path."
+}

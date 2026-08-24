@@ -1,0 +1,48 @@
+{
+  "schema_version": "1.0.0",
+  "world_id": "WORLD-MOSSY-HOLLOW",
+  "name": "Mossy Hollow",
+  "rules": [
+    {
+      "rule_id": "WORLD-HIDDEN",
+      "rule": "Mossy Hollow is hidden by ordinary old-growth geography, mist, and tree cover—not a magical barrier.",
+      "story_effect": "Humans may be a distant curiosity but are never pursuers or horror threats."
+    },
+    {
+      "rule_id": "WORLD-CARTOON-PHYSICS",
+      "rule": "Physical comedy may stretch reality when setup, direction, and consequences remain visually clear.",
+      "story_effect": "Falls and collisions stay mild; practical and emotional cleanup still matters."
+    },
+    {
+      "rule_id": "WORLD-WONDER",
+      "rule": "Overt magic is rare and ambiguous; wonder usually comes from nature, imagination, playful forest science, or mystery.",
+      "story_effect": "Magic cannot arrive without setup to solve a plot."
+    },
+    {
+      "rule_id": "WORLD-TECH",
+      "rule": "Technology is tactile, understandable, repairable, and built from wood, fiber, stone, simple metal, water, and reused objects.",
+      "story_effect": "Screens and unexplained advanced devices do not solve stories."
+    },
+    {
+      "rule_id": "WORLD-CONFLICT",
+      "rule": "There are no irredeemable villains in ordinary episodes; conflict comes from choices, clashing goals, nature, and misunderstandings.",
+      "story_effect": "Opponents retain dignity and can participate in repair."
+    },
+    {
+      "rule_id": "WORLD-CONTINUITY",
+      "rule": "Emotional growth and established facts persist gently while each episode remains accessible to first-time viewers.",
+      "story_effect": "Lasting changes are recorded in the series bible and continuity log."
+    },
+    {
+      "rule_id": "WORLD-BAREFOOT",
+      "rule": "Every character in the world is always barefoot or has uncovered natural bare paws.",
+      "story_effect": "No footwear exists on characters, including in crowds, fantasy play, weather scenes, uniforms, or sports."
+    }
+  ],
+  "safety_boundaries": [
+    "No horror framing, disturbing transformations, threatening pursuit, graphic injury, or cruel punishment.",
+    "No child is abandoned, trapped in realistic danger, or made responsible for adult emotional stability.",
+    "Food and environmental messes are cleaned or repaired rather than treated as consequence-free waste.",
+    "Mysteries create wonder, not dread."
+  ]
+}

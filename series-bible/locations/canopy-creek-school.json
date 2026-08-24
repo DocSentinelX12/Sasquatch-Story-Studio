@@ -1,0 +1,61 @@
+{
+  "$schema": "../../schemas/location.schema.json",
+  "schema_version": "1.0.0",
+  "location_id": "LOC-CANOPY-CREEK-SCHOOL",
+  "name": "Canopy Creek School",
+  "type": "school",
+  "story_uses": [
+    "school stories",
+    "experiments",
+    "friendship conflicts",
+    "presentations",
+    "rainy-day adventures"
+  ],
+  "description": "An open half-log schoolhouse beside a shallow creek, designed for observation, making, and muddy questions.",
+  "visual": {
+    "palette": [
+      "weathered honey wood",
+      "chalk gray",
+      "creek blue",
+      "leaf green",
+      "rust accents"
+    ],
+    "materials": [
+      "half logs",
+      "slate",
+      "stump seats",
+      "rope",
+      "glass jars",
+      "canvas roof panels"
+    ],
+    "landmarks": [
+      "broad south windows",
+      "full chalk wall",
+      "mismatched stump seats",
+      "covered experiment porch",
+      "foot-washing pump",
+      "shallow creek"
+    ],
+    "lighting": "Bright, diffuse daylight with moving leaf shadows; warm lanterns on dark rainy days.",
+    "scale_notes": "Mixed seating heights serve Sasquatches and smaller woodland students."
+  },
+  "layout_rules": [
+    "The chalk wall is north; broad windows face the creek to the south.",
+    "The covered experiment porch opens from the west side.",
+    "The foot-washing pump stands outside the east entrance and never dispenses footwear."
+  ],
+  "continuity_locks": [
+    "School feels curious and welcoming, not strict or institutional.",
+    "Students and staff are always barefoot or have natural bare paws.",
+    "Experiments use simple, understandable materials unless an episode establishes otherwise."
+  ],
+  "sound": [
+    "shallow creek",
+    "chalk",
+    "wood seats",
+    "glass clinks",
+    "light class chatter"
+  ],
+  "reference_asset_ids": [],
+  "reference_assets_status": "planned_not_created"
+}

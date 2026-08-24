@@ -1,0 +1,74 @@
+{
+  "$schema": "../../../schemas/character-visual-reference.schema.json",
+  "schema_version": "1.1.0",
+  "character_id": "CHAR-TUMBLE",
+  "character_name": "Tumble",
+  "species": "unconfirmed",
+  "character_kind": "person",
+  "family_id": null,
+  "age_group": "unconfirmed",
+  "approximate_age": "same age band as Yeti; confirm species and age from creator sheets",
+  "canon_role": "Recurring friend; Yeti's best friend",
+  "parent_character_ids": [],
+  "child_character_ids": [],
+  "pet_character_ids": [],
+  "caretaker_character_ids": [],
+  "character_versions": [
+    {
+      "version_id": "VER-TUMBLE-CURRENT",
+      "label": "Current series age",
+      "age_group": "unconfirmed",
+      "approximate_age": "same age band as Yeti; confirm from creator sheets",
+      "story_period": "main-series-present",
+      "is_primary": true,
+      "reference_asset_ids": [],
+      "notes": "Add further versions only when creator artwork canonizes a different age or story period."
+    }
+  ],
+  "personality": {
+    "core_traits": ["inventive", "loyal", "fast-talking", "bold", "specific"],
+    "strengths": ["mechanical intuition", "quick observation", "enthusiastic collaboration"],
+    "growth_edges": ["finds spectacular failure genuinely tempting", "uses statistics to disguise guesses"],
+    "performance_summary": "Quick, precise, loyal, and delighted by spectacular mechanics."
+  },
+  "relationships": [
+    {"character_id": "CHAR-YETI", "relationship": "Best friend and co-inventor; loyal but allowed to say no."},
+    {"character_id": "CHAR-JUNIPER", "relationship": "Friendly rival in practical problem-solving."},
+    {"character_id": "CHAR-MS-BRAMBLE", "relationship": "Student; tries to predict her questions."}
+  ],
+  "visual_authority": "Creator-provided character artwork is authoritative. AI must preserve Tumble's established design and must not redesign, reinterpret, replace, or simplify him.",
+  "source_artwork_location": "assets/characters/source/tumble/",
+  "source_artwork_asset_ids": [],
+  "approved_reference_images": [],
+  "turnaround_reference": {"asset_id": null, "status": "not_imported", "notes": "Link the creator's approved Tumble turnaround after import; do not invent unseen views."},
+  "expression_reference": {"asset_id": null, "status": "not_imported", "notes": "Link only creator-provided or creator-approved expression art."},
+  "pose_reference": {"asset_id": null, "status": "not_imported", "notes": "Link only creator-provided or creator-approved pose art."},
+  "scale_reference": {"asset_id": null, "status": "not_imported", "notes": "Relative size must come from creator-approved scale artwork."},
+  "clothing_reference": {"asset_id": null, "status": "not_imported", "notes": "All clothing and accessory details must come from creator artwork. Tumble always has uncovered natural bare paws."},
+  "color_reference": {"asset_id": null, "status": "not_imported", "notes": "Do not infer fur, eye, clothing, accessory, or marking colors; link the approved creator color reference."},
+  "animation_notes": [
+    "Express Tumble's inventiveness, loyalty, speed, boldness, and specificity through acting without changing his official construction.",
+    "Preserve every design detail, proportion, silhouette, marking, color, clothing item, accessory, paw, and other feature exactly as shown in approved creator references.",
+    "Tumble has independent reactions and choices; do not animate him as a generic sidekick.",
+    "Tumble is always barefoot with uncovered natural paws; match their exact design in creator artwork."
+  ],
+  "master_generation_prompt": "Using the attached approved creator-provided reference images as the absolute visual source of truth, depict Tumble in the requested scene and action. Preserve his exact official silhouette, anatomy, proportions, facial construction, features, markings, colors, clothing, accessories, paws, and bare feet in every frame. Keep his performance inventive, loyal, fast-talking, bold, specific, and independently motivated. Match approved references rather than inferring or redesigning any unseen detail. If the approved images do not support the requested angle or action, stop for creator review instead of inventing a new view. Tumble and every other character are always barefoot with uncovered natural paws or feet.",
+  "negative_prompt": "character redesign, reinterpretation, replacement design, simplified design, alternate costume, invented accessory, changed silhouette, changed anatomy, changed proportions, changed face, changed features, changed markings, changed colors, model drift, inconsistent paws, inconsistent feet, unapproved reference, AI-generated identity reference, shoes, socks, boots, sandals, slippers, skates, cleats, or any other footwear, photorealism unless present in creator source, horror, disturbing imagery, cruelty",
+  "continuity_rules": [
+    "Creator artwork overrides all written visual assumptions and all generated material.",
+    "Use only manifest-registered creator source artwork approved for provider use and approved canon references.",
+    "Never use AI-generated test material as Tumble's identity reference.",
+    "Do not fill missing visual information by inference; block and request creator review.",
+    "Tumble's personality and relationships remain consistent with the series bible.",
+    "ALL CHARACTERS ARE ALWAYS BAREFOOT. NO SHOES, SOCKS, BOOTS, SANDALS, SLIPPERS, OR ANY OTHER FOOTWEAR."
+  ],
+  "provider_neutral_reference_support": {
+    "manifest_path": "assets/asset-manifest.json",
+    "accepted_asset_classes": ["creator_source_artwork", "approved_canon_reference"],
+    "ordered_asset_ids": [],
+    "required_purposes": ["identity"],
+    "allow_ai_generated_test_material": false,
+    "missing_reference_behavior": "block_and_request_creator_review"
+  },
+  "approval_status": "awaiting_creator_source_artwork"
+}

@@ -1,0 +1,88 @@
+{
+  "$schema": "../schemas/series.schema.json",
+  "schema_version": "1.0.0",
+  "canon_version": "1.1.0",
+  "series_id": "SERIES-SASQUATCH-STORY-STUDIO",
+  "title": "Sasquatch Story Studio",
+  "status": "foundation",
+  "protagonist_id": "CHAR-YETI",
+  "logline": "In the hidden forest town of Mossy Hollow, an imaginative young Sasquatch named Yeti turns everyday goals into gloriously oversized adventures, then learns how curiosity, honesty, and kindness can help put things right.",
+  "format": {
+    "medium": "2D animation",
+    "episode_length_minutes": {
+      "minimum": 7,
+      "maximum": 9
+    },
+    "default_aspect_ratio": "16:9",
+    "audience": "Kids and families",
+    "rating_intent": "Family friendly"
+  },
+  "creative_promise": "A specific comic disaster leads to a sincere character choice; Yeti grows without losing the curiosity and energy that make him Yeti.",
+  "tone": [
+    "funny",
+    "warm",
+    "heartfelt",
+    "playful",
+    "visually inventive",
+    "emotionally safe"
+  ],
+  "episode_structure": [
+    "strong visual hook",
+    "clear character want",
+    "imaginative shortcut with an overlooked flaw",
+    "escalating comedy and conflict",
+    "choice-driven low point",
+    "honest emotional turn",
+    "planted and satisfying resolution",
+    "memorable warm ending"
+  ],
+  "non_negotiables": [
+    {
+      "rule_id": "RULE-BAREFOOT",
+      "rule": "All characters are always barefoot. No shoes, socks, boots, sandals, slippers, skates, cleats, or other footwear may appear.",
+      "prompt_requirement": "Every visual generation prompt must positively state bare feet or natural bare paws and explicitly exclude footwear."
+    },
+    {
+      "rule_id": "RULE-CREATOR-VISUAL-AUTHORITY",
+      "rule": "Creator-provided character artwork is authoritative. AI must preserve the established character designs and must not redesign characters.",
+      "prompt_requirement": "Resolve manifest-registered, creator-approved character reference images before generation; missing references block generation rather than permitting invention."
+    },
+    {
+      "rule_id": "RULE-FAMILY-SAFE",
+      "rule": "Stories are family friendly and never horror, disturbing, cruel, cynical, or mean-spirited."
+    },
+    {
+      "rule_id": "RULE-LESSON",
+      "rule": "Every episode contains a meaningful life lesson expressed through choices and consequences, never a lecture."
+    },
+    {
+      "rule_id": "RULE-CONTINUITY",
+      "rule": "Character visual identity, personality, voice, scale, and relationships remain consistent."
+    },
+    {
+      "rule_id": "RULE-VISUAL-STORY",
+      "rule": "Visual action carries story information; dialogue remains natural, concise, and character-specific."
+    }
+  ],
+  "prohibited_tone": [
+    "horror",
+    "disturbing imagery",
+    "cruel humiliation",
+    "graphic danger",
+    "cynicism",
+    "preachy moralizing",
+    "uncanny photorealism"
+  ],
+  "canon_files": {
+    "human_readable_bible": "series-bible/SERIES_BIBLE.md",
+    "characters": "series-bible/characters/",
+    "locations": "series-bible/locations/",
+    "world": "series-bible/world/",
+    "relationships": "series-bible/relationships.json",
+    "continuity_log": "series-bible/continuity-log.json",
+    "asset_manifest": "assets/asset-manifest.json",
+    "character_visual_records": "assets/characters/records/"
+  },
+  "created_on": "2026-08-24",
+  "last_updated_on": "2026-08-24"
+}

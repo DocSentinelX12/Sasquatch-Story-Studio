@@ -1,0 +1,49 @@
+{
+  "$schema": "../../../../schemas/scene.schema.json",
+  "schema_version": "1.0.0",
+  "episode_id": "EP-001",
+  "scene_id": "SC-004",
+  "sequence": 4,
+  "title": "Almost under control",
+  "location_id": "LOC-MOONBERRY-MARKET",
+  "time": "morning",
+  "estimated_duration_seconds": 90,
+  "character_ids": [
+    "CHAR-YETI",
+    "CHAR-TUMBLE",
+    "CHAR-JUNIPER",
+    "CHAR-MARA"
+  ],
+  "purpose": "Pay off the failed awning plan, reveal the emotional cost, and bring Yeti to an honest choice.",
+  "visual_action": "Yeti stretches the detached awning across the cart lane. It catches all six berries, sags, and returns them together. The soft barrage rotates three displays, settles Tumble inside a purple banner, and leaves June gathering spilled blank slate signs. Mara catches one berry and calmly asks what happened. Yeti starts a reassuring answer, then actually looks at his friends.",
+  "conflict": "Yeti can protect the appearance of competence for one more sentence or tell the truth and risk disappointment.",
+  "emotional_shift": "Frantic defensiveness gives way to shame, empathy, and honesty.",
+  "props_in": [
+    "six bouncing moonberries",
+    "detached awning",
+    "stopped cart nearby",
+    "purple market banner",
+    "empty display baskets",
+    "blank slate signs"
+  ],
+  "props_out": [
+    "six moonberries temporarily corralled at three points of the market",
+    "Tumble freed from banner",
+    "awning on ground",
+    "three rotated displays",
+    "slate signs being collected"
+  ],
+  "continuity_in": [
+    "Mara, Yeti, Juniper, and Tumble match their creator-approved character references exactly.",
+    "Yeti carries the near end of the detached awning.",
+    "Juniper has chalk and sketch paper as scene props.",
+    "Every foreground and background character is barefoot or has uncovered natural bare paws."
+  ],
+  "continuity_out": [
+    "No one is injured; Tumble’s official creator-approved design remains intact after the loose banner gag.",
+    "Yeti has stopped moving at center lane.",
+    "One berry bounces near each outer awning and four cluster by the moonberry stall.",
+    "Market displays are mussed, not broken."
+  ],
+  "transition_out": "Sound narrows to awning flap and a single woodpecker tap before Yeti admits the full mistake."
+}

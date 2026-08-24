@@ -1,0 +1,42 @@
+{
+  "$schema": "../../../../schemas/scene.schema.json",
+  "schema_version": "1.0.0",
+  "episode_id": "EP-001",
+  "scene_id": "SC-002",
+  "sequence": 2,
+  "title": "Gentle-go",
+  "location_id": "LOC-MOSSY-HOLLOW",
+  "time": "morning",
+  "estimated_duration_seconds": 75,
+  "character_ids": [
+    "CHAR-YETI",
+    "CHAR-TUMBLE",
+    "CHAR-JUNIPER"
+  ],
+  "purpose": "Establish the flawed lever, offer Yeti a safe chance to accept help, and trigger the runaway delivery.",
+  "visual_action": "Tumble joins beside the loaded cart. Yeti attaches a tagged lever that links to both lid strap and brake. At the fork, Tumble recommends the root bridge while June calls from uphill that she can help. Yeti chooses the smooth cart lane and pulls GENTLE-GO when the wheels rattle.",
+  "conflict": "Yeti wants independence more than he wants to inspect the lever or accept June's help.",
+  "emotional_shift": "Confidence turns into silent alarm as the cover tightens and the cart accelerates.",
+  "props_in": [
+    "loaded handcart",
+    "secured moonberry basket",
+    "GENTLE-GO lever and tag"
+  ],
+  "props_out": [
+    "runaway handcart",
+    "basket still closed",
+    "lever locked forward",
+    "brake bar hanging loose"
+  ],
+  "continuity_in": [
+    "Yeti and Tumble match their creator-approved character references exactly and are barefoot/on uncovered natural bare paws.",
+    "Cart travels downhill from Big Cedar Home toward the gathering green.",
+    "Basket has one plain strap and no visible spills."
+  ],
+  "continuity_out": [
+    "Yeti holds the left cart rail; Tumble rides on the rear edge.",
+    "Screen direction is left-to-right downhill.",
+    "June follows on foot at a safe distance; all characters remain barefoot."
+  ],
+  "transition_out": "Hold one quiet beat on Yeti and Tumble's alarmed faces, then cut wide as the cart shoots through frame."
+}

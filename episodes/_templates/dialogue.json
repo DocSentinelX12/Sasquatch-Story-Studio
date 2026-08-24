@@ -1,0 +1,12 @@
+{
+  "$schema": "../../../../schemas/dialogue.schema.json",
+  "schema_version": "1.0.0",
+  "episode_id": "{{EPISODE_ID}}",
+  "draft_status": "placeholder",
+  "principles": [
+    "Keep lines concise, speakable, and character-specific.",
+    "Let action carry information when possible.",
+    "Do not state the lesson as a speech."
+  ],
+  "lines": []
+}

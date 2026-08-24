@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "series.schema.json",
+  "title": "Series Bible Metadata",
+  "type": "object",
+  "required": ["schema_version", "canon_version", "series_id", "title", "protagonist_id", "logline", "format", "non_negotiables"],
+  "properties": {
+    "schema_version": {"type": "string"},
+    "canon_version": {"type": "string"},
+    "series_id": {"type": "string", "pattern": "^SERIES-[A-Z0-9-]+$"},
+    "title": {"type": "string", "minLength": 1},
+    "protagonist_id": {"type": "string", "pattern": "^CHAR-[A-Z0-9-]+$"},
+    "logline": {"type": "string", "minLength": 20},
+    "format": {"type": "object"},
+    "non_negotiables": {"type": "array", "minItems": 1, "items": {"type": "object", "required": ["rule_id", "rule"]}}
+  },
+  "additionalProperties": true
+}

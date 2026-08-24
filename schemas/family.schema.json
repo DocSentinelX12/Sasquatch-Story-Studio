@@ -1,0 +1,31 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "family.schema.json",
+  "title": "Character Family Group",
+  "description": "Families are first-class groups so parent, child, sibling, and pet relationships stay connected as the cast grows. A family can exist before any member is identified, so large creator batches can be imported family-first.",
+  "type": "object",
+  "required": ["schema_version", "family_id", "display_name", "family_kind", "status", "home_location_id", "member_character_ids", "parent_character_ids", "child_character_ids", "pet_character_ids", "source_folder", "notes"],
+  "properties": {
+    "schema_version": {"type": "string"},
+    "family_id": {"type": "string", "pattern": "^FAMILY-[A-Z0-9-]+$"},
+    "display_name": {"type": "string", "minLength": 1},
+    "family_kind": {"enum": ["sasquatch_family", "yeti_family", "mixed_household", "pet_group", "animal_group", "friend_group", "other"]},
+    "status": {
+      "enum": ["active", "awaiting_import", "partially_identified", "retired"],
+      "description": "awaiting_import = source artwork folder reserved but no characters identified; partially_identified = some members identified."
+    },
+    "home_location_id": {"type": ["string", "null"], "pattern": "^LOC-[A-Z0-9-]+$"},
+    "member_character_ids": {"type": "array", "uniqueItems": true, "items": {"type": "string", "pattern": "^CHAR-[A-Z0-9-]+$"}},
+    "parent_character_ids": {"type": "array", "uniqueItems": true, "items": {"type": "string", "pattern": "^CHAR-[A-Z0-9-]+$"}},
+    "child_character_ids": {"type": "array", "uniqueItems": true, "items": {"type": "string", "pattern": "^CHAR-[A-Z0-9-]+$"}},
+    "pet_character_ids": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {"type": "string", "pattern": "^CHAR-[A-Z0-9-]+$"},
+      "description": "Pets are full characters with character_kind 'animal' and their own visual records and continuity."
+    },
+    "source_folder": {"type": ["string", "null"], "pattern": "^assets/characters/source/.+/$"},
+    "notes": {"type": "string"}
+  },
+  "additionalProperties": false
+}

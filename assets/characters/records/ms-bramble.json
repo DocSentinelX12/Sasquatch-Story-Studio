@@ -1,0 +1,73 @@
+{
+  "$schema": "../../../schemas/character-visual-reference.schema.json",
+  "schema_version": "1.1.0",
+  "character_id": "CHAR-MS-BRAMBLE",
+  "character_name": "Ms. Bramble",
+  "species": "unconfirmed",
+  "character_kind": "person",
+  "family_id": null,
+  "age_group": "adult",
+  "approximate_age": "adult; confirm species and exact age band from creator sheets",
+  "canon_role": "Recurring teacher at Canopy Creek School",
+  "parent_character_ids": [],
+  "child_character_ids": [],
+  "pet_character_ids": [],
+  "caretaker_character_ids": [],
+  "character_versions": [
+    {
+      "version_id": "VER-MS-BRAMBLE-CURRENT",
+      "label": "Current series age",
+      "age_group": "adult",
+      "approximate_age": "adult; confirm from creator sheets",
+      "story_period": "main-series-present",
+      "is_primary": true,
+      "reference_asset_ids": [],
+      "notes": "Add further versions only when creator artwork canonizes a different age or story period."
+    }
+  ],
+  "personality": {
+    "core_traits": ["calm", "curious", "playfully rigorous", "patient", "adaptable"],
+    "strengths": ["asking useful questions", "making room for discovery", "staying composed"],
+    "growth_edges": ["can become fascinated by a detail and miss the room's mood"],
+    "performance_summary": "Calm, lightly amused, crisp, and genuinely engaged."
+  },
+  "relationships": [
+    {"character_id": "CHAR-YETI", "relationship": "Teacher; channels his curiosity rather than suppressing it."},
+    {"character_id": "CHAR-TUMBLE", "relationship": "Teacher; enjoys testing the assumptions behind his exact odds."}
+  ],
+  "visual_authority": "Creator-provided character artwork is authoritative. AI must preserve Ms. Bramble's established design and must not redesign, reinterpret, replace, or simplify her.",
+  "source_artwork_location": "assets/characters/source/ms-bramble/",
+  "source_artwork_asset_ids": [],
+  "approved_reference_images": [],
+  "turnaround_reference": {"asset_id": null, "status": "not_imported", "notes": "Link the creator's approved Ms. Bramble turnaround after import; do not invent unseen views."},
+  "expression_reference": {"asset_id": null, "status": "not_imported", "notes": "Link only creator-provided or creator-approved expression art."},
+  "pose_reference": {"asset_id": null, "status": "not_imported", "notes": "Link only creator-provided or creator-approved pose art."},
+  "scale_reference": {"asset_id": null, "status": "not_imported", "notes": "Relative size must come from creator-approved scale artwork."},
+  "clothing_reference": {"asset_id": null, "status": "not_imported", "notes": "All clothing and accessory details must come from creator artwork. Ms. Bramble always has uncovered natural bare paws."},
+  "color_reference": {"asset_id": null, "status": "not_imported", "notes": "Do not infer fur, eye, clothing, accessory, or marking colors; link the approved creator color reference."},
+  "animation_notes": [
+    "Express Ms. Bramble's calm curiosity, patience, adaptability, and playful rigor through acting without changing her official construction.",
+    "Preserve every design detail, proportion, silhouette, marking, color, clothing item, accessory, paw, and other feature exactly as shown in approved creator references.",
+    "Her calm is engaged rather than distant; she asks questions instead of visually talking down to students.",
+    "Ms. Bramble is always barefoot with uncovered natural paws; match their exact design in creator artwork."
+  ],
+  "master_generation_prompt": "Using the attached approved creator-provided reference images as the absolute visual source of truth, depict Ms. Bramble in the requested scene and action. Preserve her exact official silhouette, anatomy, proportions, facial construction, features, markings, colors, clothing, accessories, paws, and bare feet in every frame. Keep her performance calm, curious, playfully rigorous, patient, adaptable, and warmly engaged. Match approved references rather than inferring or redesigning any unseen detail. If the approved images do not support the requested angle or action, stop for creator review instead of inventing a new view. Ms. Bramble and every other character are always barefoot with uncovered natural paws or feet.",
+  "negative_prompt": "character redesign, reinterpretation, replacement design, simplified design, alternate costume, invented accessory, changed silhouette, changed anatomy, changed proportions, changed face, changed features, changed markings, changed colors, model drift, inconsistent paws, inconsistent feet, unapproved reference, AI-generated identity reference, shoes, socks, boots, sandals, slippers, skates, cleats, or any other footwear, photorealism unless present in creator source, horror, disturbing imagery, cruelty",
+  "continuity_rules": [
+    "Creator artwork overrides all written visual assumptions and all generated material.",
+    "Use only manifest-registered creator source artwork approved for provider use and approved canon references.",
+    "Never use AI-generated test material as Ms. Bramble's identity reference.",
+    "Do not fill missing visual information by inference; block and request creator review.",
+    "Ms. Bramble's personality and relationships remain consistent with the series bible.",
+    "ALL CHARACTERS ARE ALWAYS BAREFOOT. NO SHOES, SOCKS, BOOTS, SANDALS, SLIPPERS, OR ANY OTHER FOOTWEAR."
+  ],
+  "provider_neutral_reference_support": {
+    "manifest_path": "assets/asset-manifest.json",
+    "accepted_asset_classes": ["creator_source_artwork", "approved_canon_reference"],
+    "ordered_asset_ids": [],
+    "required_purposes": ["identity"],
+    "allow_ai_generated_test_material": false,
+    "missing_reference_behavior": "block_and_request_creator_review"
+  },
+  "approval_status": "awaiting_creator_source_artwork"
+}

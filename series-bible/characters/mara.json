@@ -1,0 +1,67 @@
+{
+  "$schema": "../../schemas/character.schema.json",
+  "schema_version": "1.0.0",
+  "character_id": "CHAR-MARA",
+  "name": "Mara",
+  "role": "recurring family",
+  "species": "Sasquatch",
+  "age_band": "adult",
+  "pronouns": "she/her",
+  "personality": {
+    "core_traits": [
+      "affectionate",
+      "practical",
+      "perceptive",
+      "busy",
+      "playful"
+    ],
+    "strengths": [
+      "improvising",
+      "listening without panic",
+      "setting clear boundaries",
+      "baking"
+    ],
+    "growth_edges": [
+      "tries to do too much herself",
+      "can solve a task before others get a turn"
+    ],
+    "under_stress": "Becomes extremely efficient and forgets to sit down.",
+    "growth_direction": "Accept help and let children attempt safe, meaningful repairs."
+  },
+  "visual": {
+    "authority": "creator_source_artwork",
+    "description_status": "deferred_until_creator_artwork_import",
+    "design_rule": "Creator-provided artwork is the only visual source of truth. Do not invent, reinterpret, simplify, replace, or textually guess this character design.",
+    "feet": "Use the exact bare feet shown in approved creator artwork; do not infer shape, color, markings, toe count, or anatomy.",
+    "footwear_rule": "Always barefoot. Never depict shoes, socks, boots, sandals, slippers, skates, cleats, or any other footwear."
+  },
+  "performance": {
+    "voice": "Grounded, bright, and direct; laughter comes easily.",
+    "movement": "Efficient, gentle, and rarely hurried even when handling several tasks.",
+    "comic_behavior": "Keeps calmly working while a ridiculous event passes through the background, then catches one object without looking.",
+    "dialogue_rules": [
+      "names feelings plainly",
+      "does not state the episode moral",
+      "sets limits without threats"
+    ]
+  },
+  "relationships": [
+    {
+      "character_id": "CHAR-YETI",
+      "relationship": "mother; secure affection with clear expectations for honesty and repair"
+    },
+    {
+      "character_id": "CHAR-JUNIPER",
+      "relationship": "mother; respects her competence without making her a substitute parent"
+    }
+  ],
+  "continuity_locks": [
+    "Creator-provided artwork is authoritative and must never be redesigned, reinterpreted, replaced, or simplified.",
+    "Mara does not rescue children from every consequence.",
+    "She is a full character, not a moral-delivery device.",
+    "She is always barefoot."
+  ],
+  "reference_asset_ids": [],
+  "reference_assets_status": "awaiting_creator_source_artwork",
+  "visual_reference_record": "assets/characters/records/mara.json"
+}

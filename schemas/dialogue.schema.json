@@ -1,0 +1,28 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "dialogue.schema.json",
+  "title": "Episode Dialogue",
+  "type": "object",
+  "required": ["schema_version", "episode_id", "draft_status", "lines"],
+  "properties": {
+    "episode_id": {"type": "string", "pattern": "^EP-[0-9]{3,}$"},
+    "draft_status": {"enum": ["placeholder", "draft", "review", "locked"]},
+    "lines": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["line_id", "scene_id", "speaker_id", "text", "intent"],
+        "properties": {
+          "line_id": {"type": "string", "pattern": "^LINE-[0-9]{3,}$"},
+          "scene_id": {"type": "string", "pattern": "^SC-[0-9]{3,}$"},
+          "speaker_id": {"type": "string", "pattern": "^CHAR-[A-Z0-9-]+$"},
+          "text": {"type": "string"},
+          "intent": {"type": "string"},
+          "performance_note": {"type": "string"},
+          "over_action": {"type": "string"}
+        }
+      }
+    }
+  },
+  "additionalProperties": true
+}

@@ -1,0 +1,72 @@
+{
+  "$schema": "../../schemas/character.schema.json",
+  "schema_version": "1.0.0",
+  "character_id": "CHAR-JUNIPER",
+  "name": "Juniper",
+  "display_name": "June",
+  "role": "recurring family",
+  "species": "Sasquatch",
+  "age_band": "young adolescent",
+  "pronouns": "she/her",
+  "personality": {
+    "core_traits": [
+      "observant",
+      "capable",
+      "artistic",
+      "dryly funny",
+      "protective"
+    ],
+    "strengths": [
+      "planning",
+      "visual memory",
+      "calm under pressure",
+      "seeing patterns"
+    ],
+    "growth_edges": [
+      "assumes seeing the answer is the same as explaining it kindly",
+      "can over-manage Yeti"
+    ],
+    "under_stress": "Gets very quiet and over-organizes whatever is in reach.",
+    "growth_direction": "Collaborate instead of taking over, and leave room for Yeti to surprise her."
+  },
+  "visual": {
+    "authority": "creator_source_artwork",
+    "description_status": "deferred_until_creator_artwork_import",
+    "design_rule": "Creator-provided artwork is the only visual source of truth. Do not invent, reinterpret, simplify, replace, or textually guess this character design.",
+    "feet": "Use the exact bare feet shown in approved creator artwork; do not infer shape, color, markings, toe count, or anatomy.",
+    "footwear_rule": "Always barefoot. Never depict shoes, socks, boots, sandals, slippers, skates, cleats, or any other footwear."
+  },
+  "performance": {
+    "voice": "Economical and warm, with a small pause before a deadpan observation.",
+    "movement": "Balanced and deliberate until pulled into Yeti's momentum.",
+    "comic_behavior": "Finds a practical, character-specific use for an established scene prop after careful observation.",
+    "dialogue_rules": [
+      "never insults Yeti's intelligence",
+      "uses precise observations",
+      "says more when emotionally honest"
+    ]
+  },
+  "relationships": [
+    {
+      "character_id": "CHAR-YETI",
+      "relationship": "older sister; protective and proud, learning not to take over"
+    },
+    {
+      "character_id": "CHAR-MARA",
+      "relationship": "daughter; shares practical instincts but resists being treated as an extra adult"
+    },
+    {
+      "character_id": "CHAR-TUMBLE",
+      "relationship": "friendly rival over whose practical method is actually practical"
+    }
+  ],
+  "continuity_locks": [
+    "Creator-provided artwork is authoritative and must never be redesigned, reinterpreted, replaced, or simplified.",
+    "Her humor is dry, not cruel.",
+    "She participates in solutions rather than only correcting Yeti.",
+    "She is always barefoot."
+  ],
+  "reference_asset_ids": [],
+  "reference_assets_status": "awaiting_creator_source_artwork",
+  "visual_reference_record": "assets/characters/records/juniper.json"
+}

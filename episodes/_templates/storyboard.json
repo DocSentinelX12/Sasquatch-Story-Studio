@@ -1,0 +1,7 @@
+{
+  "$schema": "../../../../schemas/storyboard.schema.json",
+  "schema_version": "1.0.0",
+  "episode_id": "{{EPISODE_ID}}",
+  "board_status": "placeholder",
+  "shots": []
+}

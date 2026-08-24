@@ -1,0 +1,55 @@
+{
+  "schema_version": "1.0.0",
+  "rules": [
+    "Running jokes are optional ingredients, never required beats.",
+    "Vary setup, context, and outcome; do not repeat the exact same gag within an episode.",
+    "A joke may not override emotion or character continuity."
+  ],
+  "jokes": [
+    {
+      "joke_id": "JOKE-YETI-BRAKES",
+      "setup": "Yeti enters with too much momentum and needs three tiny steps to stop.",
+      "variations": [
+        "stops perfectly but a carried object continues",
+        "plans for the extra steps and miscounts",
+        "someone quietly clears a landing spot"
+      ]
+    },
+    {
+      "joke_id": "JOKE-WOODPECKER-BEAT",
+      "setup": "A patient woodpecker taps once after an especially awkward silence.",
+      "variations": [
+        "the tap arrives early",
+        "the silence waits for the tap",
+        "a character glances toward it without comment"
+      ]
+    },
+    {
+      "joke_id": "JOKE-LEVER-LABEL",
+      "setup": "Yeti confidently labels a lever before the plan is tested.",
+      "variations": [
+        "label peels and points elsewhere",
+        "June edits the label",
+        "the lever performs a technically accurate but unhelpful action"
+      ]
+    },
+    {
+      "joke_id": "JOKE-JUNE-PROP-USE",
+      "setup": "June quietly finds an unexpected practical use for an ordinary scene prop established earlier.",
+      "variations": [
+        "the prop is almost right and needs teamwork",
+        "Yeti established the prop without noticing its useful feature",
+        "her first sensible use reveals a funnier second use"
+      ]
+    },
+    {
+      "joke_id": "JOKE-TUMBLE-ODDS",
+      "setup": "Tumble offers overly precise odds that are immediately disproved.",
+      "variations": [
+        "quietly revises the denominator",
+        "is wrong in the safer direction",
+        "the improbable event happens behind him"
+      ]
+    }
+  ]
+}

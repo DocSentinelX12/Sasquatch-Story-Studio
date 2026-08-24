@@ -1,0 +1,15 @@
+{
+  "$schema": "../../../schemas/family.schema.json",
+  "schema_version": "1.0.0",
+  "family_id": "FAMILY-06-ABOMINABLE-WHITE-YETI",
+  "display_name": "Abominable White Yeti Family 06",
+  "family_kind": "yeti_family",
+  "status": "awaiting_import",
+  "home_location_id": null,
+  "member_character_ids": [],
+  "parent_character_ids": [],
+  "child_character_ids": [],
+  "pet_character_ids": [],
+  "source_folder": "assets/characters/source/family-06-abominable-white-yeti/",
+  "notes": "Intake group for the creator's abominable-white yeti family sheets (batch 06). Members stay unidentified until the creator confirms which sheets depict which characters; imported files register against this family_id until then."
+}

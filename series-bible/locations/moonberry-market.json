@@ -1,0 +1,60 @@
+{
+  "$schema": "../../schemas/location.schema.json",
+  "schema_version": "1.0.0",
+  "location_id": "LOC-MOONBERRY-MARKET",
+  "name": "Moonberry Market",
+  "type": "weekly outdoor market",
+  "story_uses": [
+    "community stories",
+    "deliveries",
+    "mix-ups",
+    "performances",
+    "seasonal celebrations"
+  ],
+  "description": "A lively row of weekly stalls under patchwork awnings along Mossy Hollow's gathering green.",
+  "visual": {
+    "palette": [
+      "berry purple",
+      "faded teal",
+      "mustard canvas",
+      "cedar brown",
+      "slate gray"
+    ],
+    "materials": [
+      "canvas awnings",
+      "woven baskets",
+      "wood carts",
+      "slate signs",
+      "hanging scales",
+      "ceramic jars"
+    ],
+    "landmarks": [
+      "three connected patchwork awnings",
+      "Mara's folding bakery counter",
+      "moonberry stall with purple banner",
+      "central hanging scale",
+      "downhill cart lane"
+    ],
+    "lighting": "Colorful open shade under awnings; faint moonberry glow only at dusk.",
+    "scale_notes": "Counters have two heights; the cart lane is broad enough for a Sasquatch handcart."
+  },
+  "layout_rules": [
+    "The moonberry stall is at the uphill end of the awning row.",
+    "Mara's bakery counter is the middle stall facing the gathering green.",
+    "The cart lane slopes gently toward the root bridge, creating clear screen direction for rolling-object stories."
+  ],
+  "continuity_locks": [
+    "Ripe moonberries are purple-blue and only faintly luminous near dusk.",
+    "Overripe moonberries bounce but are not magical, alive, or speaking.",
+    "All vendors and shoppers follow the global barefoot rule."
+  ],
+  "sound": [
+    "friendly market chatter",
+    "basket creaks",
+    "slate taps",
+    "cart wheels",
+    "soft awning flaps"
+  ],
+  "reference_asset_ids": [],
+  "reference_assets_status": "planned_not_created"
+}

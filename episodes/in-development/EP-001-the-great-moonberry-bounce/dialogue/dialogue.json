@@ -1,0 +1,45 @@
+{
+  "$schema": "../../../../schemas/dialogue.schema.json",
+  "schema_version": "1.0.0",
+  "episode_id": "EP-001",
+  "draft_status": "draft",
+  "principles": [
+    "Performance and visual action carry the lesson.",
+    "Do not polish away Yeti's sincere kid logic.",
+    "Leave reaction space around the emotional turn."
+  ],
+  "lines": [
+    {"line_id": "LINE-001", "scene_id": "SC-001", "speaker_id": "CHAR-YETI", "text": "Caught it!", "intent": "Delighted surprise", "performance_note": "Amazed at his own luck", "over_action": "The ricocheting berry drops into his raised basket."},
+    {"line_id": "LINE-002", "scene_id": "SC-001", "speaker_id": "CHAR-MARA", "text": "That batch is riper than I thought.", "intent": "Reassess the delivery", "performance_note": "Practical, amused", "over_action": "She watches the blue kettle stop wobbling."},
+    {"line_id": "LINE-003", "scene_id": "SC-001", "speaker_id": "CHAR-YETI", "text": "I'll take them. Gently. By myself.", "intent": "Prove capability", "performance_note": "Each phrase more official than the last", "over_action": "He salutes with the basket and needs three steps to regain balance."},
+    {"line_id": "LINE-004", "scene_id": "SC-001", "speaker_id": "CHAR-JUNIPER", "text": "Those last two parts have never met.", "intent": "Flag the flaw without forbidding him", "performance_note": "Dry but affectionate", "over_action": "She gestures between Yeti and the bouncing berry."},
+
+    {"line_id": "LINE-005", "scene_id": "SC-002", "speaker_id": "CHAR-TUMBLE", "text": "Root bridge is slower. Also ninety-three percent less downhill.", "intent": "Recommend the safe route", "performance_note": "Confidently exact", "over_action": "His paw indicates the level fork."},
+    {"line_id": "LINE-006", "scene_id": "SC-002", "speaker_id": "CHAR-YETI", "text": "Downhill means less pulling. That's gentle for me.", "intent": "Defend the shortcut", "performance_note": "Pleased by the logic", "over_action": "He pats the GENTLE-GO tag."},
+    {"line_id": "LINE-007", "scene_id": "SC-002", "speaker_id": "CHAR-JUNIPER", "text": "Want another pair of hands?", "intent": "Offer help without taking over", "performance_note": "Calling from uphill", "over_action": "She lifts both open hands."},
+    {"line_id": "LINE-008", "scene_id": "SC-002", "speaker_id": "CHAR-YETI", "text": "Already have exactly enough!", "intent": "Reject help while grabbing too many controls", "performance_note": "Strained brightness", "over_action": "One hand steers, one steadies the lid, one foot braces the brake bar."},
+    {"line_id": "LINE-009", "scene_id": "SC-002", "speaker_id": "CHAR-TUMBLE", "text": "Your lever has two ropes.", "intent": "Notice the design flaw", "performance_note": "Small concerned observation", "over_action": "Yeti pulls before looking."},
+    {"line_id": "LINE-010", "scene_id": "SC-002", "speaker_id": "CHAR-YETI", "text": "I absolutely meant the first half of this.", "intent": "Acknowledge runaway surprise", "performance_note": "Quietly, during the silent acceleration", "over_action": "The brake bar dangles behind them."},
+
+    {"line_id": "LINE-011", "scene_id": "SC-003", "speaker_id": "CHAR-TUMBLE", "text": "Good news: we stopped.", "intent": "Find a positive", "performance_note": "Watching basket rise overhead", "over_action": "The laundry line reaches full stretch."},
+    {"line_id": "LINE-012", "scene_id": "SC-003", "speaker_id": "CHAR-YETI", "text": "Other news?", "intent": "Invite the obvious bad news", "performance_note": "Already wincing", "over_action": "Six berries emerge from the lid gap."},
+    {"line_id": "LINE-013", "scene_id": "SC-003", "speaker_id": "CHAR-TUMBLE", "text": "The stop kept going.", "intent": "Name the reversal", "performance_note": "Delighted whisper", "over_action": "The berries bounce away in six rhythms."},
+    {"line_id": "LINE-014", "scene_id": "SC-003", "speaker_id": "CHAR-JUNIPER", "text": "Yeti. Pause. They repeat every four bounces.", "intent": "Offer the pattern", "performance_note": "Clear, not scolding", "over_action": "She marks arcs on her sketch."},
+    {"line_id": "LINE-015", "scene_id": "SC-003", "speaker_id": "CHAR-YETI", "text": "Perfect. I only need three.", "intent": "Misapply her observation", "performance_note": "Already running", "over_action": "He grabs the awning before she can finish."},
+
+    {"line_id": "LINE-016", "scene_id": "SC-004", "speaker_id": "CHAR-TUMBLE", "text": "I would like to revise the awning portion.", "intent": "Object too late", "performance_note": "Muffled but calm", "over_action": "He sits wrapped in the purple banner."},
+    {"line_id": "LINE-017", "scene_id": "SC-004", "speaker_id": "CHAR-MARA", "text": "What happened?", "intent": "Invite the truth", "performance_note": "Simple and steady", "over_action": "She holds one gently bouncing berry."},
+    {"line_id": "LINE-018", "scene_id": "SC-004", "speaker_id": "CHAR-YETI", "text": "It's almost all under—", "intent": "Protect his image", "performance_note": "Fast, then stops", "over_action": "He sees June picking up signs and Tumble in the banner."},
+    {"line_id": "LINE-019", "scene_id": "SC-004", "speaker_id": "CHAR-YETI", "text": "No. I pulled the wrong lever. Then I didn't listen. I'm sorry.", "intent": "Tell the whole truth", "performance_note": "No joke; enough space between thoughts", "over_action": "He lets the awning fall and faces them."},
+    {"line_id": "LINE-020", "scene_id": "SC-004", "speaker_id": "CHAR-YETI", "text": "Can you help me do this your way?", "intent": "Ask for collaboration", "performance_note": "To June and Tumble, not the room", "over_action": "He opens his empty hands."},
+
+    {"line_id": "LINE-021", "scene_id": "SC-005", "speaker_id": "CHAR-JUNIPER", "text": "Our way. First, watch the tall bounce.", "intent": "Accept and collaborate", "performance_note": "Warm correction", "over_action": "She turns the sketch so everyone can see."},
+    {"line_id": "LINE-022", "scene_id": "SC-005", "speaker_id": "CHAR-TUMBLE", "text": "Cart catcher. Seventy-two percent padding, one hundred percent cart.", "intent": "Claim his part of the plan", "performance_note": "Back to delighted precision", "over_action": "He fits the folded banner into the cart."},
+    {"line_id": "LINE-023", "scene_id": "SC-005", "speaker_id": "CHAR-MARA", "text": "Tell us when.", "intent": "Give Yeti an accountable role", "performance_note": "Focused, trusting", "over_action": "She takes hold of an awning rope."},
+    {"line_id": "LINE-024", "scene_id": "SC-005", "speaker_id": "CHAR-YETI", "text": "Wait... wait... now!", "intent": "Listen before acting", "performance_note": "Measured, then joyful", "over_action": "He follows June's count and pulls the lever once."},
+
+    {"line_id": "LINE-025", "scene_id": "SC-006", "speaker_id": "CHAR-YETI", "text": "June found the rhythm. Tumble built the catcher. Mom moved half a market.", "intent": "Share specific credit", "performance_note": "Relaxed and sincere", "over_action": "He portions the last flatcake."},
+    {"line_id": "LINE-026", "scene_id": "SC-006", "speaker_id": "CHAR-MARA", "text": "Only a third.", "intent": "Lighten the moment", "performance_note": "Matter-of-fact", "over_action": "A hidden moonberry begins to tremble below the counter."},
+    {"line_id": "LINE-027", "scene_id": "SC-006", "speaker_id": "CHAR-TUMBLE", "text": "What are the odds?", "intent": "Set up the silent callback", "performance_note": "Whispered as the flatcake launches", "over_action": "June slides the basket to Yeti."}
+  ]
+}

@@ -1,0 +1,27 @@
+{
+  "schema_version": "1.0.0",
+  "threads": [
+    {
+      "thread_id": "THREAD-MOONBERRY-HUM",
+      "question": "Why do moonberries hum faintly only on the first cool evening of autumn?",
+      "status": "open",
+      "known_clues": [],
+      "tone_boundary": "Natural wonder or gentle mystery; never possession, monsters, or dread."
+    },
+    {
+      "thread_id": "THREAD-TINY-MARKERS",
+      "question": "Who made the tiny, careful trail markers beyond Whispering Falls?",
+      "status": "open",
+      "known_clues": [],
+      "tone_boundary": "A welcoming undiscovered neighbor or natural explanation; never stalking or threat."
+    },
+    {
+      "thread_id": "THREAD-BELL",
+      "question": "Why does the old community bell sometimes ring once when there is no wind?",
+      "status": "open",
+      "known_clues": [],
+      "tone_boundary": "Playful mechanical, animal, or weather explanation; never haunting."
+    }
+  ],
+  "maintenance_rule": "Do not answer or materially clue a thread without updating this file and the continuity log."
+}

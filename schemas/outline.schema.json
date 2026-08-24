@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "outline.schema.json",
+  "title": "Story Outline",
+  "type": "object",
+  "required": ["schema_version", "episode_id", "story_question", "hook", "setup", "escalations", "low_point", "emotional_turn", "resolution", "ending_button", "lesson_in_action"],
+  "properties": {
+    "schema_version": {"type": "string"},
+    "episode_id": {"type": "string", "pattern": "^EP-[0-9]{3,}$"},
+    "story_question": {"type": "string"},
+    "hook": {"type": "object", "required": ["image", "question_created"]},
+    "setup": {"type": "object", "required": ["goal", "plan", "overlooked_flaw"]},
+    "escalations": {"type": "array", "minItems": 3, "items": {"type": "object", "required": ["beat", "cause", "comic_result"]}},
+    "low_point": {"type": "object", "required": ["choice", "cost"]},
+    "emotional_turn": {"type": "object", "required": ["realization", "action"]},
+    "resolution": {"type": "object", "required": ["plan", "planted_payoff", "repair"]},
+    "ending_button": {"type": "object", "required": ["image", "callback"]},
+    "lesson_in_action": {"type": "string"}
+  },
+  "additionalProperties": true
+}

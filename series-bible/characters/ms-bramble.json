@@ -1,0 +1,65 @@
+{
+  "$schema": "../../schemas/character.schema.json",
+  "schema_version": "1.0.0",
+  "character_id": "CHAR-MS-BRAMBLE",
+  "name": "Ms. Bramble",
+  "role": "recurring teacher",
+  "species": "red fox",
+  "age_band": "adult",
+  "pronouns": "she/her",
+  "personality": {
+    "core_traits": [
+      "calm",
+      "curious",
+      "playfully rigorous",
+      "patient",
+      "adaptable"
+    ],
+    "strengths": [
+      "asking useful questions",
+      "making room for discovery",
+      "staying composed"
+    ],
+    "growth_edges": [
+      "can become fascinated by a detail and miss the room's mood"
+    ],
+    "under_stress": "Takes one breath, becomes more observant, and asks for specific evidence.",
+    "growth_direction": "Remain open about being wrong and connect inquiry to what students are feeling."
+  },
+  "visual": {
+    "authority": "creator_source_artwork",
+    "description_status": "deferred_until_creator_artwork_import",
+    "design_rule": "Creator-provided artwork is the only visual source of truth. Do not invent, reinterpret, simplify, replace, or textually guess this character design.",
+    "feet": "Use the exact uncovered natural bare paws shown in approved creator artwork; do not infer shape, color, markings, or anatomy.",
+    "footwear_rule": "Always barefoot. Never depict shoes, socks, boots, sandals, slippers, skates, cleats, or any other footwear."
+  },
+  "performance": {
+    "voice": "Calm, lightly amused, and crisp; never uses baby talk.",
+    "movement": "Uses calm, precise acting that follows the approved creator pose and model references.",
+    "comic_behavior": "Treats absurd physical evidence as a perfectly valid reason to update the lesson plan.",
+    "dialogue_rules": [
+      "asks rather than lectures",
+      "can admit she was wrong",
+      "does not magically know what happened off-screen"
+    ]
+  },
+  "relationships": [
+    {
+      "character_id": "CHAR-YETI",
+      "relationship": "teacher; channels his curiosity rather than suppressing it"
+    },
+    {
+      "character_id": "CHAR-TUMBLE",
+      "relationship": "teacher; enjoys testing the assumptions behind his exact odds"
+    }
+  ],
+  "continuity_locks": [
+    "Creator-provided artwork is authoritative and must never be redesigned, reinterpreted, replaced, or simplified.",
+    "She guides but does not take over child-led climaxes.",
+    "Her calm is engaged, not emotionally distant.",
+    "She is always barefoot with natural paws."
+  ],
+  "reference_asset_ids": [],
+  "reference_assets_status": "awaiting_creator_source_artwork",
+  "visual_reference_record": "assets/characters/records/ms-bramble.json"
+}

@@ -1,0 +1,21 @@
+{
+  "$schema": "../../../../schemas/scene.schema.json",
+  "schema_version": "1.0.0",
+  "episode_id": "{{EPISODE_ID}}",
+  "scene_id": "SC-001",
+  "sequence": 1,
+  "title": "Opening hook",
+  "location_id": "LOC-MOSSY-HOLLOW",
+  "time": "day",
+  "estimated_duration_seconds": 45,
+  "character_ids": ["CHAR-YETI"],
+  "purpose": "Create an immediate visual hook and establish Yeti's goal.",
+  "visual_action": "TODO",
+  "conflict": "TODO",
+  "emotional_shift": "Yeti moves from TODO to TODO.",
+  "props_in": [],
+  "props_out": [],
+  "continuity_in": ["All characters are barefoot or have uncovered natural bare paws."],
+  "continuity_out": ["TODO: state carried props, mess, damage, weather, and direction of travel."],
+  "transition_out": "TODO"
+}

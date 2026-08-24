@@ -1,0 +1,49 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "generation-prompts.schema.json",
+  "title": "Provider-Neutral Generation Prompts",
+  "type": "object",
+  "required": ["schema_version", "episode_id", "provider_status", "prompts"],
+  "properties": {
+    "episode_id": {"type": "string", "pattern": "^EP-[0-9]{3,}$"},
+    "provider_status": {"enum": ["not_connected", "configured", "connected"]},
+    "prompts": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["prompt_id", "shot_id", "scene_id", "media_kind", "duration_seconds", "aspect_ratio", "character_ids", "location_id", "reference_images", "positive_prompt", "continuity", "negative_constraints", "provider_overrides"],
+        "properties": {
+          "prompt_id": {"type": "string", "pattern": "^PROMPT-[0-9]{3,}$"},
+          "shot_id": {"type": "string", "pattern": "^SHOT-[0-9]{3,}$"},
+          "media_kind": {"enum": ["video", "image", "animation_test"]},
+          "duration_seconds": {"type": "number", "exclusiveMinimum": 0},
+          "aspect_ratio": {"type": "string"},
+          "character_ids": {"type": "array", "items": {"type": "string"}},
+          "reference_images": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": ["entity_id", "purpose", "required", "asset_ids", "accepted_asset_classes", "manifest_path", "missing_reference_behavior"],
+              "properties": {
+                "entity_id": {"type": "string"},
+                "purpose": {"enum": ["identity", "turnaround", "expression", "pose", "scale", "clothing", "color", "location", "prop"]},
+                "required": {"type": "boolean"},
+                "asset_ids": {"type": "array", "uniqueItems": true, "items": {"type": "string", "pattern": "^ASSET-[A-Z0-9-]+$"}},
+                "accepted_asset_classes": {"type": "array", "items": {"enum": ["creator_source_artwork", "approved_canon_reference"]}},
+                "manifest_path": {"const": "assets/asset-manifest.json"},
+                "missing_reference_behavior": {"enum": ["block_generation", "allow_when_optional"]}
+              },
+              "additionalProperties": false
+            }
+          },
+          "positive_prompt": {"type": "object", "required": ["style", "subject", "setting", "action", "camera", "lighting", "creator_design_lock", "barefoot_lock"]},
+          "continuity": {"type": "array", "items": {"type": "string"}},
+          "negative_constraints": {"type": "array", "minItems": 1, "items": {"type": "string"}},
+          "provider_overrides": {"type": "object", "description": "Empty until a real adapter requires a reviewed override."}
+        },
+        "additionalProperties": true
+      }
+    }
+  },
+  "additionalProperties": true
+}

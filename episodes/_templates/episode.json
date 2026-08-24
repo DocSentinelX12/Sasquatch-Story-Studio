@@ -1,0 +1,28 @@
+{
+  "$schema": "../../../schemas/episode.schema.json",
+  "schema_version": "1.0.0",
+  "episode_id": "{{EPISODE_ID}}",
+  "slug": "{{SLUG}}",
+  "title": "{{TITLE}}",
+  "status": "concept",
+  "target_length_minutes": 8,
+  "premise": "TODO: one sentence describing the character-specific comic problem.",
+  "character_want": "TODO: what Yeti wants in this episode.",
+  "emotional_need": "TODO: what Yeti needs to understand or notice.",
+  "lesson": "TODO: a meaningful lesson demonstrated by the resolution, not spoken as a sermon.",
+  "hook_summary": "TODO: the first unusual visual image or urgent comic result.",
+  "ending_image": "TODO: a memorable final visual joke or warm callback.",
+  "cast_ids": ["CHAR-YETI"],
+  "location_ids": ["LOC-MOSSY-HOLLOW"],
+  "scene_ids": ["SC-001"],
+  "running_joke_ids": [],
+  "open_thread_ids": [],
+  "canon_proposals": [],
+  "production": {
+    "external_services_connected": false,
+    "generated_media_exists": false,
+    "notes": "Planning package only."
+  },
+  "created_on": "{{CREATED_DATE}}",
+  "last_updated_on": "{{CREATED_DATE}}"
+}

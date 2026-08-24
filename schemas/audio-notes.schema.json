@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "audio-notes.schema.json",
+  "title": "Episode Audio and Sound Notes",
+  "type": "object",
+  "required": ["schema_version", "episode_id", "audio_status", "voice_direction", "scene_audio", "mix_principles"],
+  "properties": {
+    "episode_id": {"type": "string", "pattern": "^EP-[0-9]{3,}$"},
+    "audio_status": {"enum": ["placeholder", "notes", "cue-sheet", "mixed", "mastered"]},
+    "voice_direction": {"type": "array", "items": {"type": "object", "required": ["character_id", "direction"]}},
+    "scene_audio": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["scene_id", "ambience", "foley", "music_intent", "silence_or_space"]
+      }
+    },
+    "mix_principles": {"type": "array", "items": {"type": "string"}}
+  },
+  "additionalProperties": true
+}

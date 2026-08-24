@@ -1,0 +1,46 @@
+{
+  "$schema": "../../../../schemas/scene.schema.json",
+  "schema_version": "1.0.0",
+  "episode_id": "EP-001",
+  "scene_id": "SC-003",
+  "sequence": 3,
+  "title": "Six different directions",
+  "location_id": "LOC-MOSSY-HOLLOW",
+  "time": "morning",
+  "estimated_duration_seconds": 105,
+  "character_ids": [
+    "CHAR-YETI",
+    "CHAR-TUMBLE",
+    "CHAR-JUNIPER"
+  ],
+  "purpose": "Escalate a runaway cart into a public, visually varied moonberry chase.",
+  "visual_action": "Yeti grabs a laundry line to brake. The line stretches, stops the cart, then slings the basket onto the gathering green. It lands upright, but six berries pop through a lid gap and bounce in distinct patterns. Yeti races among them, repeatedly needing three tiny steps to stop. June arrives and asks him to pause long enough to map the rhythm; he grabs a market awning instead.",
+  "conflict": "Yeti keeps attempting solo fixes faster than June and Tumble can explain what they see.",
+  "emotional_shift": "Relief at stopping the cart becomes frantic embarrassment.",
+  "props_in": [
+    "runaway handcart",
+    "closed basket",
+    "loose brake bar",
+    "laundry line",
+    "six escaping moonberries"
+  ],
+  "props_out": [
+    "stopped cart",
+    "basket with lid gap",
+    "six bouncing moonberries",
+    "detached patchwork awning",
+    "one tipped empty basket display"
+  ],
+  "continuity_in": [
+    "Movement continues left-to-right downhill.",
+    "Yeti holds left rail; Tumble starts on rear edge.",
+    "All visible characters and background community members are barefoot or show natural bare paws; no footwear appears."
+  ],
+  "continuity_out": [
+    "Tumble is unharmed and stands beside the stopped cart.",
+    "Juniper has chalk and a folded sketch page introduced as scene props.",
+    "Six berries continue toward Moonberry Market; none has been recovered.",
+    "Yeti carries one end of a detached patchwork awning."
+  ],
+  "transition_out": "Pan with the six bouncing rhythms until the market awnings fill the background."
+}

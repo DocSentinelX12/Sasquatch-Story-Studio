@@ -1,0 +1,27 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+
+# Editors and OS
+.DS_Store
+.idea/
+.vscode/
+
+# Secrets and local configuration
+.env
+.env.*
+!.env.example
+
+# Generated and production media stay out of source control by default.
+# Their manifests and directory guidance remain versioned.
+assets/ai-generated-tests/**
+!assets/ai-generated-tests/README.md
+assets/characters/generated/**
+!assets/characters/generated/README.md
+assets/production/final-approved/**
+!assets/production/final-approved/README.md
+
+# Provider downloads, renders, and temporary work
+renders/
+tmp/

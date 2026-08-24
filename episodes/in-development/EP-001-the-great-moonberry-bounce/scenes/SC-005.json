@@ -1,0 +1,51 @@
+{
+  "$schema": "../../../../schemas/scene.schema.json",
+  "schema_version": "1.0.0",
+  "episode_id": "EP-001",
+  "scene_id": "SC-005",
+  "sequence": 5,
+  "title": "The shared catch",
+  "location_id": "LOC-MOONBERRY-MARKET",
+  "time": "late morning",
+  "estimated_duration_seconds": 120,
+  "character_ids": [
+    "CHAR-YETI",
+    "CHAR-TUMBLE",
+    "CHAR-JUNIPER",
+    "CHAR-MARA"
+  ],
+  "purpose": "Demonstrate the lesson through a collaborative visual solution and repair the practical mess.",
+  "visual_action": "Yeti apologizes and asks what everyone sees. June marks the six bounce rhythms on her sketch. Tumble converts the stopped cart into a padded catcher. Mara and nearby vendors angle the connected awnings. Yeti listens, calls the count, and uses the lever at the precise moment. Its tag flips to ACTUAL GENTLE-GO as the cart rolls beneath the final converging bounces. The team catches all six and restores the stalls.",
+  "conflict": "The last two berries will collide and escape unless Yeti trusts June's count instead of jumping early.",
+  "emotional_shift": "Embarrassment becomes focused trust, then shared delight.",
+  "props_in": [
+    "six moonberries",
+    "stopped cart",
+    "basket with lid gap",
+    "GENTLE-GO lever",
+    "three market awnings",
+    "June's sketch and chalk",
+    "purple banner",
+    "mussed displays"
+  ],
+  "props_out": [
+    "all six escaped berries returned to secured basket",
+    "lever tag flipped to ACTUAL GENTLE-GO",
+    "reattached awnings",
+    "restored displays",
+    "folded purple banner",
+    "clean cart lane"
+  ],
+  "continuity_in": [
+    "Berry positions match SC-004 continuity out.",
+    "Tumble begins safely freed from the banner with his official creator-approved design unchanged.",
+    "All characters remain barefoot or on uncovered natural paws; lower-body action never introduces footwear."
+  ],
+  "continuity_out": [
+    "Basket now has a double knot tied by Juniper and sits at Mara’s stall.",
+    "All characters return to their established pre-chase appearance; no clothing, accessory, color, marking, or anatomy changes.",
+    "Yeti carries the empty auxiliary catching basket.",
+    "Market is ready to open with no damage."
+  ],
+  "transition_out": "The community bell rings as the final restored slate sign flips from CLOSED to OPEN."
+}

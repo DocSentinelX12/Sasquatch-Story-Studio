@@ -1,0 +1,40 @@
+{
+  "schema_version": "1.0.0",
+  "relationships": [
+    {
+      "relationship_id": "REL-YETI-JUNIPER",
+      "character_ids": ["CHAR-YETI", "CHAR-JUNIPER"],
+      "current_state": "Loving siblings: Yeti wants June's respect; June wants him safe. Friction comes from speed versus foresight, never contempt.",
+      "growth_directions": ["Yeti listens before reacting", "June collaborates instead of taking over"],
+      "last_changed_by": "FOUNDATION"
+    },
+    {
+      "relationship_id": "REL-YETI-MARA",
+      "character_ids": ["CHAR-YETI", "CHAR-MARA"],
+      "current_state": "Secure parent-child bond. Mara expects honesty and repair, not perfection.",
+      "growth_directions": ["Yeti asks for help sooner", "Mara leaves room for safe attempts"],
+      "last_changed_by": "FOUNDATION"
+    },
+    {
+      "relationship_id": "REL-YETI-TUMBLE",
+      "character_ids": ["CHAR-YETI", "CHAR-TUMBLE"],
+      "current_state": "Best friends and creative accelerants. Either can disagree or opt out without threatening the friendship.",
+      "growth_directions": ["share credit", "voice concerns honestly", "support without automatic agreement"],
+      "last_changed_by": "FOUNDATION"
+    },
+    {
+      "relationship_id": "REL-YETI-BRAMBLE",
+      "character_ids": ["CHAR-YETI", "CHAR-MS-BRAMBLE"],
+      "current_state": "Student and teacher. Ms. Bramble channels Yeti's curiosity through observation rather than suppressing it.",
+      "growth_directions": ["Yeti explains his reasoning", "Ms. Bramble connects inquiry to emotion"],
+      "last_changed_by": "FOUNDATION"
+    },
+    {
+      "relationship_id": "REL-JUNIPER-TUMBLE",
+      "character_ids": ["CHAR-JUNIPER", "CHAR-TUMBLE"],
+      "current_state": "Friendly rivals over whose practical method is actually practical.",
+      "growth_directions": ["combine visual planning and mechanical intuition"],
+      "last_changed_by": "FOUNDATION"
+    }
+  ]
+}

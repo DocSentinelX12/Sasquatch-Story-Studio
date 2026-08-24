@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "location.schema.json",
+  "title": "Location Reference Card",
+  "type": "object",
+  "required": ["schema_version", "location_id", "name", "type", "story_uses", "description", "visual", "layout_rules", "continuity_locks", "sound", "reference_asset_ids", "reference_assets_status"],
+  "properties": {
+    "schema_version": {"type": "string"},
+    "location_id": {"type": "string", "pattern": "^LOC-[A-Z0-9-]+$"},
+    "name": {"type": "string", "minLength": 1},
+    "story_uses": {"type": "array", "minItems": 1, "items": {"type": "string"}},
+    "description": {"type": "string", "minLength": 10},
+    "visual": {"type": "object", "required": ["palette", "materials", "landmarks", "lighting", "scale_notes"]},
+    "layout_rules": {"type": "array", "items": {"type": "string"}},
+    "continuity_locks": {"type": "array", "minItems": 1, "items": {"type": "string"}},
+    "reference_asset_ids": {"type": "array", "items": {"type": "string"}},
+    "reference_assets_status": {"enum": ["planned_not_created", "draft", "approved", "retired"]}
+  },
+  "additionalProperties": true
+}

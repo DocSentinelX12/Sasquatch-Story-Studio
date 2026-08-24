@@ -1,0 +1,71 @@
+{
+  "schema_version": "1.1.0",
+  "style_id": "STYLE-2D-MOSSY-HOLLOW",
+  "name": "Creator-canon 2D visual system",
+  "authority_order": [
+    "creator_source_artwork",
+    "approved_canon_reference",
+    "written_character_and_scene_continuity",
+    "shot_prompt",
+    "ai_generated_test_material"
+  ],
+  "character_design_authority": "Creator-provided character artwork is authoritative. AI must preserve the established character designs and must not redesign characters.",
+  "positive_anchors": [
+    "match attached approved creator-provided character artwork exactly",
+    "preserve official silhouette, anatomy, proportions, features, markings, colors, clothing, accessories, hands, feet, and relative scale",
+    "preserve the line, shape, texture, and color treatment demonstrated by approved creator artwork",
+    "clear family-friendly visual storytelling",
+    "expressive acting within approved character construction",
+    "bare feet or uncovered natural bare paws on every visible character"
+  ],
+  "negative_anchors": [
+    "character redesign",
+    "reinterpretation",
+    "replacement character design",
+    "simplified character design",
+    "invented view",
+    "unapproved style conversion",
+    "changed anatomy",
+    "changed proportions",
+    "changed face",
+    "changed features",
+    "changed markings",
+    "changed colors",
+    "alternate clothing",
+    "invented accessories",
+    "model drift",
+    "AI-generated character identity reference",
+    "uncanny anatomy",
+    "horror lighting",
+    "graphic injury",
+    "cruel expressions",
+    "shoes",
+    "socks",
+    "boots",
+    "sandals",
+    "slippers",
+    "skates",
+    "cleats",
+    "footwear of any kind"
+  ],
+  "camera_language": {
+    "comedy": "Prefer readable wide and medium frames with clear anticipation, trajectory, and background reactions.",
+    "emotion": "Move closer and simplify motion at the turn; hold long enough for a genuine reaction.",
+    "action": "Maintain screen direction and geography; one dominant action per shot.",
+    "ending": "Finish on a simple, quickly readable image or reaction rather than an abrupt dialogue cutoff."
+  },
+  "continuity_rules": [
+    "Resolve character reference images from assets/asset-manifest.json before generation.",
+    "Only creator source artwork approved for provider use and approved canon references may control character identity.",
+    "AI-generated test material is non-canon and cannot serve as a character identity reference.",
+    "Block generation when required official reference coverage is missing; never invent an unseen view.",
+    "Track prop hand, stains, damage, weather, light direction, and entrances/exits between shots.",
+    "Do not add clothing or accessories absent from creator-approved references.",
+    "Every prompt repeats the barefoot positive and footwear negative lock."
+  ],
+  "delivery_defaults": {
+    "aspect_ratio": "16:9",
+    "shot_duration_seconds": {"minimum": 2, "maximum": 8},
+    "frame_rate_note": "Choose final delivery frame rate during production; do not bake a provider-specific setting into canon."
+  }
+}

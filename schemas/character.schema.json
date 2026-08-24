@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "character.schema.json",
+  "title": "Character Canon Card",
+  "type": "object",
+  "required": ["schema_version", "character_id", "name", "role", "species", "age_band", "pronouns", "personality", "visual", "performance", "relationships", "continuity_locks", "visual_reference_record", "reference_asset_ids", "reference_assets_status"],
+  "properties": {
+    "schema_version": {"type": "string"},
+    "character_id": {"type": "string", "pattern": "^CHAR-[A-Z0-9-]+$"},
+    "name": {"type": "string", "minLength": 1},
+    "personality": {"type": "object", "required": ["core_traits", "strengths", "growth_edges", "under_stress", "growth_direction"]},
+    "visual": {
+      "type": "object",
+      "required": ["authority", "description_status", "design_rule", "feet", "footwear_rule"],
+      "properties": {
+        "authority": {"const": "creator_source_artwork"},
+        "description_status": {"const": "deferred_until_creator_artwork_import"},
+        "design_rule": {"type": "string", "minLength": 20},
+        "feet": {"type": "string", "minLength": 10},
+        "footwear_rule": {"type": "string", "minLength": 20}
+      },
+      "additionalProperties": false
+    },
+    "performance": {"type": "object", "required": ["voice", "movement", "comic_behavior", "dialogue_rules"]},
+    "relationships": {"type": "array", "items": {"type": "object", "required": ["character_id", "relationship"]}},
+    "continuity_locks": {"type": "array", "minItems": 1, "items": {"type": "string"}},
+    "visual_reference_record": {"type": "string", "pattern": "^assets/characters/records/.+\\.json$"},
+    "reference_asset_ids": {"type": "array", "items": {"type": "string", "pattern": "^ASSET-[A-Z0-9-]+$"}},
+    "reference_assets_status": {"enum": ["awaiting_creator_source_artwork", "source_registered", "under_creator_review", "approved_for_reference", "retired"]}
+  },
+  "additionalProperties": true
+}

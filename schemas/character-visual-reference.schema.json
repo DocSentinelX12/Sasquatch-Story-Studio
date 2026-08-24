@@ -1,0 +1,85 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "character-visual-reference.schema.json",
+  "title": "Character Visual Reference Record (Scalable)",
+  "description": "Scalable character record supporting multiple source images, canonical age/story-period versions, family and pet relationships, and animals as full characters.",
+  "type": "object",
+  "required": ["schema_version", "character_id", "character_name", "species", "character_kind", "family_id", "age_group", "approximate_age", "canon_role", "personality", "relationships", "parent_character_ids", "child_character_ids", "pet_character_ids", "caretaker_character_ids", "character_versions", "visual_authority", "source_artwork_location", "source_artwork_asset_ids", "approved_reference_images", "turnaround_reference", "expression_reference", "pose_reference", "scale_reference", "clothing_reference", "color_reference", "animation_notes", "master_generation_prompt", "negative_prompt", "continuity_rules", "provider_neutral_reference_support", "approval_status"],
+  "properties": {
+    "schema_version": {"type": "string"},
+    "character_id": {"type": "string", "pattern": "^CHAR-[A-Z0-9-]+$"},
+    "character_name": {"type": "string", "minLength": 1},
+    "species": {"type": "string", "minLength": 1, "description": "Use 'unconfirmed' until creator artwork verifies it; never guess in canonical cards."},
+    "character_kind": {"enum": ["person", "animal"], "description": "Pets and animals are 'animal' but remain full characters with their own records and continuity."},
+    "family_id": {"type": ["string", "null"], "pattern": "^FAMILY-[A-Z0-9-]+$", "description": "Family group from assets/characters/families/; null when the character has no identified family group yet."},
+    "age_group": {"enum": ["infant", "toddler", "child", "preteen", "teen", "young_adult", "adult", "senior", "unconfirmed"]},
+    "approximate_age": {"type": ["string", "null"], "description": "Free-form approximate age; note when it must be confirmed from creator sheets."},
+    "canon_role": {"type": "string", "minLength": 1},
+    "personality": {"type": "object"},
+    "relationships": {"type": "array", "items": {"type": "object"}},
+    "parent_character_ids": {"type": "array", "uniqueItems": true, "items": {"type": "string", "pattern": "^CHAR-[A-Z0-9-]+$"}},
+    "child_character_ids": {"type": "array", "uniqueItems": true, "items": {"type": "string", "pattern": "^CHAR-[A-Z0-9-]+$"}},
+    "pet_character_ids": {"type": "array", "uniqueItems": true, "items": {"type": "string", "pattern": "^CHAR-[A-Z0-9-]+$"}},
+    "caretaker_character_ids": {"type": "array", "uniqueItems": true, "items": {"type": "string", "pattern": "^CHAR-[A-Z0-9-]+$"}, "description": "For animals: the people who care for them; for pets this is how pet relationships attach to families."},
+    "character_versions": {
+      "type": "array",
+      "minItems": 1,
+      "description": "Multiple versions of the same character for different canonical ages or story periods. Exactly one primary.",
+      "items": {"$ref": "#/$defs/characterVersion"}
+    },
+    "visual_authority": {"type": "string", "minLength": 20},
+    "source_artwork_location": {"type": "string", "pattern": "^assets/characters/source/.+/$"},
+    "source_artwork_asset_ids": {"type": "array", "uniqueItems": true, "items": {"type": "string", "pattern": "^ASSET-[A-Z0-9-]+$"}},
+    "approved_reference_images": {"type": "array", "uniqueItems": true, "items": {"type": "string", "pattern": "^ASSET-[A-Z0-9-]+$"}},
+    "turnaround_reference": {"$ref": "#/$defs/referenceSlot"},
+    "expression_reference": {"$ref": "#/$defs/referenceSlot"},
+    "pose_reference": {"$ref": "#/$defs/referenceSlot"},
+    "scale_reference": {"$ref": "#/$defs/referenceSlot"},
+    "clothing_reference": {"$ref": "#/$defs/referenceSlot"},
+    "color_reference": {"$ref": "#/$defs/referenceSlot"},
+    "animation_notes": {"type": "array", "minItems": 1, "items": {"type": "string"}, "description": "Animation behavior notes; must preserve official construction and the barefoot rule."},
+    "master_generation_prompt": {"type": "string", "minLength": 50},
+    "negative_prompt": {"type": "string", "minLength": 20},
+    "continuity_rules": {"type": "array", "minItems": 1, "items": {"type": "string"}},
+    "provider_neutral_reference_support": {
+      "type": "object",
+      "required": ["manifest_path", "accepted_asset_classes", "ordered_asset_ids", "required_purposes", "allow_ai_generated_test_material", "missing_reference_behavior"],
+      "properties": {
+        "manifest_path": {"const": "assets/asset-manifest.json"},
+        "accepted_asset_classes": {"type": "array", "items": {"enum": ["creator_source_artwork", "approved_canon_reference"]}},
+        "ordered_asset_ids": {"type": "array", "items": {"type": "string"}},
+        "required_purposes": {"type": "array", "items": {"type": "string"}},
+        "allow_ai_generated_test_material": {"const": false},
+        "missing_reference_behavior": {"const": "block_and_request_creator_review"}
+      }
+    },
+    "approval_status": {"enum": ["awaiting_creator_source_artwork", "source_registered", "under_creator_review", "approved_for_reference", "retired"]}
+  },
+  "$defs": {
+    "referenceSlot": {
+      "type": "object",
+      "required": ["asset_id", "status", "notes"],
+      "properties": {
+        "asset_id": {"type": ["string", "null"], "pattern": "^ASSET-[A-Z0-9-]+$"},
+        "status": {"enum": ["not_imported", "registered", "approved", "not_applicable"]},
+        "notes": {"type": "string"}
+      }
+    },
+    "characterVersion": {
+      "type": "object",
+      "required": ["version_id", "label", "age_group", "approximate_age", "story_period", "is_primary", "reference_asset_ids", "notes"],
+      "properties": {
+        "version_id": {"type": "string", "pattern": "^VER-[A-Z0-9-]+$"},
+        "label": {"type": "string", "minLength": 1},
+        "age_group": {"enum": ["infant", "toddler", "child", "preteen", "teen", "young_adult", "adult", "senior", "unconfirmed"]},
+        "approximate_age": {"type": ["string", "null"]},
+        "story_period": {"type": "string", "minLength": 1, "description": "Canonical story period such as 'main-series-present' or a creator-named era."},
+        "is_primary": {"type": "boolean", "description": "Exactly one version per character must be primary."},
+        "reference_asset_ids": {"type": "array", "uniqueItems": true, "items": {"type": "string", "pattern": "^ASSET-[A-Z0-9-]+$"}, "description": "Version-specific approved references; empty until creator artwork is imported and approved."},
+        "notes": {"type": "string"}
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}

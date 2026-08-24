@@ -1,0 +1,32 @@
+{
+  "$schema": "../schemas/asset-manifest.schema.json",
+  "schema_version": "1.0.0",
+  "manifest_id": "ASSET-MANIFEST-SASQUATCH-STORY-STUDIO",
+  "character_catalog_path": "assets/characters/character-catalog.json",
+  "family_registry_path": "assets/characters/families/",
+  "visual_authority": "Creator-provided character artwork is authoritative. AI must preserve the established character designs and must not redesign characters.",
+  "barefoot_rule": "ALL CHARACTERS ARE ALWAYS BAREFOOT. NO SHOES, SOCKS, BOOTS, SANDALS, SLIPPERS, OR ANY OTHER FOOTWEAR.",
+  "asset_classes": [
+    {
+      "class": "creator_source_artwork",
+      "authority": "authoritative_character_design",
+      "description": "Untouched artwork supplied by the creator."
+    },
+    {
+      "class": "approved_canon_reference",
+      "authority": "approved_reference_only",
+      "description": "Creator-approved references consistent with source artwork."
+    },
+    {
+      "class": "ai_generated_test_material",
+      "authority": "non_canon",
+      "description": "AI experiment that cannot automatically become canon or replace creator artwork."
+    },
+    {
+      "class": "final_approved_production_asset",
+      "authority": "approved_episode_output",
+      "description": "Explicitly approved final production output; not character-design source authority."
+    }
+  ],
+  "entries": []
+}

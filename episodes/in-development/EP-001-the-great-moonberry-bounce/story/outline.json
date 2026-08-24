@@ -1,0 +1,53 @@
+{
+  "$schema": "../../../../schemas/outline.schema.json",
+  "schema_version": "1.0.0",
+  "episode_id": "EP-001",
+  "story_question": "Can Yeti deliver the moonberries responsibly after his need to look capable creates a community-sized mess?",
+  "hook": {
+    "image": "At breakfast, a purple-blue moonberry pops from a warm loaf, rebounds from the blue kettle and two bowls, and drops perfectly into the basket Yeti happens to raise.",
+    "question_created": "If one berry is that springy, what will a whole basket do?"
+  },
+  "setup": {
+    "goal": "Bring Mara's overripe moonberries safely to her Moonberry Market stall before opening bell.",
+    "plan": "Yeti takes the handcart alone and adds a homemade lever labeled GENTLE-GO so he will never have to admit the hill feels fast.",
+    "overlooked_flaw": "The lever tightens the basket cover but releases the cart brake; the smooth shortcut is also the steep cart lane."
+  },
+  "escalations": [
+    {
+      "beat": 1,
+      "cause": "Yeti pulls GENTLE-GO when the cart begins to rattle.",
+      "comic_result": "The cover clamps down as the brake pops free, sending cart, Yeti, and Tumble downhill in perfect solemn silence for one beat.",
+      "new_stakes": "The delivery is moving too fast to steer safely."
+    },
+    {
+      "beat": 2,
+      "cause": "Yeti tries to stop the cart with a laundry line instead of calling June, who is within earshot.",
+      "comic_result": "The line becomes a slingshot: the basket lands upright, but six moonberries bounce out in six different rhythms.",
+      "new_stakes": "The private delivery problem becomes a public chase."
+    },
+    {
+      "beat": 3,
+      "cause": "Yeti insists he can collect the berries before Mara notices and stretches an awning across the lane without listening to Tumble.",
+      "comic_result": "The awning returns every berry at once, gently rearranging three market displays and wrapping Tumble in a purple banner.",
+      "new_stakes": "Friends are frustrated, market setup is delayed, and Yeti can no longer hide the mistake."
+    }
+  ],
+  "low_point": {
+    "choice": "When Mara asks where the basket is, Yeti begins to claim that almost everything is under control.",
+    "cost": "He sees Tumble stuck in the banner and June silently picking up a display he knocked over; protecting his image has made their work harder."
+  },
+  "emotional_turn": {
+    "realization": "Yeti recognizes that looking responsible matters less than being honest with people who are already helping him.",
+    "action": "He stops chasing, tells Mara exactly what happened, apologizes to Tumble and June, and asks everyone to help with a plan that starts by listening."
+  },
+  "resolution": {
+    "plan": "June maps the bounce rhythm, Tumble resets the cart as a padded catcher, Mara and vendors angle two awnings, and Yeti calls the timing rather than trying to occupy every position.",
+    "planted_payoff": "The mislabeled lever now deliberately releases the cart at the right instant; its label flips over to read ACTUAL GENTLE-GO.",
+    "repair": "They recover the berries, restore the displays, clean the lane, and open the market together. Yeti carries the light empty basket while sharing credit."
+  },
+  "ending_button": {
+    "image": "At the bakery counter, one overlooked berry puffs a tiny flatcake into the air; Yeti calmly catches it in the empty basket without leaving his seat.",
+    "callback": "The basket catch mirrors the opening, but this time Yeti waits, watches, and accepts June's quiet assist when she slides the basket closer."
+  },
+  "lesson_in_action": "Yeti succeeds only after replacing secrecy and solo scrambling with an honest request, careful listening, and a shared plan. Nobody states the lesson aloud."
+}

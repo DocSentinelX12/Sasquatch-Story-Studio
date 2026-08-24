@@ -1,0 +1,78 @@
+{
+  "$schema": "../../schemas/character.schema.json",
+  "schema_version": "1.0.0",
+  "character_id": "CHAR-YETI",
+  "name": "Yeti",
+  "role": "protagonist",
+  "species": "Sasquatch",
+  "age_band": "young child",
+  "pronouns": "he/him",
+  "personality": {
+    "core_traits": [
+      "curious",
+      "funny",
+      "awkward",
+      "energetic",
+      "kind",
+      "imaginative"
+    ],
+    "strengths": [
+      "creative problem-solving",
+      "empathy",
+      "enthusiasm",
+      "persistence"
+    ],
+    "growth_edges": [
+      "acts before thinking",
+      "hides a wobbling plan for one beat too long",
+      "confuses independence with doing everything alone"
+    ],
+    "under_stress": "Talks faster, adds unnecessary steps, and physically tries to hold the plan together.",
+    "growth_direction": "Notice other people's needs, ask for help sooner, and take honest responsibility without becoming timid."
+  },
+  "visual": {
+    "authority": "creator_source_artwork",
+    "description_status": "deferred_until_creator_artwork_import",
+    "design_rule": "Creator-provided artwork is the only visual source of truth. Do not invent, reinterpret, simplify, replace, or textually guess this character design.",
+    "feet": "Use the exact bare feet shown in approved creator artwork; do not infer shape, color, markings, toe count, or anatomy.",
+    "footwear_rule": "Always barefoot. Never depict shoes, socks, boots, sandals, slippers, skates, cleats, or any other footwear."
+  },
+  "performance": {
+    "voice": "Buoyant and sincere; quick when excited, quiet and unguarded when feelings become real.",
+    "movement": "Leads with his whole torso, starts before a sentence ends, needs three tiny recovery steps to stop.",
+    "comic_behavior": "Overcommits to holding, catching, or operating several things at once.",
+    "dialogue_rules": [
+      "uses concrete kid logic",
+      "does not speak in polished moral statements",
+      "admits mistakes plainly after the emotional turn"
+    ]
+  },
+  "relationships": [
+    {
+      "character_id": "CHAR-JUNIPER",
+      "relationship": "younger brother; wants her respect and trusts her even while resisting advice"
+    },
+    {
+      "character_id": "CHAR-MARA",
+      "relationship": "son; secure, affectionate, and expected to repair mistakes honestly"
+    },
+    {
+      "character_id": "CHAR-TUMBLE",
+      "relationship": "best friend and co-inventor; each is allowed to disagree"
+    },
+    {
+      "character_id": "CHAR-MS-BRAMBLE",
+      "relationship": "student; responds to her curious questions"
+    }
+  ],
+  "continuity_locks": [
+    "Creator-provided artwork is authoritative and must never be redesigned, reinterpreted, replaced, or simplified.",
+    "Yeti's mistake must grow from eagerness, imagination, or an understandable feeling—not selfish cruelty.",
+    "He remains kind even when embarrassed.",
+    "He is never made competent by losing his awkwardness.",
+    "He is always barefoot."
+  ],
+  "reference_asset_ids": [],
+  "reference_assets_status": "awaiting_creator_source_artwork",
+  "visual_reference_record": "assets/characters/records/yeti.json"
+}

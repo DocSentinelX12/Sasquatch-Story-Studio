@@ -1,0 +1,87 @@
+{
+  "$schema": "../../schemas/character-catalog.schema.json",
+  "schema_version": "1.0.0",
+  "catalog_id": "CHARACTER-CATALOG-SASQUATCH-STORY-STUDIO",
+  "visual_authority": "Creator-provided character artwork is authoritative. AI must preserve the established character designs and must not redesign characters.",
+  "barefoot_rule": "ALL CHARACTERS ARE ALWAYS BAREFOOT. NO SHOES, SOCKS, BOOTS, SANDALS, SLIPPERS, OR ANY OTHER FOOTWEAR.",
+  "scale_notes": "This catalog scales to many hundreds of characters. Add one entry per character (humanoid or animal). Use catalog_status 'registered_shell' for source artwork whose characters are not yet identified; promote to 'active_record' only after the creator identifies the character. Entry counts must always match assets/asset-manifest.json; validators enforce it. Families live in assets/characters/families/ and keep parent, child, sibling, and pet links connected.",
+  "entries": [
+    {
+      "character_id": "CHAR-YETI",
+      "character_name": "Yeti",
+      "species": "Sasquatch",
+      "character_kind": "person",
+      "family_id": "FAMILY-BIG-CEDAR",
+      "catalog_status": "active_record",
+      "record_path": "assets/characters/records/yeti.json",
+      "storage": {
+        "source_folder": "assets/characters/source/yeti/",
+        "approved_folder": "assets/characters/approved/yeti/",
+        "generated_folder": "assets/characters/generated/yeti/"
+      },
+      "asset_counts": {"source_artwork": 0, "approved_references": 0, "generated_tests": 0}
+    },
+    {
+      "character_id": "CHAR-JUNIPER",
+      "character_name": "Juniper",
+      "species": "Sasquatch",
+      "character_kind": "person",
+      "family_id": "FAMILY-BIG-CEDAR",
+      "catalog_status": "active_record",
+      "record_path": "assets/characters/records/juniper.json",
+      "storage": {
+        "source_folder": "assets/characters/source/juniper/",
+        "approved_folder": "assets/characters/approved/juniper/",
+        "generated_folder": "assets/characters/generated/juniper/"
+      },
+      "asset_counts": {"source_artwork": 0, "approved_references": 0, "generated_tests": 0}
+    },
+    {
+      "character_id": "CHAR-MARA",
+      "character_name": "Mara",
+      "species": "Sasquatch",
+      "character_kind": "person",
+      "family_id": "FAMILY-BIG-CEDAR",
+      "catalog_status": "active_record",
+      "record_path": "assets/characters/records/mara.json",
+      "storage": {
+        "source_folder": "assets/characters/source/mara/",
+        "approved_folder": "assets/characters/approved/mara/",
+        "generated_folder": "assets/characters/generated/mara/"
+      },
+      "asset_counts": {"source_artwork": 0, "approved_references": 0, "generated_tests": 0}
+    },
+    {
+      "character_id": "CHAR-TUMBLE",
+      "character_name": "Tumble",
+      "species": "unconfirmed",
+      "character_kind": "person",
+      "family_id": null,
+      "catalog_status": "active_record",
+      "record_path": "assets/characters/records/tumble.json",
+      "storage": {
+        "source_folder": "assets/characters/source/tumble/",
+        "approved_folder": "assets/characters/approved/tumble/",
+        "generated_folder": "assets/characters/generated/tumble/"
+      },
+      "asset_counts": {"source_artwork": 0, "approved_references": 0, "generated_tests": 0},
+      "notes": "Species and family must be confirmed from creator artwork; do not guess."
+    },
+    {
+      "character_id": "CHAR-MS-BRAMBLE",
+      "character_name": "Ms. Bramble",
+      "species": "unconfirmed",
+      "character_kind": "person",
+      "family_id": null,
+      "catalog_status": "active_record",
+      "record_path": "assets/characters/records/ms-bramble.json",
+      "storage": {
+        "source_folder": "assets/characters/source/ms-bramble/",
+        "approved_folder": "assets/characters/approved/ms-bramble/",
+        "generated_folder": "assets/characters/generated/ms-bramble/"
+      },
+      "asset_counts": {"source_artwork": 0, "approved_references": 0, "generated_tests": 0},
+      "notes": "Species and family must be confirmed from creator artwork; do not guess."
+    }
+  ]
+}

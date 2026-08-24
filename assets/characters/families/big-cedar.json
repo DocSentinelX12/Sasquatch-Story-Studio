@@ -1,0 +1,15 @@
+{
+  "$schema": "../../../schemas/family.schema.json",
+  "schema_version": "1.0.0",
+  "family_id": "FAMILY-BIG-CEDAR",
+  "display_name": "Big Cedar Family",
+  "family_kind": "sasquatch_family",
+  "status": "active",
+  "home_location_id": "LOC-BIG-CEDAR-HOME",
+  "member_character_ids": ["CHAR-MARA", "CHAR-YETI", "CHAR-JUNIPER"],
+  "parent_character_ids": ["CHAR-MARA"],
+  "child_character_ids": ["CHAR-YETI", "CHAR-JUNIPER"],
+  "pet_character_ids": [],
+  "source_folder": null,
+  "notes": "Established by existing canon relationships. Extend members and pets only from creator-confirmed artwork or creator direction; never infer family membership from image similarity."
+}
