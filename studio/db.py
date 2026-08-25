@@ -72,6 +72,68 @@ EXPECTED_EXTRA_COLUMNS: dict[str, dict[str, str]] = {
     "asset_versions": {
         "status": "VARCHAR(32) DEFAULT 'registered'",
     },
+    # --- Phase 3 (story layer) ---
+    "story_bibles": {
+        "status": "VARCHAR(32) DEFAULT 'draft'",
+    },
+    "episodes": {
+        "summary": "TEXT",
+        "story_id": "INTEGER",
+        "script_status": "VARCHAR(32) DEFAULT 'draft'",
+    },
+    "acts": {
+        "summary": "TEXT",
+        "beginning": "TEXT",
+        "middle": "TEXT",
+        "ending": "TEXT",
+    },
+    "scenes": {
+        "weather": "TEXT",
+        "summary": "TEXT",
+        "emotional_tone": "TEXT",
+        "visual_direction": "TEXT",
+        "continuity_notes": "TEXT",
+        "dependency_notes": "TEXT",
+    },
+    "locations": {
+        "environment": "TEXT",
+        "time_of_day_notes": "TEXT",
+        "weather_notes": "TEXT",
+        "visual_rules": "JSON",
+        "continuity_notes": "TEXT",
+        "approval_status": "VARCHAR(32) DEFAULT 'registered'",
+    },
+    "props": {
+        "owner_character_id": "INTEGER",
+        "continuity_notes": "TEXT",
+        "approval_status": "VARCHAR(32) DEFAULT 'registered'",
+    },
+}
+
+# Legacy Phase 1 status values → Phase 3 vocabulary (data-preserving rewrite
+# of a single TEXT column; runs once).
+LEGACY_STATUS_MAP = {
+    "episodes": {
+        "planned": "draft",
+        "outline": "development",
+        "storyboard": "in_production",
+        "shot_building": "in_production",
+        "generating": "in_production",
+        "editing": "in_production",
+        "qc": "in_production",
+        "exported": "complete",
+        "released": "complete",
+    },
+    "scenes": {
+        "planned": "draft",
+        "written": "needs_review",
+        "boarded": "ready_for_storyboard",
+        "shot_ready": "ready_for_storyboard",
+        "generating": "in_production",
+    },
+    "story_bibles": {
+        # seeded creator canon starts approved
+    },
 }
 
 
@@ -89,3 +151,12 @@ def ensure_schema_upgrades() -> None:
                     connection.execute(
                         text(f"ALTER TABLE {table} ADD COLUMN {column} {ddl}")
                     )
+        # normalize legacy statuses once
+        for table, mapping in LEGACY_STATUS_MAP.items():
+            if table not in inspector.get_table_names():
+                continue
+            for old, new in mapping.items():
+                connection.execute(
+                    text(f"UPDATE {table} SET status = :new WHERE status = :old"),
+                    {"old": old, "new": new},
+                )

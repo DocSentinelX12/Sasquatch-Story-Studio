@@ -34,25 +34,23 @@ class ProjectStatus(str, Enum):
 
 
 class EpisodeStatus(str, Enum):
-    PLANNED = "planned"
-    OUTLINE = "outline"
+    """Phase 3 lifecycle. Legacy Phase 1 values normalize to these on write."""
+    DRAFT = "draft"
+    DEVELOPMENT = "development"
     SCRIPT = "script"
-    STORYBOARD = "storyboard"
-    SHOT_BUILDING = "shot_building"
-    GENERATING = "generating"
-    EDITING = "editing"
-    QC = "qc"
-    EXPORTED = "exported"
-    RELEASED = "released"
+    APPROVED = "approved"
+    IN_PRODUCTION = "in_production"
+    COMPLETE = "complete"
+    ARCHIVED = "archived"
 
 
 class SceneStatus(str, Enum):
-    PLANNED = "planned"
-    WRITTEN = "written"
-    BOARDED = "boarded"
-    SHOT_READY = "shot_ready"
-    GENERATING = "generating"
+    DRAFT = "draft"
+    NEEDS_REVIEW = "needs_review"
     APPROVED = "approved"
+    READY_FOR_STORYBOARD = "ready_for_storyboard"
+    IN_PRODUCTION = "in_production"
+    COMPLETE = "complete"
 
 
 class ShotStatus(str, Enum):

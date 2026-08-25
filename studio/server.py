@@ -14,10 +14,10 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 
-from .api import assets, characters, dashboard, episodes, generation, projects, system
+from .api import assets, characters, dashboard, episodes, generation, projects, story, system, world
 from .config import settings
 from .db import SessionLocal, create_all
-from .services.seed import backfill_canon_fields, refresh_provider_status, seed_if_empty
+from .services.seed import backfill_canon_fields, refresh_provider_status, seed_if_empty, seed_story_layer
 
 
 @asynccontextmanager
@@ -26,6 +26,7 @@ async def lifespan(app: FastAPI):
     session = SessionLocal()
     try:
         seed_if_empty(session)          # idempotent import of canon content
+        seed_story_layer(session)       # Phase 3: bible fields, canon, casting, script
         backfill_canon_fields(session)  # Phase 2 fields for Phase 1 databases
         refresh_provider_status(session)
     finally:
@@ -48,6 +49,8 @@ def create_app() -> FastAPI:
     app.include_router(dashboard.router)
     app.include_router(projects.router)
     app.include_router(episodes.router)
+    app.include_router(story.router)
+    app.include_router(world.router)
     app.include_router(characters.router)
     app.include_router(assets.router)
     app.include_router(generation.router)

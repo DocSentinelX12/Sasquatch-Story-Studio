@@ -368,6 +368,151 @@ def backfill_canon_fields(session: Session) -> int:
     return updated
 
 
+def seed_story_layer(session: Session) -> dict:
+    """Idempotent Phase 3 seed/backfill: story bible fields, canon entries,
+    EP-001 scene casting + script elements. Never overwrites user edits."""
+    from ..models import CanonEntry, Scene, SceneCharacter, ScriptElement
+
+    report = {"bibles": 0, "canon": 0, "cast_links": 0, "script_elements": 0}
+    project = session.scalar(select(Project))
+    if project is None:
+        return report
+
+    # --- Story Bible: enrich structured content + approve creator canon -----
+    bible = session.scalar(select(StoryBible).where(StoryBible.project_id == project.id))
+    series = _load_json("series-bible/series.json") or {}
+    world_rules = _load_json("series-bible/world/world-rules.json") or {}
+    style = _load_json("series-bible/world/visual-style.json") or {}
+    if bible is not None:
+        content = dict(bible.content or {})
+        if not content.get("structured"):
+            content.update({
+                "structured": True,
+                "series_title": series.get("title", project.name),
+                "premise": series.get("logline", ""),
+                "genre": "Family animated comedy adventure",
+                "audience": (series.get("format", {}) or {}).get("audience"),
+                "tone": series.get("tone", []),
+                "setting": "Mossy Hollow — a hidden forest town",
+                "world_description": world_rules.get("name"),
+                "visual_storytelling_rules": style.get("rules", style.get("principles", [])),
+                "humor_rules": [j.get("joke", j) if isinstance(j, dict) else j
+                                for j in (_load_json("series-bible/world/running-jokes.json") or {}).get("gags", [])],
+                "storytelling_rules": series.get("episode_structure", []),
+                "world_rules": [r.get("rule") for r in world_rules.get("rules", []) if isinstance(r, dict)],
+                "never_happen": [r for r in world_rules.get("safety_boundaries", []) if isinstance(r, str)],
+                "recurring_themes": series.get("recurring_themes", []),
+            })
+            bible.content = content
+            bible.version = (bible.version or 1) + 1
+        if not bible.status or bible.status == "draft":
+            bible.status = "approved"   # creator-supplied canon starts approved
+        report["bibles"] += 1
+
+    # --- Canon entries from world rules + series non-negotiables ------------
+    existing_titles = {
+        row for row in session.scalars(select(CanonEntry.title).where(CanonEntry.project_id == project.id))
+    }
+
+    def add_canon(category: str, title: str, statement: str, details=None, origin="seeded", source_path=None):
+        if title in existing_titles:
+            return
+        session.add(CanonEntry(
+            project_id=project.id, category=category, title=title,
+            statement=statement, details=details, status="canon",
+            origin=origin, source_path=source_path,
+        ))
+        existing_titles.add(title)
+        report["canon"] += 1
+
+    for rule in world_rules.get("rules", []):
+        if isinstance(rule, dict):
+            add_canon("world", rule.get("rule_id", rule.get("rule", "")[:40]), rule.get("rule", ""),
+                      details={"story_effect": rule.get("story_effect")},
+                      source_path="series-bible/world/world-rules.json")
+    for rule in world_rules.get("safety_boundaries", []):
+        if isinstance(rule, str):
+            slug = rule[:60]
+            add_canon("world", f"NEVER: {slug}", rule, source_path="series-bible/world/world-rules.json")
+    for item in series.get("non_negotiables", []):
+        if isinstance(item, dict):
+            add_canon("episode", f"RULE: {item.get('rule', '')[:60]}", item.get("rule", ""),
+                      details={"why": item.get("why")}, source_path="series-bible/series.json")
+    add_canon("world", "Barefoot rule",
+              "ALL CHARACTERS ARE ALWAYS BAREFOOT. NO SHOES, SOCKS, BOOTS, SANDALS, SLIPPERS, OR ANY OTHER FOOTWEAR.",
+              source_path="assets/asset-manifest.json")
+
+    # --- EP-001: scene casting + script elements -----------------------------
+    ep_dir = "episodes/in-development/EP-001-the-great-moonberry-bounce"
+    episode = session.scalar(select(Episode).where(Episode.project_id == project.id, Episode.number == 1))
+    if episode is None:
+        session.commit()
+        return report
+
+    characters_by_ref = {
+        c.char_ref: c for c in session.scalars(
+            select(Character).where(Character.project_id == project.id)
+        ).all() if c.char_ref
+    }
+    scenes = session.scalars(select(Scene).where(Scene.episode_id == episode.id)).all()
+    scenes_by_ref = {s.scene_ref: s for s in scenes if s.scene_ref}
+    for scene in scenes:
+        data = _load_json(scene.source_path) if scene.source_path else None
+        if not data:
+            continue
+        for ref in data.get("character_ids", []):
+            character = characters_by_ref.get(ref)
+            if character is None:
+                continue
+            exists = session.scalar(
+                select(SceneCharacter).where(
+                    SceneCharacter.scene_id == scene.id,
+                    SceneCharacter.character_id == character.id,
+                )
+            )
+            if exists is None:
+                session.add(SceneCharacter(scene_id=scene.id, character_id=character.id))
+                report["cast_links"] += 1
+
+    dialogue = _load_json(f"{ep_dir}/dialogue/dialogue.json") or {}
+    existing_refs = set(session.scalars(select(ScriptElement.source_ref)).all())
+    next_order = 0.0
+    for line in dialogue.get("lines", []):
+        if line.get("line_id") in existing_refs:
+            continue
+        scene = scenes_by_ref.get(line.get("scene_id"))
+        if scene is None:
+            continue
+        character = characters_by_ref.get(line.get("speaker_id"))
+        next_order += 1
+        session.add(ScriptElement(
+            scene_id=scene.id,
+            episode_id=episode.id,
+            order_index=next_order,
+            element_type="dialogue",
+            character_id=character.id if character else None,
+            character_name=None if character else line.get("speaker_id"),
+            text=line.get("text", ""),
+            timing_notes=line.get("performance_note"),
+            notes=line.get("intent"),
+            source_ref=line.get("line_id"),
+        ))
+        if line.get("over_action"):
+            next_order += 1
+            session.add(ScriptElement(
+                scene_id=scene.id,
+                episode_id=episode.id,
+                order_index=next_order,
+                element_type="action",
+                text=line.get("over_action"),
+                source_ref=f"{line.get('line_id')}-action",
+            ))
+        report["script_elements"] += 1
+
+    session.commit()
+    return report
+
+
 def refresh_provider_status(session: Session) -> int:
     """Recompute provider status from the server environment into DB rows."""
     from ..providers.registry import DEFINITIONS as REGISTRY

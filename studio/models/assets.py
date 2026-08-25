@@ -161,6 +161,12 @@ class Location(TimestampMixin, Base):
     name: Mapped[str] = mapped_column()
     kind: Mapped[Optional[str]] = mapped_column(nullable=True)
     description: Mapped[Optional[str]] = mapped_column(nullable=True)
+    environment: Mapped[Optional[str]] = mapped_column(nullable=True)
+    time_of_day_notes: Mapped[Optional[str]] = mapped_column(nullable=True)
+    weather_notes: Mapped[Optional[str]] = mapped_column(nullable=True)
+    visual_rules: Mapped[Optional[list]] = mapped_column(JSON, nullable=True)
+    continuity_notes: Mapped[Optional[str]] = mapped_column(nullable=True)
+    approval_status: Mapped[str] = mapped_column(default="registered")   # registered|pending_approval|approved
     source_path: Mapped[Optional[str]] = mapped_column(nullable=True)
 
     project = relationship("Project", back_populates="locations")
@@ -174,9 +180,15 @@ class Prop(TimestampMixin, Base):
     project_id: Mapped[int] = mapped_column(ForeignKey("projects.id", ondelete="CASCADE"), index=True)
     name: Mapped[str] = mapped_column()
     description: Mapped[Optional[str]] = mapped_column(nullable=True)
+    owner_character_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("characters.id", ondelete="SET NULL"), nullable=True, index=True
+    )
+    continuity_notes: Mapped[Optional[str]] = mapped_column(nullable=True)
+    approval_status: Mapped[str] = mapped_column(default="registered")   # registered|pending_approval|approved
     source_path: Mapped[Optional[str]] = mapped_column(nullable=True)
 
     project = relationship("Project", back_populates="props")
+    owner = relationship("Character")
 
 
 class Asset(TimestampMixin, Base):

@@ -62,10 +62,15 @@ class Episode(TimestampMixin, Base):
     number: Mapped[int] = mapped_column(default=1)
     title: Mapped[str] = mapped_column()
     slug: Mapped[Optional[str]] = mapped_column(nullable=True)
-    status: Mapped[str] = mapped_column(default=EpisodeStatus.PLANNED.value, index=True)
+    status: Mapped[str] = mapped_column(default=EpisodeStatus.DRAFT.value, index=True)
     logline: Mapped[Optional[str]] = mapped_column(nullable=True)
     premise: Mapped[Optional[str]] = mapped_column(nullable=True)
+    summary: Mapped[Optional[str]] = mapped_column(nullable=True)
     target_length_minutes: Mapped[float] = mapped_column(default=8.0)
+    story_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("stories.id", ondelete="SET NULL", use_alter=True), nullable=True, index=True
+    )
+    script_status: Mapped[str] = mapped_column(default="draft")   # draft | review | approved
     source_path: Mapped[Optional[str]] = mapped_column(nullable=True)  # canon JSON this row came from
 
     project: Mapped[Project] = relationship(back_populates="episodes")
@@ -83,6 +88,10 @@ class Act(TimestampMixin, Base):
     number: Mapped[int] = mapped_column(default=1)
     title: Mapped[str] = mapped_column(default="")
     purpose: Mapped[Optional[str]] = mapped_column(nullable=True)
+    summary: Mapped[Optional[str]] = mapped_column(nullable=True)
+    beginning: Mapped[Optional[str]] = mapped_column(nullable=True)
+    middle: Mapped[Optional[str]] = mapped_column(nullable=True)
+    ending: Mapped[Optional[str]] = mapped_column(nullable=True)
 
     episode: Mapped[Episode] = relationship(back_populates="acts")
     scenes: Mapped[list["Scene"]] = relationship(back_populates="act")
@@ -100,10 +109,16 @@ class Scene(TimestampMixin, Base):
     slug: Mapped[Optional[str]] = mapped_column(nullable=True)
     location_id: Mapped[Optional[int]] = mapped_column(ForeignKey("locations.id", ondelete="SET NULL"), nullable=True)
     time_of_day: Mapped[Optional[str]] = mapped_column(nullable=True)
+    weather: Mapped[Optional[str]] = mapped_column(nullable=True)
     story_purpose: Mapped[Optional[str]] = mapped_column(nullable=True)
+    summary: Mapped[Optional[str]] = mapped_column(nullable=True)
     visual_action: Mapped[Optional[str]] = mapped_column(nullable=True)
+    emotional_tone: Mapped[Optional[str]] = mapped_column(nullable=True)
+    visual_direction: Mapped[Optional[str]] = mapped_column(nullable=True)
+    continuity_notes: Mapped[Optional[str]] = mapped_column(nullable=True)
+    dependency_notes: Mapped[Optional[str]] = mapped_column(nullable=True)
     estimated_duration_seconds: Mapped[Optional[float]] = mapped_column(nullable=True)
-    status: Mapped[str] = mapped_column(default=SceneStatus.PLANNED.value)
+    status: Mapped[str] = mapped_column(default=SceneStatus.DRAFT.value)
     order_index: Mapped[int] = mapped_column(default=0)
     source_path: Mapped[Optional[str]] = mapped_column(nullable=True)
 
@@ -111,6 +126,15 @@ class Scene(TimestampMixin, Base):
     act: Mapped[Optional[Act]] = relationship(back_populates="scenes")
     location: Mapped[Optional["Location"]] = relationship(back_populates="scenes")  # noqa: F821
     shots: Mapped[list["Shot"]] = relationship(back_populates="scene", order_by="Shot.order_index", cascade="all, delete-orphan")
+    cast: Mapped[list["SceneCharacter"]] = relationship(  # noqa: F821
+        back_populates="scene", cascade="all, delete-orphan", order_by="SceneCharacter.id"
+    )
+    prop_links: Mapped[list["SceneProp"]] = relationship(  # noqa: F821
+        back_populates="scene", cascade="all, delete-orphan", order_by="SceneProp.id"
+    )
+    script_elements: Mapped[list["ScriptElement"]] = relationship(  # noqa: F821
+        back_populates="scene", cascade="all, delete-orphan", order_by="ScriptElement.order_index, ScriptElement.id"
+    )
 
 
 class Shot(TimestampMixin, Base):

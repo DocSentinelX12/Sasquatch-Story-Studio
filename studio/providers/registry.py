@@ -113,6 +113,52 @@ DEFINITIONS: dict[str, ProviderDefinition] = {
             ),
             adapter_module="studio.providers.adapters.wan",
         ),
+        # --- Phase 3: story/text assistance providers (contracts only) -------
+        ProviderDefinition(
+            key="openai-text",
+            display_name="OpenAI (story assistance)",
+            kind="story",
+            required_env=("OPENAI_API_KEY",),
+            optional_env=("OPENAI_TEXT_MODEL",),
+            capabilities=(
+                "generate story ideas", "expand story", "generate outline",
+                "improve dialogue", "generate scene descriptions", "generate shot suggestions",
+            ),
+            docs_url="https://platform.openai.com/docs",
+            notes=(
+                "Language-model provider for future story assistance. No adapter is "
+                "connected; manual writing always works without it."
+            ),
+            adapter_module="studio.providers.adapters.text_stubs",
+        ),
+        ProviderDefinition(
+            key="anthropic-text",
+            display_name="Anthropic (story assistance)",
+            kind="story",
+            required_env=("ANTHROPIC_API_KEY",),
+            optional_env=("ANTHROPIC_TEXT_MODEL",),
+            capabilities=(
+                "generate story ideas", "expand story", "generate outline",
+                "improve dialogue", "generate scene descriptions", "generate shot suggestions",
+            ),
+            docs_url="https://docs.anthropic.com",
+            notes="Language-model provider for future story assistance. Not connected.",
+            adapter_module="studio.providers.adapters.text_stubs",
+        ),
+        ProviderDefinition(
+            key="gemini-text",
+            display_name="Google Gemini (story assistance)",
+            kind="story",
+            required_env=("GEMINI_API_KEY",),
+            optional_env=("GEMINI_TEXT_MODEL",),
+            capabilities=(
+                "generate story ideas", "expand story", "generate outline",
+                "improve dialogue", "generate scene descriptions", "generate shot suggestions",
+            ),
+            docs_url="https://ai.google.dev/gemini-api/docs",
+            notes="Language-model provider for future story assistance. Not connected.",
+            adapter_module="studio.providers.adapters.text_stubs",
+        ),
     )
 }
 

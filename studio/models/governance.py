@@ -20,6 +20,7 @@ class StoryBible(TimestampMixin, Base):
     source_path: Mapped[Optional[str]] = mapped_column(nullable=True)  # series-bible/series.json
     content: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
     version: Mapped[int] = mapped_column(default=1)
+    status: Mapped[str] = mapped_column(default="draft", index=True)   # draft | approved | archived
 
 
 class CharacterBible(TimestampMixin, Base):

@@ -38,9 +38,23 @@ from .generation import GenerationJob, GenerationResult, Provider
 from .governance import Approval, CharacterBible, ContinuityRecord, ExportRecord, StoryBible
 from .media import AudioTrack, TimelineItem, VoiceProfile
 from .production import Act, Episode, Project, Scene, Season, Shot
+from .story import (
+    CANON_CATEGORIES,
+    CANON_STATUSES,
+    SCRIPT_ELEMENT_TYPES,
+    STORY_STATUSES,
+    CanonEntry,
+    SceneCharacter,
+    SceneProp,
+    ScriptElement,
+    Story,
+)
 
 __all__ = [
     "Act",
+    "CANON_CATEGORIES",
+    "CANON_STATUSES",
+    "CanonEntry",
     "Approval",
     "ApprovalDecision",
     "ApprovalStatus",
@@ -78,10 +92,14 @@ __all__ = [
     "REFERENCE_PURPOSES",
     "REFERENCE_STATUSES",
     "Scene",
+    "SceneCharacter",
+    "SceneProp",
     "SceneStatus",
+    "SCRIPT_ELEMENT_TYPES",
     "Season",
     "Shot",
     "ShotStatus",
+    "Story",
     "StoryBible",
     "TimelineItem",
     "VoiceProfile",
