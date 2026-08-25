@@ -245,7 +245,7 @@ def seed_if_empty(session: Session) -> dict:
             number=1,
             title=episode_json.get("title", "Episode 1"),
             slug=episode_json.get("slug"),
-            status=EpisodeStatus.OUTLINE.value,
+            status="development",
             logline=episode_json.get("hook_summary"),
             premise=episode_json.get("premise"),
             target_length_minutes=float(episode_json.get("target_length_minutes", 8)),

@@ -144,7 +144,7 @@ def get_episode(episode_id: int, db: Session = Depends(get_db)):
         select(Scene).where(Scene.episode_id == episode_id)
         .options(joinedload(Scene.location), joinedload(Scene.cast), joinedload(Scene.prop_links))
         .order_by(Scene.order_index)
-    ).all()
+    ).unique().all()
     scene_payload = []
     for scene in scenes:
         scene_payload.append(scene_payload_dict(db, scene))

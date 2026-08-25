@@ -7,27 +7,28 @@ const nav = [
     label: "Production",
     items: [
       { path: "#/dashboard", title: "Dashboard", icon: "dashboard" },
+      { path: "#/story", title: "Story", icon: "story" },
       { path: "#/projects", title: "Projects", icon: "projects" },
       { path: "#/episodes", title: "Episodes", icon: "episodes" },
-      { path: "#/story", title: "Story", icon: "story", soon: "P2" },
+      { path: "#/scenes", title: "Scenes", icon: "scenes" },
       { path: "#/characters", title: "Characters", icon: "characters" },
       { path: "#/assets", title: "Assets", icon: "assets" },
+      { path: "#/world", title: "Locations & Props", icon: "folder" },
     ],
   },
   {
     label: "Scene Work",
     items: [
-      { path: "#/scenes", title: "Scenes", icon: "scenes", soon: "P2" },
-      { path: "#/shots", title: "Shots", icon: "shots", soon: "P2" },
+      { path: "#/shots", title: "Shots", icon: "shots", soon: "P4" },
       { path: "#/queue", title: "Generation Queue", icon: "queue" },
     ],
   },
   {
     label: "Post & Delivery",
     items: [
-      { path: "#/audio", title: "Audio", icon: "audio", soon: "P2" },
-      { path: "#/timeline", title: "Timeline", icon: "timeline", soon: "P2" },
-      { path: "#/exports", title: "Exports", icon: "exports", soon: "P2" },
+      { path: "#/audio", title: "Audio", icon: "audio", soon: "P5" },
+      { path: "#/timeline", title: "Timeline", icon: "timeline", soon: "P5" },
+      { path: "#/exports", title: "Exports", icon: "exports", soon: "P5" },
     ],
   },
   {
@@ -46,6 +47,26 @@ function registerViews() {
     const mod = await import("./views/dashboard.js");
     await mod.render(c, p);
   });
+  views.set("/story", async (c, p) => {
+    const mod = await import("./views/story.js");
+    await mod.render(c, p);
+  });
+  views.set("/episodes", async (c, p) => {
+    const mod = await import("./views/episodes.js");
+    await mod.render(c, p);
+  });
+  views.set("/scenes", async (c, p) => {
+    const mod = await import("./views/scenes.js");
+    await mod.render(c, p);
+  });
+  views.set("/world", async (c, p) => {
+    const mod = await import("./views/world.js");
+    await mod.render(c, p);
+  });
+  views.set("/search", async (c, p) => {
+    const mod = await import("./views/search.js");
+    await mod.render(c, p);
+  });
   views.set("/characters", async (c, p) => {
     const mod = await import("./views/characters.js");
     await mod.render(c, p);
@@ -55,16 +76,29 @@ function registerViews() {
     await mod.render(c, p);
   });
   views.set("/projects", placeholderRoute("projects"));
-  views.set("/episodes", placeholderRoute("episodes"));
   views.set("/queue", placeholderRoute("queue"));
   views.set("/settings", placeholderRoute("settings"));
-  for (const key of ["story", "scenes", "shots", "audio", "timeline", "exports"]) {
+  for (const key of ["shots", "audio", "timeline", "exports"]) {
     views.set(`/${key}`, phasePlaceholderRoute(key));
   }
   paramRoutes.push({
     prefix: "/characters/",
     load: async (container, id, params) => {
       const mod = await import("./views/character-detail.js");
+      await mod.render(container, Number(id), params);
+    },
+  });
+  paramRoutes.push({
+    prefix: "/stories/",
+    load: async (container, id, params) => {
+      const mod = await import("./views/story-detail.js");
+      await mod.render(container, Number(id), params);
+    },
+  });
+  paramRoutes.push({
+    prefix: "/episodes/",
+    load: async (container, id, params) => {
+      const mod = await import("./views/episode-detail.js");
       await mod.render(container, Number(id), params);
     },
   });
@@ -104,12 +138,10 @@ const PLACEHOLDER_COPY = {
 };
 
 const PHASE2_COPY = {
-  story: { title: "Story", summary: "Story development workspace — idea → logline → beats → outline.", phase: "Phase 2" },
-  scenes: { title: "Scenes", summary: "Scene builder with locations, characters, props and continuity requirements.", phase: "Phase 2" },
-  shots: { title: "Shots", summary: "Shot builder with camera direction, reference packages and generation settings.", phase: "Phase 2" },
-  audio: { title: "Audio", summary: "Voice, music, sound effects and ambience workspaces.", phase: "Phase 2+" },
-  timeline: { title: "Timeline", summary: "Lightweight episode timeline editor with tracks, trimming and transitions.", phase: "Phase 2+" },
-  exports: { title: "Exports", summary: "Export workflows for full episodes, trailers and vertical shorts.", phase: "Phase 2+" },
+  shots: { title: "Shots", summary: "Shot builder with camera direction, reference packages and generation settings.", phase: "Phase 4" },
+  audio: { title: "Audio", summary: "Voice, music, sound effects and ambience workspaces.", phase: "a later phase" },
+  timeline: { title: "Timeline", summary: "Lightweight episode timeline editor with tracks, trimming and transitions.", phase: "a later phase" },
+  exports: { title: "Exports", summary: "Export workflows for full episodes, trailers and vertical shorts.", phase: "a later phase" },
 };
 
 function placeholderRoute(key) {
@@ -214,12 +246,21 @@ function renderNav() {
 }
 
 async function renderProjectPicker() {
+  const search = el("input", {
+    type: "search", placeholder: "Search studio…", id: "global-search",
+    style: "max-width:210px",
+    onkeydown: (e) => {
+      if (e.key === "Enter" && e.target.value.trim().length >= 2) {
+        location.hash = `#/search?q=${encodeURIComponent(e.target.value.trim())}`;
+      }
+    },
+  });
   const holder = document.getElementById("project-pick");
   try {
     const data = await getJSON("/api/projects");
     const projects = data.projects || [];
     if (projects.length === 0) {
-      holder.replaceChildren(el("span", { class: "pill s-outline" }, "No project yet"));
+      holder.replaceChildren(search, el("span", { class: "pill s-outline" }, "No project yet"));
       return;
     }
     const saved = localStorage.getItem("studio.projectId");
@@ -234,12 +275,9 @@ async function renderProjectPicker() {
     },
       projects.map((p) => el("option", { value: p.id, selected: String(p.id) === String(current.id) ? "" : null }, p.name)));
     localStorage.setItem("studio.projectId", String(current.id));
-    holder.replaceChildren(
-      el("span", { style: "color:var(--text-faint); font-size:12px" }, "Project"),
-      select,
-    );
+    holder.replaceChildren(search, select);
   } catch {
-    holder.replaceChildren(el("span", { class: "pill s-red" }, "Server unreachable"));
+    holder.replaceChildren(search, el("span", { class: "pill s-red" }, "Server unreachable"));
   }
 }
 

@@ -63,12 +63,17 @@ python3 -m venv .venv && .venv/bin/pip install -r requirements.txt
 ./run.sh            # or: .venv/bin/uvicorn studio.server:app --host 0.0.0.0 --port 8000
 ```
 
-It currently provides the Dashboard, a Character Bible browser (profiles,
-reference management with approval workflow, relationships, continuity fields)
-and the Asset Library (upload/search/filter/sort/tags/favorites/versioning with
-an explicit **Meta AI import workflow**). Uploaded binaries live under
+It provides the Dashboard; the **Story** workspace (story ideas → development
+editor → Story Bible → structured canon system); the **Episode** workspace
+(episodes → acts → scenes, scene casting from the Character Library, a script
+editor with dialogue/narration/sound/camera lines, continuity events and
+warnings, and a Ready-for-Storyboard gate that assembles the Phase 4 reference
+package); a cross-episode **Scenes** browser; the **Character Bible** browser;
+the **Asset Library** (with the explicit Meta AI import workflow); and
+**Locations & Props** libraries. Uploaded binaries live under
 `assets/studio-uploads/` (git-ignored); the JSON content in this repository
-remains the canon source of truth. No AI provider is connected or simulated.
+remains the canon source of truth. AI story/video assistance is architected but
+honestly not connected — manual writing always works.
 
 Validate all current canon and episode data:
 

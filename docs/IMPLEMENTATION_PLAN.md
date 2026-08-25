@@ -1,6 +1,6 @@
 # Sasquatch Story Studio — Application Implementation Plan
 
-Status: **Phase 2 (Character & Asset Studio) — complete**
+Status: **Phase 3 (Story layer) — complete**
 Owner: Creator (single-user studio)
 Scope of this document: the *application* being built on top of the existing
 content repository. It does not replace the content system; it runs above it.
@@ -169,10 +169,10 @@ exports skeleton) plus the QC/continuity table structure.
 | 0 | Content repository, schemas, character consistency system, provider contracts | **Done (pre-existing)** |
 | 1 | App shell, projects, database, asset library + uploads, provider registry/status, generation-job records, dashboard, settings | **Done** |
 | 2 | Character & Asset Studio: character profiles/lifecycle, references with categories, relationships, continuity fields, full asset library (search/filter/sort/tags/favorites/versions/approvals/archive), Meta AI import workflow | **Done** |
-| 3 | Story Bible, Story Engine, Episode Builder, Script System | Next |
-| 4 | Real provider adapters (when credentials/APIs exist) + queue worker | Later |
-| 5 | Voice/audio workspaces; timeline editor, storyboard, QC, export & shorts workflows | Later |
-| 6 | Scale hardening (thousands of shots), automation, multi-series growth | Later |
+| 3 | Story layer: Story Bible (versioned, approved-canon guard), canon system (draft→proposed→canon→deprecated), story ideas + development editor, episodes → acts → scenes, scene casting/props from the library, script editor (dialogue/narration/sound/camera with reorder/duplicate/transfer), continuity events + rule-based canon warnings, Ready-for-Storyboard with Phase 4 reference packages, global search, honest AI-assist hooks | **Done** |
+| 4 | Storyboard, Scene Director, Shot Builder, production reference-package system (consumes the scene packages from Phase 3) | Next |
+| 5 | Voice/audio workspaces; timeline editor, QC, export & shorts workflows | Later |
+| 6 | Real provider adapters (when credentials/APIs exist) + queue worker; scale hardening, automation, multi-series growth | Later |
 
 ## 9. Phase 1 acceptance checks
 
