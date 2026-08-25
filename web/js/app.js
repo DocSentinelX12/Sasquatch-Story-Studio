@@ -35,6 +35,7 @@ const nav = [
   {
     label: "Studio",
     items: [
+      { path: "#/control", title: "Control Center", icon: "db" },
       { path: "#/settings", title: "Settings", icon: "settings" },
     ],
   },
@@ -83,6 +84,10 @@ function registerViews() {
   });
   views.set("/assistant", async (c, p) => {
     const mod = await import("./views/assistant.js");
+    await mod.render(c, p);
+  });
+  views.set("/control", async (c, p) => {
+    const mod = await import("./views/control.js");
     await mod.render(c, p);
   });
   views.set("/settings", async (c, p) => {

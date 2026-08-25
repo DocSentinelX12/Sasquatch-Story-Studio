@@ -429,7 +429,13 @@ def _poll_worker(job_id: int) -> None:
                     job.error_code = "generation_failed"
                     job.error = _extract_error(handle.raw) or "provider reported failure"
                     job.completed_at = datetime.now(timezone.utc)
-                    session.commit(); return
+                    session.commit()
+                    from . import automation as _am
+                    _am.emit_event(session, "generation_failed",
+                                   project_id=job.project_id, episode_id=job.episode_id,
+                                   shot_id=job.shot_id,
+                                   context={"note": f"job #{job.id} failed: {job.error}"})
+                    return
                 if handle.state == "succeeded":
                     _finalize_result(session, job, adapter)
                     return
@@ -467,6 +473,11 @@ def _extract_error(raw: dict) -> str:
 
 def _finalize_result(session: Session, job: GenerationJob, adapter) -> None:
     result_info = adapter.fetch_result(job.provider_job_id)
+    _emit = None
+    from . import automation as _automation
+    shot_for_event = session.get(Shot, job.shot_id) if job.shot_id else None
+    _event_ctx = {"project_id": job.project_id, "episode_id": job.episode_id,
+                  "shot_id": job.shot_id, "note": f"job #{job.id} finished"}
     shot = session.get(Shot, job.shot_id)
 
     content: bytes
@@ -513,6 +524,9 @@ def _finalize_result(session: Session, job: GenerationJob, adapter) -> None:
         shot.status = "generating"
         shot.generation_status = "generating"
     session.commit()
+    _automation.emit_event(session, "generation_succeeded",
+                           project_id=job.project_id, episode_id=job.episode_id,
+                           shot_id=job.shot_id, context=_event_ctx)
 
 
 # ---------------------------------------------------------------------------
@@ -582,4 +596,19 @@ def review_result(db: Session, result_id: int, decision: str, reason: str | None
     ))
     db.commit()
     db.refresh(result)
+    if decision == "approved":
+        from . import automation
+        from ..models import Episode
+        shot = db.get(Shot, result.shot_id) if result.shot_id else None
+        scene = shot.scene if shot else None
+        episode = db.get(Episode, scene.episode_id) if scene else None
+        project_id = episode.project_id if episode else None
+        if scene is not None:
+            automation.emit_event(db, "shot_approved", project_id=project_id,
+                                  episode_id=episode.id if episode else None,
+                                  scene_id=scene.id, shot_id=result.shot_id)
+            if automation.scene_complete(db, scene.id):
+                automation.emit_event(db, "scene_complete", project_id=project_id,
+                                      episode_id=episode.id if episode else None,
+                                      scene_id=scene.id)
     return result

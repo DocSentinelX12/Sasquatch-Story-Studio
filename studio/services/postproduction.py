@@ -383,6 +383,22 @@ def qc_check(db: Session, episode_id: int) -> dict:
 
     blocked = [f for f in findings if f["severity"] == "blocked"]
     warnings = [f for f in findings if f["severity"] == "warning"]
+    try:
+        from . import automation
+        episode = db.get(Episode, episode_id)
+        if blocked:
+            automation.emit_event(db, "qc_blocker", project_id=episode.project_id,
+                                  episode_id=episode_id,
+                                  context={"note": f"{len(blocked)} blocker(s)"})
+        elif warnings:
+            automation.emit_event(db, "qc_warning", project_id=episode.project_id,
+                                  episode_id=episode_id,
+                                  context={"note": f"{len(warnings)} warning(s)"})
+        else:
+            automation.emit_event(db, "episode_ready", project_id=episode.project_id,
+                                  episode_id=episode_id, context={"note": "QC passed"})
+    except Exception:  # noqa: BLE001 - QC never breaks on automation errors
+        pass
     return {"episode_id": episode_id, "findings": findings,
             "blocked": len(blocked), "warnings": len(warnings),
             "status": "blocked" if blocked else ("warning" if warnings else "pass"),

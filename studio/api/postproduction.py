@@ -117,9 +117,16 @@ def review_recording(recording_id: int, decision: str, reason: Optional[str] = N
         raise HTTPException(422, "Rejection reason required")
     recording.status = decision
     from ..models import Approval
+    from ..services import automation
     db.add(Approval(entity_type="audio_recording", entity_id=str(recording_id),
                     decision=decision, note=reason))
     db.commit(); db.refresh(recording)
+    if decision == "approved":
+        shot = db.get(Shot, recording.shot_id) if recording.shot_id else None
+        automation.emit_event(db, "audio_approved",
+                              project_id=recording.project_id,
+                              episode_id=recording.episode_id,
+                              shot_id=recording.shot_id)
     return row_to_dict(recording)
 
 

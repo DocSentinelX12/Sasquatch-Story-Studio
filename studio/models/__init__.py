@@ -13,6 +13,14 @@ from .audio import (
     TimelineTrack,
     TRACK_KINDS,
 )
+from .automation import (
+    AUTOMATION_ACTIONS,
+    AUTOMATION_TRIGGERS,
+    AutomationAudit,
+    AutomationRule,
+    EpisodeTemplate,
+    Notification,
+)
 from .assets import (
     Asset,
     AssetTag,
@@ -79,6 +87,10 @@ from .story import (
 
 __all__ = [
     "Act",
+    "AUTOMATION_ACTIONS",
+    "AUTOMATION_TRIGGERS",
+    "AutomationAudit",
+    "AutomationRule",
     "AudioJob",
     "AUDIO_JOB_STATUSES",
     "AudioRecording",
@@ -103,6 +115,7 @@ __all__ = [
     "Base",
     "Character",
     "CharacterBible",
+    "EpisodeTemplate",
     "CharacterReference",
     "CharacterRelationship",
     "ContinuityKind",

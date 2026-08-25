@@ -14,7 +14,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 
-from .api import assets, batch, characters, dashboard, episodes, generation, postproduction, projects, shots, story, system, world
+from .api import assets, batch, characters, dashboard, episodes, generation, phase8, postproduction, projects, shots, story, system, world
 from .config import settings
 from .db import SessionLocal, create_all
 from .services.generation_service import resume_pending_jobs
@@ -29,6 +29,11 @@ async def lifespan(app: FastAPI):
         seed_if_empty(session)          # idempotent import of canon content
         seed_story_layer(session)       # Phase 3: bible fields, canon, casting, script
         backfill_canon_fields(session)  # Phase 2 fields for Phase 1 databases
+        from .services.automation import seed_default_rules
+        from sqlalchemy import select as _sel
+        from .models import Project as _P
+        for _proj in session.scalars(_sel(_P)).all():
+            seed_default_rules(session, _proj.id)
         refresh_provider_status(session)
     finally:
         session.close()
@@ -63,6 +68,7 @@ def create_app() -> FastAPI:
     app.include_router(shots.router)
     app.include_router(postproduction.router)
     app.include_router(batch.router)
+    app.include_router(phase8.router)
     app.include_router(generation.router)
     app.include_router(system.router)
 
