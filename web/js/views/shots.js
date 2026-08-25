@@ -3,7 +3,7 @@ import { el, ICONS, statusPill, pretty, emptyState, loadingState, errorState } f
 import { getJSON } from "../api.js";
 
 let container;
-let state = { q: "", status: "" };
+let state = { q: "", status: "", cursor: null, loaded: [] };
 
 const STATUSES = ["draft", "needs_review", "approved", "ready_for_generation", "generating", "generated", "needs_revision", "rejected", "complete"];
 
@@ -15,10 +15,19 @@ export async function render(c) {
     if (state.q) query.set("q", state.q);
     if (state.status) query.set("status", state.status);
     const data = await getJSON(`/api/shots?${query}`);
+    state.cursor = null;
     renderList(data);
   } catch (error) {
     container.replaceChildren(errorState(error, () => render(c)));
   }
+}
+
+function buildQuery() {
+  const query = new URLSearchParams();
+  if (state.q) query.set("q", state.q);
+  if (state.status) query.set("status", state.status);
+  query.set("limit", "60");
+  return query.toString();
 }
 
 function renderList(data) {
@@ -41,25 +50,35 @@ function renderList(data) {
         `${pretty(s)}${counts[s] ? ` (${counts[s]})` : ""}`))),
     el("span", { class: "pill s-outline", style: "margin-left:auto" }, `${data.shots.length} shot${data.shots.length === 1 ? "" : "s"}`));
 
+  state.loaded = data.shots;
   const body = data.shots.length
-    ? el("div", { class: "table-wrap" },
-        el("table", { class: "data" },
-          el("thead", {}, el("tr", {},
-            el("th", {}, "Shot"), el("th", {}, "Scene"), el("th", {}, "Title"),
-            el("th", {}, "Type"), el("th", {}, "Camera"), el("th", {}, "Duration"),
-            el("th", {}, "Cast"), el("th", {}, "Status"), el("th", {}, ""))),
-          el("tbody", {}, ...data.shots.map((s) => el("tr", { class: "clickable", onclick: () => location.hash = `#/scenes/${s.scene_id}/director` },
-            el("td", {}, el("span", { class: "pill s-outline" }, s.shot_ref || `#${s.number}`)),
-            el("td", {}, s.scene_ref || `Scene ${s.scene_id}`),
-            el("td", { style: "font-weight:600" }, s.title || "Untitled"),
-            el("td", {}, pretty(s.shot_type || "—")),
-            el("td", {}, [s.camera_angle && pretty(s.camera_angle), s.camera_movement && pretty(s.camera_movement)].filter(Boolean).join(" / ") || "—"),
-            el("td", {}, `${s.duration_seconds || 0}s`),
-            el("td", {}, (s.cast || []).map((l) => l.character?.name).filter(Boolean).join(", ") || "—"),
-            el("td", {}, statusPill(s.status)),
-            el("td", {},
-              el("a", { class: "btn small primary", href: `#/generate/${s.id}`, style: "text-decoration:none",
-                onclick: (e) => e.stopPropagation() }, "⚡ Generate")))))))
+    ? el("div", {},
+        el("div", { class: "table-wrap" },
+          el("table", { class: "data" },
+            el("thead", {}, el("tr", {},
+              el("th", {}, "Shot"), el("th", {}, "Scene"), el("th", {}, "Title"),
+              el("th", {}, "Type"), el("th", {}, "Camera"), el("th", {}, "Duration"),
+              el("th", {}, "Cast"), el("th", {}, "Status"), el("th", {}, ""))),
+            el("tbody", {}, ...data.shots.map((s) => el("tr", { class: "clickable", onclick: () => location.hash = `#/scenes/${s.scene_id}/director` },
+              el("td", {}, el("span", { class: "pill s-outline" }, s.shot_ref || `#${s.number}`)),
+              el("td", {}, s.scene_ref || `Scene ${s.scene_id}`),
+              el("td", { style: "font-weight:600" }, s.title || "Untitled"),
+              el("td", {}, pretty(s.shot_type || "—")),
+              el("td", {}, [s.camera_angle && pretty(s.camera_angle), s.camera_movement && pretty(s.camera_movement)].filter(Boolean).join(" / ") || "—"),
+              el("td", {}, `${s.duration_seconds || 0}s`),
+              el("td", {}, (s.cast || []).map((l) => l.character?.name).filter(Boolean).join(", ") || "—"),
+              el("td", {}, statusPill(s.status)),
+              el("td", {},
+                el("a", { class: "btn small primary", href: `#/generate/${s.id}`, style: "text-decoration:none",
+                  onclick: (e) => e.stopPropagation() }, "⚡ Generate"))))))),
+        data.next_cursor
+          ? el("div", { style: "text-align:center; margin-top:14px" },
+              el("button", { class: "btn", onclick: async () => {
+                const more = await getJSON(`/api/shots?${buildQuery()}&after_id=${data.next_cursor}`);
+                state.loaded.push(...more.shots);
+                renderList({ shots: state.loaded, counts_by_status: data.counts_by_status, next_cursor: more.next_cursor });
+              } }, "Load more shots"))
+          : null)
     : emptyState({
         big: state.q || state.status ? "No shots match" : "No shots yet",
         small: state.q || state.status ? "Try clearing filters." : "Open a scene's Director view and build its storyboard.",
