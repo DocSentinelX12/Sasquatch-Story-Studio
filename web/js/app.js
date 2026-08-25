@@ -7,6 +7,7 @@ const nav = [
     label: "Production",
     items: [
       { path: "#/dashboard", title: "Dashboard", icon: "dashboard" },
+      { path: "#/assistant", title: "Assistant", icon: "spark" },
       { path: "#/story", title: "Story", icon: "story" },
       { path: "#/projects", title: "Projects", icon: "projects" },
       { path: "#/episodes", title: "Episodes", icon: "episodes" },
@@ -78,6 +79,10 @@ function registerViews() {
   views.set("/projects", placeholderRoute("projects"));
   views.set("/queue", async (c, p) => {
     const mod = await import("./views/queue.js");
+    await mod.render(c, p);
+  });
+  views.set("/assistant", async (c, p) => {
+    const mod = await import("./views/assistant.js");
     await mod.render(c, p);
   });
   views.set("/settings", async (c, p) => {

@@ -139,9 +139,11 @@ function renderLibrary() {
         ],
       });
 
-  const more = state.offset < total
+  const remaining = total != null && state.offset < total ? total - state.offset : null;
+  const more = (remaining != null && remaining > 0) || lastData.next_cursor
     ? el("div", { style: "text-align:center; margin-top:16px" },
-        el("button", { class: "btn", onclick: () => draw(true) }, `Load more (${total - state.offset} remaining)`))
+        el("button", { class: "btn", onclick: () => draw(true) },
+          remaining != null ? `Load more (${remaining} remaining)` : "Load more"))
     : null;
 
   container.replaceChildren(head, meta, toolbar, body, more);
