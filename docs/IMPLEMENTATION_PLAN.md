@@ -1,6 +1,6 @@
 # Sasquatch Story Studio — Application Implementation Plan
 
-Status: **Phase 4 (Storyboard & Shot layer) — complete**
+Status: **Phase 5 (AI video generation provider system) — complete**
 Owner: Creator (single-user studio)
 Scope of this document: the *application* being built on top of the existing
 content repository. It does not replace the content system; it runs above it.
@@ -171,8 +171,8 @@ exports skeleton) plus the QC/continuity table structure.
 | 2 | Character & Asset Studio: character profiles/lifecycle, references with categories, relationships, continuity fields, full asset library (search/filter/sort/tags/favorites/versions/approvals/archive), Meta AI import workflow | **Done** |
 | 3 | Story layer: Story Bible (versioned, approved-canon guard), canon system (draft→proposed→canon→deprecated), story ideas + development editor, episodes → acts → scenes, scene casting/props from the library, script editor (dialogue/narration/sound/camera with reorder/duplicate/transfer), continuity events + rule-based canon warnings, Ready-for-Storyboard with Phase 4 reference packages, global search, honest AI-assist hooks | **Done** |
 | 4 | Storyboard & Shot layer: Scene Director workspace (build-from-script, drag-drop storyboard), full Shot Builder (shot types/camera vocab + natural-language direction), approved reference gathering (characters/locations/props), rule-based validation with audited overrides, approval → Ready-for-Generation gate, 19-section provider-neutral prompt packages + generation packages (frame references, prev/next shot links), append-only shot versions, episode board overview | **Done** |
-| 5 | Video-generation providers: connect real Seedance/Veo/Wan adapters to the generation packages, generation queue worker, results + approvals | Next |
-| 6 | Voice/audio workspaces; timeline editor, QC, export & shorts workflows | Later |
+| 5 | Video-generation provider system: capability-declared adapters for Veo (Gemini API), Seedance (Volcano Ark) and Wan (DashScope/self-hosted) with verified REST contracts, honest connection validation, async generation queue with retries/timeouts, reference prioritization, per-shot versioned results, video review with approve/reject-reasons, usage recording, translated-request preview, provider settings UI + queue + review views | **Done** |
+| 6 | Voice/audio workspaces; timeline editor, QC, export & shorts workflows | Next |
 | 7 | Scale hardening, automation, multi-series growth | Later |
 
 ## 9. Phase 1 acceptance checks

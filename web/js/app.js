@@ -76,8 +76,14 @@ function registerViews() {
     await mod.render(c, p);
   });
   views.set("/projects", placeholderRoute("projects"));
-  views.set("/queue", placeholderRoute("queue"));
-  views.set("/settings", placeholderRoute("settings"));
+  views.set("/queue", async (c, p) => {
+    const mod = await import("./views/queue.js");
+    await mod.render(c, p);
+  });
+  views.set("/settings", async (c, p) => {
+    const mod = await import("./views/settings.js");
+    await mod.render(c, p);
+  });
   views.set("/shots", async (c, p) => {
     const mod = await import("./views/shots.js");
     await mod.render(c, p);

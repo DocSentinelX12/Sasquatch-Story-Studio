@@ -266,6 +266,7 @@ function shotModal(shot) {
     { id: "refs", label: "References & Frames", count: (current.references || []).length },
     { id: "approve", label: "Validation & Approval" },
     { id: "versions", label: "Versions", count: current.version_count },
+    { id: "generate", label: "Generate" },
   ], active, (id) => { active = id; renderTab(); });
 
   async function redraw() {
@@ -280,6 +281,7 @@ function shotModal(shot) {
     else if (active === "cast") castTab();
     else if (active === "refs") refsTab();
     else if (active === "approve") approveTab();
+    else if (active === "generate") generateTab();
     else versionsTab();
   }
 
@@ -549,6 +551,144 @@ function shotModal(shot) {
       await postJSON(`/api/shots/${current.id}/versions`, {});
       toast("Current state snapshotted as a new version.", "ok"); redraw();
     } }, el("span", { html: ICONS.plus }), "Snapshot Current State"));
+  }
+
+  function autoCaps(providerList) {
+    const available = providerList.filter((p) => p.status !== "not_configured" && p.caps);
+    if (!available.length) return null;
+    const intersect = (lists) => {
+      if (!lists.length) return [];
+      return lists.reduce((acc, list) => acc.filter((v) => list.includes(v)));
+    };
+    return {
+      durations: intersect(available.map((p) => p.caps.durations || [])),
+      resolutions: intersect(available.map((p) => p.caps.resolutions || [])),
+      aspect_ratios: intersect(available.map((p) => p.caps.aspect_ratios || [])),
+      seed_support: available.every((p) => p.caps.seed_support),
+      audio_generation: available.every((p) => p.caps.audio_generation),
+    };
+  }
+
+  async function generateTab() {
+    body.replaceChildren(loadingState("Loading providers…"));
+    let providers = [];
+    try {
+      providers = (await getJSON("/api/providers")).providers.filter((p) => p.kind === "video");
+    } catch (error) {
+      body.replaceChildren(errorState(error));
+      return;
+    }
+    const selectable = [{ key: "auto", label: "Automatic (capability match)" },
+      ...providers.map((p) => ({ key: p.key, label: (p.is_test ? "[TEST] " : "") + p.display_name + (p.status === "not_configured" ? " — not configured" : ""), provider: p }))];
+    const providerSel = el("select", { onchange: () => updateSettingsUI() },
+      selectable.map((option) => el("option", { value: option.key }, option.label)));
+    const providerInfo = el("div", { class: "muted", style: "font-size:11.5px; margin-top:5px" });
+    const settingsHolder = el("div", {});
+    const previewHolder = el("div", {});
+
+    function currentProvider() {
+      return selectable.find((s) => s.key === providerSel.value) || null;
+    }
+
+    function updateSettingsUI() {
+      const choice = currentProvider();
+      settingsHolder.replaceChildren();
+      providerInfo.replaceChildren();
+      if (!choice) return;
+      if (choice.key === "auto") {
+        providerInfo.append("Chooses a configured provider whose capabilities match this shot. No cost/performance claims — selection is documented per job.");
+      } else {
+        const p = choice.provider;
+        providerInfo.append(p.status === "not_configured"
+          ? `Not configured — set ${p.missing_env.join(", ")} server-side. Jobs can still be drafted but submission will refuse honestly.`
+          : `Status: ${pretty(p.status)}.`);
+      }
+      const caps = choice.key === "auto" ? autoCaps(providers) : choice.provider?.caps;
+      const useCaps = caps || { durations: [], resolutions: [], aspect_ratios: ["16:9", "9:16"], seed_support: false, audio_generation: false };
+      const durSel = el("select", {},
+        (useCaps.durations?.length ? useCaps.durations : [4, 5, 6, 8, 10]).map((d) =>
+          el("option", { value: String(d), selected: Number(d) === (current.duration_seconds || 6) ? "" : null }, `${d}s`)));
+      const resSel = el("select", {},
+        (useCaps.resolutions?.length ? useCaps.resolutions : ["720p"]).map((r) => el("option", { value: r }, r)));
+      const arSel = el("select", {},
+        (useCaps.aspect_ratios?.length ? useCaps.aspect_ratios : ["16:9", "9:16"]).map((a) =>
+          el("option", { value: a, selected: a === "16:9" ? "" : null }, a)));
+      const seedInput = el("input", { type: "number", placeholder: "—" });
+      if (!useCaps.seed_support) seedInput.disabled = true;
+      const audioSel = el("select", {}, el("option", { value: "" }, "provider default"),
+        el("option", { value: "true" }, "generate audio"), el("option", { value: "false" }, "no audio"));
+      if (!useCaps.audio_generation) audioSel.disabled = true;
+      settingsHolder.append(
+        el("div", { class: "form-row-3" },
+          field("Duration", durSel), field("Resolution", resSel), field("Aspect ratio", arSel)),
+        el("div", { class: "form-row" },
+          field("Seed" + (useCaps.seed_support ? "" : " (unsupported)"), seedInput),
+          field("Audio" + (useCaps.audio_generation ? "" : " (unsupported)"), audioSel)));
+      settingsHolder._collect = () => {
+        const payload = { duration_seconds: parseFloat(durSel.value), resolution: resSel.value, aspect_ratio: arSel.value };
+        if (seedInput.value && !seedInput.disabled) payload.seed = parseInt(seedInput.value, 10);
+        if (audioSel.value && !audioSel.disabled) payload.generate_audio = audioSel.value === "true";
+        return payload;
+      };
+    }
+
+    const refreshPreview = async () => {
+      previewHolder.replaceChildren(loadingState("Translating request…"));
+      const settings = settingsHolder._collect ? settingsHolder._collect() : {};
+      try {
+        const preview = await getJSON(`/api/shots/${current.id}/preview-request?provider_key=${providerSel.value}&settings=${encodeURIComponent(JSON.stringify(settings))}`);
+        previewHolder.replaceChildren();
+        if (!preview.provider) {
+          previewHolder.append(el("div", { class: "callout", style: "font-size:12px" },
+            el("b", {}, "No provider available. "), (preview.errors || []).join(" ")));
+          return;
+        }
+        if (preview.errors?.length) {
+          previewHolder.append(el("div", { class: "callout", style: "font-size:12px; margin-bottom:8px" },
+            el("b", {}, "Capability errors: "), preview.errors.join("; ")));
+        }
+        const refs = preview.references || {};
+        if ((refs.submitted || []).length || (refs.skipped || []).length) {
+          previewHolder.append(el("div", { class: "card", style: "margin-bottom:8px; padding:10px 13px" },
+            el("b", { style: "fontSize:12px" }, `References — ${(refs.submitted || []).length} submitted, ${(refs.skipped || []).length} skipped`),
+            el("ul", { style: "margin:6px 0 0 16px; font-size:11.5px" },
+              ...(refs.submitted || []).map((r) => el("li", {}, `✓ ${r.purpose} — ${r.label || r.asset_id}`)),
+              ...(refs.skipped || []).map((r) => el("li", { style: "color:var(--amber)" }, `⚠ ${r.purpose} — ${r.reason}`)))));
+        }
+        previewHolder.append(el("details", {},
+          el("summary", { style: "cursor:pointer; font-size:12px; margin-bottom:6px" }, "Exact provider-translated request (nothing submitted yet)"),
+          el("pre", { class: "code", style: "max-height:260px" }, JSON.stringify(preview.translated, null, 2))));
+      } catch (error) {
+        previewHolder.replaceChildren(errorState(error));
+      }
+    };
+
+    const generateNow = async () => {
+      const settings = settingsHolder._collect ? settingsHolder._collect() : {};
+      try {
+        const job = await postJSON(`/api/shots/${current.id}/generate`, { provider_key: providerSel.value, settings });
+        const submit = await postJSON(`/api/generation/jobs/${job.id}/submit`);
+        toast(submit.status.startsWith("fail") ? `Submission failed: ${submit.error_code}` :
+          `Generation submitted (${pretty(submit.status)}) — watch the Generation Queue.`, "ok", "Generating");
+        document.querySelector(".modal-backdrop")?.remove();
+        location.hash = "#/queue";
+      } catch (error) {
+        const detail = error.detail || {};
+        toast(detail.message || error.message, "error", "Generation refused");
+      }
+    };
+
+    updateSettingsUI();
+    body.replaceChildren(
+      el("div", {},
+        el("div", { class: "callout info", style: "font-size:11.5px; margin-bottom:12px" },
+          "The universal generation package stays provider-neutral; the adapter translates it. Review the exact request before submitting. Approved references only."),
+        field("Provider", providerSel), providerInfo,
+        el("div", { style: "height:10px" }), settingsHolder,
+        el("div", { style: "display:flex; gap:8px; margin:12px 0" },
+          el("button", { class: "btn small ghost", onclick: refreshPreview }, el("span", { html: ICONS.refresh }), "Preview exact request"),
+          el("button", { class: "btn small primary", onclick: generateNow }, el("span", { html: ICONS.spark }), "Generate now")),
+        previewHolder));
   }
 
   openModal({
