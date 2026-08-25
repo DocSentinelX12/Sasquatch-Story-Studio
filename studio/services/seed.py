@@ -296,7 +296,7 @@ def seed_if_empty(session: Session) -> dict:
                 duration_seconds=float(shot_data.get("duration_seconds", 6)),
                 action=shot_data.get("action"),
                 visual_style=shot_data.get("composition"),
-                status="planned",
+                status="draft",
                 order_index=index,
                 source_path=f"{ep_dir}/storyboards/storyboard.json",
             ))
