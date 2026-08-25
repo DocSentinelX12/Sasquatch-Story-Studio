@@ -269,7 +269,7 @@ def seed_if_empty(session: Session) -> dict:
                 story_purpose=data.get("purpose"),
                 visual_action=data.get("visual_action"),
                 estimated_duration_seconds=data.get("estimated_duration_seconds"),
-                status="written",
+                status="needs_review",
                 order_index=index,
                 source_path=f"{ep_dir}/scenes/{scene_file.name}",
             )
