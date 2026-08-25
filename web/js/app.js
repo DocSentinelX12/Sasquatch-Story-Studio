@@ -26,9 +26,9 @@ const nav = [
   {
     label: "Post & Delivery",
     items: [
-      { path: "#/audio", title: "Audio", icon: "audio", soon: "P5" },
-      { path: "#/timeline", title: "Timeline", icon: "timeline", soon: "P5" },
-      { path: "#/exports", title: "Exports", icon: "exports", soon: "P5" },
+      { path: "#/audio", title: "Audio", icon: "audio" },
+      { path: "#/timeline", title: "Timeline", icon: "timeline" },
+      { path: "#/exports", title: "Exports", icon: "exports" },
     ],
   },
   {
@@ -84,11 +84,23 @@ function registerViews() {
     const mod = await import("./views/settings.js");
     await mod.render(c, p);
   });
+  views.set("/audio", async (c, p) => {
+    const mod = await import("./views/audio.js");
+    await mod.render(c, p);
+  });
+  views.set("/timeline", async (c, p) => {
+    const mod = await import("./views/timeline.js");
+    await mod.render(c, p);
+  });
+  views.set("/exports", async (c, p) => {
+    const mod = await import("./views/exports.js");
+    await mod.render(c, p);
+  });
   views.set("/shots", async (c, p) => {
     const mod = await import("./views/shots.js");
     await mod.render(c, p);
   });
-  for (const key of ["audio", "timeline", "exports"]) {
+  for (const key of []) {
     views.set(`/${key}`, phasePlaceholderRoute(key));
   }
   paramRoutes.push({
