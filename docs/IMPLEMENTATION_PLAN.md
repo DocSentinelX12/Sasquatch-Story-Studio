@@ -1,6 +1,6 @@
 # Sasquatch Story Studio — Application Implementation Plan
 
-Status: **Phase 3 (Story layer) — complete**
+Status: **Phase 4 (Storyboard & Shot layer) — complete**
 Owner: Creator (single-user studio)
 Scope of this document: the *application* being built on top of the existing
 content repository. It does not replace the content system; it runs above it.
@@ -170,9 +170,10 @@ exports skeleton) plus the QC/continuity table structure.
 | 1 | App shell, projects, database, asset library + uploads, provider registry/status, generation-job records, dashboard, settings | **Done** |
 | 2 | Character & Asset Studio: character profiles/lifecycle, references with categories, relationships, continuity fields, full asset library (search/filter/sort/tags/favorites/versions/approvals/archive), Meta AI import workflow | **Done** |
 | 3 | Story layer: Story Bible (versioned, approved-canon guard), canon system (draft→proposed→canon→deprecated), story ideas + development editor, episodes → acts → scenes, scene casting/props from the library, script editor (dialogue/narration/sound/camera with reorder/duplicate/transfer), continuity events + rule-based canon warnings, Ready-for-Storyboard with Phase 4 reference packages, global search, honest AI-assist hooks | **Done** |
-| 4 | Storyboard, Scene Director, Shot Builder, production reference-package system (consumes the scene packages from Phase 3) | Next |
-| 5 | Voice/audio workspaces; timeline editor, QC, export & shorts workflows | Later |
-| 6 | Real provider adapters (when credentials/APIs exist) + queue worker; scale hardening, automation, multi-series growth | Later |
+| 4 | Storyboard & Shot layer: Scene Director workspace (build-from-script, drag-drop storyboard), full Shot Builder (shot types/camera vocab + natural-language direction), approved reference gathering (characters/locations/props), rule-based validation with audited overrides, approval → Ready-for-Generation gate, 19-section provider-neutral prompt packages + generation packages (frame references, prev/next shot links), append-only shot versions, episode board overview | **Done** |
+| 5 | Video-generation providers: connect real Seedance/Veo/Wan adapters to the generation packages, generation queue worker, results + approvals | Next |
+| 6 | Voice/audio workspaces; timeline editor, QC, export & shorts workflows | Later |
+| 7 | Scale hardening, automation, multi-series growth | Later |
 
 ## 9. Phase 1 acceptance checks
 

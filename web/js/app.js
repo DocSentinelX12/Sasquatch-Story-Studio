@@ -78,7 +78,11 @@ function registerViews() {
   views.set("/projects", placeholderRoute("projects"));
   views.set("/queue", placeholderRoute("queue"));
   views.set("/settings", placeholderRoute("settings"));
-  for (const key of ["shots", "audio", "timeline", "exports"]) {
+  views.set("/shots", async (c, p) => {
+    const mod = await import("./views/shots.js");
+    await mod.render(c, p);
+  });
+  for (const key of ["audio", "timeline", "exports"]) {
     views.set(`/${key}`, phasePlaceholderRoute(key));
   }
   paramRoutes.push({
@@ -99,6 +103,14 @@ function registerViews() {
     prefix: "/episodes/",
     load: async (container, id, params) => {
       const mod = await import("./views/episode-detail.js");
+      await mod.render(container, Number(id), params);
+    },
+  });
+  paramRoutes.push({
+    prefix: "/scenes/",
+    match: "/director",
+    load: async (container, id, params) => {
+      const mod = await import("./views/scene-director.js");
       await mod.render(container, Number(id), params);
     },
   });
@@ -196,10 +208,18 @@ async function route() {
   if (!view) {
     for (const candidate of paramRoutes) {
       if (key.startsWith(candidate.prefix)) {
-        const rest = key.slice(candidate.prefix.length).split("/")[0];
-        if (rest && /^\d+$/.test(rest)) {
+        const remainder = key.slice(candidate.prefix.length);
+        if (candidate.match) {
+          // pattern: prefix<id>/suffix
+          const [idPart, ...rest] = remainder.split("/");
+          if (idPart && /^\d+$/.test(idPart) && rest.join("/") === candidate.match.slice(1)) {
+            paramLoad = candidate.load;
+            paramId = idPart;
+            break;
+          }
+        } else if (/^\d+$/.test(remainder)) {
           paramLoad = candidate.load;
-          paramId = rest;
+          paramId = remainder;
           break;
         }
       }
@@ -208,6 +228,7 @@ async function route() {
 
   // nav active state (param routes highlight their section)
   const sectionKey = paramLoad ? `/${key.split("/").filter(Boolean)[0]}` : key;
+  void sectionKey;
   document.querySelectorAll("#nav a").forEach((a) => {
     a.classList.toggle("active", a.getAttribute("href") === `#${sectionKey}`);
   });

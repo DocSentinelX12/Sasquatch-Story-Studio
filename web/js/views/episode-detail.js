@@ -42,6 +42,7 @@ export async function render(c, id, params = new URLSearchParams()) {
 function draw(params = new URLSearchParams()) {
   const tabs = [
     { id: "scenes", label: "Acts & Scenes", count: data.scenes.length },
+    { id: "board", label: "Storyboard" },
     { id: "overview", label: "Overview" },
     { id: "script", label: "Script", count: data.scenes.reduce((n, s) => n + s.script.length, 0) },
     { id: "continuity", label: "Continuity" },
@@ -63,6 +64,7 @@ function drawPanel(params) {
   if (tab === "overview") overviewPanel(panel);
   else if (tab === "script") scriptPanel(panel);
   else if (tab === "continuity") continuityPanel(panel);
+  else if (tab === "board") boardPanel(panel);
   else scenesPanel(panel, params);
 }
 
@@ -90,6 +92,62 @@ function header() {
           toast("Script approved.", "ok"); refresh();
         } catch (e) { toast(e.message, "error"); }
       } }, el("span", { html: ICONS.check }), "Approve Script")));
+}
+
+/* ================= episode storyboard overview ================= */
+async function boardPanel(panel) {
+  panel.append(loadingState("Loading episode board…"));
+  try {
+    const board = await getJSON(`/api/episodes/${episodeId}/board`);
+    panel.lastChild.remove();
+    const s = board.summary;
+    panel.append(
+      el("div", { class: "grid cols-4", style: "margin-bottom:16px" },
+        el("div", { class: "card stat-card" }, el("div", { class: "value" }, String(s.scene_count)), el("div", { class: "label" }, "Scenes")),
+        el("div", { class: "card stat-card" }, el("div", { class: "value" }, String(s.shot_count)), el("div", { class: "label" }, "Shots")),
+        el("div", { class: "card stat-card" }, el("div", { class: "value" }, `${Math.round((s.estimated_duration_seconds || 0) / 60)}m`), el("div", { class: "label" }, "Estimated duration")),
+        el("div", { class: "card stat-card" },
+          el("div", { class: "value", style: s.ready_for_generation ? "color:var(--moss)" : "" }, String(s.ready_for_generation)),
+          el("div", { class: "label" }, "Ready for generation"),
+          el("div", { class: "hint" }, `${s.unapproved_shots} unapproved`))),
+      s.missing_references.length
+        ? el("div", { class: "callout", style: "margin-bottom:14px; font-size:12.5px" },
+            el("b", {}, "Missing references: "), s.missing_references.slice(0, 5).join(" · "),
+            s.missing_references.length > 5 ? ` … +${s.missing_references.length - 5} more` : "")
+        : null);
+    const byAct = new Map();
+    for (const block of board.blocks) if (block.kind === "act") byAct.set(block.act.id, block.act);
+    for (const group of board.scenes) {
+      const act = group.scene.act_id ? byAct.get(group.scene.act_id) : null;
+      const block = el("div", { class: "scene-block" },
+        el("h4", {},
+          el("span", { class: "pill s-outline" }, group.scene.scene_ref || "Scene"),
+          " ", group.scene.title || "Untitled", " ",
+          statusPill(group.scene.status),
+          group.scene.location_name ? el("span", { class: "pill s-outline" }, group.scene.location_name) : null,
+          act ? el("span", { class: "pill s-outline" }, act.title) : null,
+          el("a", { class: "btn small", href: `#/scenes/${group.scene.id}/director`, style: "margin-left:auto; text-decoration:none" }, "🎬 Director")),
+        el("div", { class: "sub" },
+          `${group.shots.length} shot${group.shots.length === 1 ? "" : "s"} · ${Math.round(group.shots.reduce((n, x) => n + (x.duration_seconds || 0), 0))}s`));
+      if (!group.shots.length) {
+        block.append(el("div", { class: "muted", style: "font-size:12px" }, "No shots yet — open the Director to build the storyboard."));
+      }
+      const chips = el("div", { style: "display:flex; gap:6px; flex-wrap:wrap" });
+      for (const shot of group.shots) {
+        chips.append(el("span", {
+          class: `pill ${shot.status === "ready_for_generation" ? "s-green" : shot.status === "approved" ? "s-blue" : "s-gray"}`,
+          style: "cursor:pointer",
+          title: `${shot.title || ""} · ${pretty(shot.shot_type || "type?")} · ${shot.duration_seconds}s`,
+          onclick: () => location.hash = `#/scenes/${group.scene.id}/director`,
+        }, `${shot.shot_ref || `#${shot.number}`} ${pretty(shot.shot_type || "").slice(0, 12)}`));
+      }
+      block.append(chips);
+      panel.append(block);
+    }
+  } catch (error) {
+    panel.lastChild?.remove();
+    panel.append(errorState(error, () => boardPanel(panel)));
+  }
 }
 
 /* ================= overview ================= */
