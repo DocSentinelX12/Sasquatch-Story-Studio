@@ -14,7 +14,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 
-from .api import assets, characters, dashboard, episodes, generation, projects, shots, story, system, world
+from .api import assets, characters, dashboard, episodes, generation, postproduction, projects, shots, story, system, world
 from .config import settings
 from .db import SessionLocal, create_all
 from .services.generation_service import resume_pending_jobs
@@ -61,6 +61,7 @@ def create_app() -> FastAPI:
     app.include_router(characters.router)
     app.include_router(assets.router)
     app.include_router(shots.router)
+    app.include_router(postproduction.router)
     app.include_router(generation.router)
     app.include_router(system.router)
 

@@ -54,6 +54,23 @@ def get_video_adapter(key: str, transport=None):
                           region=_env("WAN_REGION"),
                           t2v_model=_env("WAN_T2V_MODEL"), i2v_model=_env("WAN_I2V_MODEL"),
                           transport=transport)
+    if key == "local-audio":
+        api_url = _env("LOCAL_AUDIO_API_URL")
+        if not api_url:
+            raise ProviderNotConfigured("local-audio", ["LOCAL_AUDIO_API_URL"])
+        from .local_audio import LocalAudioAdapter
+        return LocalAudioAdapter(api_url, api_key=_env("LOCAL_AUDIO_API_KEY"), transport=transport)
+    if key == "test-echo-audio":
+        if (env("STUDIO_TEST_PROVIDER") or "").lower() not in ("1", "true", "yes"):
+            raise ProviderNotConfigured("test-echo-audio", ["STUDIO_TEST_PROVIDER=1"])
+        from .local_audio import TestEchoAudioAdapter
+        return TestEchoAudioAdapter(transport=transport)
+    if key in ("elevenlabs-audio", "openai-audio"):
+        definition = DEFINITIONS.get(key)
+        missing = definition.missing_env() if definition else []
+        if missing:
+            raise ProviderNotConfigured(key, missing)
+        raise AdapterNotImplemented(key)
     if key == "local":
         api_url = _env("LOCAL_VIDEO_API_URL")
         if not api_url:

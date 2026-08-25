@@ -20,7 +20,12 @@ class VoiceProfile(TimestampMixin, Base):
     )
     name: Mapped[str] = mapped_column()
     role: Mapped[str] = mapped_column(default="character")     # character | narrator
-    provider_key: Mapped[Optional[str]] = mapped_column(nullable=True)  # future voice providers
+    provider_key: Mapped[Optional[str]] = mapped_column(nullable=True)  # local | cloud boundary
+    voice_id: Mapped[Optional[str]] = mapped_column(nullable=True)      # provider voice reference
+    voice_style: Mapped[Optional[str]] = mapped_column(nullable=True)
+    speaking_speed: Mapped[float] = mapped_column(default=1.0)
+    pitch: Mapped[Optional[float]] = mapped_column(nullable=True)
+    emotion_notes: Mapped[Optional[str]] = mapped_column(nullable=True)
     description: Mapped[Optional[str]] = mapped_column(nullable=True)
     settings: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
     status: Mapped[str] = mapped_column(default="draft")       # draft | pending_approval | approved

@@ -180,6 +180,41 @@ DEFINITIONS: dict[str, ProviderDefinition] = {
         ),
         # --- Phase 3: story/text assistance providers (contracts only) -------
         ProviderDefinition(
+            key="local-audio",
+            display_name="Local / Self-Hosted Audio",
+            kind="audio",
+            required_env=("LOCAL_AUDIO_API_URL",),
+            optional_env=("LOCAL_AUDIO_API_KEY",),
+            caps=ProviderCapabilities(
+                audio_generation=True,
+                notes=(
+                    "Self-hosted TTS/narration lane (dialogue + narration + future sound/"
+                    "music generation). Configure LOCAL_AUDIO_API_URL.",
+                    "Implements the Local Audio Server contract v1 (/health, /tts, /jobs/{id}).",
+                ),
+            ),
+            notes="Free lane: runs on your hardware, no per-generation cloud credits.",
+            adapter_module="studio.providers.adapters.local_audio",
+        ),
+        ProviderDefinition(
+            key="elevenlabs-audio",
+            display_name="ElevenLabs (audio boundary)",
+            kind="audio",
+            required_env=("ELEVENLABS_API_KEY",),
+            caps=None,
+            notes="Cloud TTS boundary — no verified contract implemented in this build; refuses honestly.",
+            adapter_module="studio.providers.adapters.placeholders",
+        ),
+        ProviderDefinition(
+            key="openai-audio",
+            display_name="OpenAI Audio (boundary)",
+            kind="audio",
+            required_env=("OPENAI_API_KEY",),
+            caps=None,
+            notes="Cloud TTS boundary — not implemented in this build; refuses honestly.",
+            adapter_module="studio.providers.adapters.placeholders",
+        ),
+        ProviderDefinition(
             key="local",
             display_name="Local / Self-Hosted",
             kind="video",
@@ -230,6 +265,20 @@ DEFINITIONS: dict[str, ProviderDefinition] = {
                 "build time. Structurally ready; refuses honestly until implemented."
             ),
             adapter_module="studio.providers.adapters.placeholders",
+        ),
+        ProviderDefinition(
+            key="test-echo-audio",
+            display_name="TEST Audio Adapter (development only)",
+            kind="audio",
+            required_env=("STUDIO_TEST_PROVIDER",),
+            is_test=True,
+            caps=ProviderCapabilities(
+                audio_generation=True,
+                notes=("TEST ADAPTER — valid silent WAV files, never real speech.",
+                       "Enable with STUDIO_TEST_PROVIDER=1."),
+            ),
+            notes="Development/testing only; clearly marked.",
+            adapter_module="studio.providers.adapters.local_audio",
         ),
         ProviderDefinition(
             key="test-echo",
