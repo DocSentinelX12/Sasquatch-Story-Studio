@@ -126,6 +126,9 @@ class Scene(TimestampMixin, Base):
     act: Mapped[Optional[Act]] = relationship(back_populates="scenes")
     location: Mapped[Optional["Location"]] = relationship(back_populates="scenes")  # noqa: F821
     shots: Mapped[list["Shot"]] = relationship(back_populates="scene", order_by="Shot.order_index", cascade="all, delete-orphan")
+    storyboard: Mapped[Optional["Storyboard"]] = relationship(  # noqa: F821
+        back_populates="scene", uselist=False, cascade="all, delete-orphan"
+    )
     cast: Mapped[list["SceneCharacter"]] = relationship(  # noqa: F821
         back_populates="scene", cascade="all, delete-orphan", order_by="SceneCharacter.id"
     )
@@ -144,21 +147,56 @@ class Shot(TimestampMixin, Base):
     scene_id: Mapped[int] = mapped_column(ForeignKey("scenes.id", ondelete="CASCADE"), index=True)
     shot_ref: Mapped[Optional[str]] = mapped_column(nullable=True, index=True)  # e.g. SHOT-001
     number: Mapped[int] = mapped_column(default=1)
+    title: Mapped[Optional[str]] = mapped_column(nullable=True)
+    description: Mapped[Optional[str]] = mapped_column(nullable=True)
     shot_type: Mapped[Optional[str]] = mapped_column(nullable=True)       # wide / medium / close-up ...
     camera_angle: Mapped[Optional[str]] = mapped_column(nullable=True)
     camera_movement: Mapped[Optional[str]] = mapped_column(nullable=True)
+    camera_notes: Mapped[Optional[str]] = mapped_column(nullable=True)    # natural-language direction
+    lens_framing: Mapped[Optional[str]] = mapped_column(nullable=True)
+    composition: Mapped[Optional[str]] = mapped_column(nullable=True)
+    subject_position: Mapped[Optional[str]] = mapped_column(nullable=True)
     duration_seconds: Mapped[float] = mapped_column(default=6.0)
     action: Mapped[Optional[str]] = mapped_column(nullable=True)
+    character_action: Mapped[Optional[str]] = mapped_column(nullable=True)
+    facial_expression: Mapped[Optional[str]] = mapped_column(nullable=True)
+    environment_action: Mapped[Optional[str]] = mapped_column(nullable=True)
     dialogue: Mapped[Optional[str]] = mapped_column(JSON, nullable=True)
     narration: Mapped[Optional[str]] = mapped_column(nullable=True)
     sound_effects: Mapped[Optional[str]] = mapped_column(JSON, nullable=True)
     music: Mapped[Optional[str]] = mapped_column(nullable=True)
+    transition: Mapped[Optional[str]] = mapped_column(nullable=True)
     visual_style: Mapped[Optional[str]] = mapped_column(nullable=True)
-    status: Mapped[str] = mapped_column(default=ShotStatus.PLANNED.value)
+    lighting: Mapped[Optional[str]] = mapped_column(nullable=True)
+    weather: Mapped[Optional[str]] = mapped_column(nullable=True)
+    continuity_notes: Mapped[Optional[str]] = mapped_column(nullable=True)
+    # dependency state (PART 10) — free-form state carried across shots
+    character_state_notes: Mapped[Optional[str]] = mapped_column(nullable=True)
+    prop_state_notes: Mapped[Optional[str]] = mapped_column(nullable=True)
+    location_state_notes: Mapped[Optional[str]] = mapped_column(nullable=True)
+    prev_shot_id: Mapped[Optional[int]] = mapped_column(nullable=True)
+    next_shot_id: Mapped[Optional[int]] = mapped_column(nullable=True)
+    generation_status: Mapped[str] = mapped_column(default="pending")   # pending | generating | generated | failed
+    status: Mapped[str] = mapped_column(default=ShotStatus.DRAFT.value)
     order_index: Mapped[int] = mapped_column(default=0)
     source_path: Mapped[Optional[str]] = mapped_column(nullable=True)
 
     scene: Mapped[Scene] = relationship(back_populates="shots")
     generation_jobs: Mapped[list["GenerationJob"]] = relationship(  # noqa: F821
         back_populates="shot"
+    )
+    cast: Mapped[list["ShotCharacter"]] = relationship(  # noqa: F821
+        back_populates="shot", cascade="all, delete-orphan", order_by="ShotCharacter.id"
+    )
+    prop_links: Mapped[list["ShotProp"]] = relationship(  # noqa: F821
+        back_populates="shot", cascade="all, delete-orphan", order_by="ShotProp.id"
+    )
+    references: Mapped[list["ShotReference"]] = relationship(  # noqa: F821
+        back_populates="shot", cascade="all, delete-orphan", order_by="ShotReference.order_index"
+    )
+    versions: Mapped[list["ShotVersion"]] = relationship(  # noqa: F821
+        back_populates="shot", cascade="all, delete-orphan", order_by="ShotVersion.version_number"
+    )
+    continuity_records: Mapped[list["ShotContinuity"]] = relationship(  # noqa: F821
+        back_populates="shot", cascade="all, delete-orphan"
     )

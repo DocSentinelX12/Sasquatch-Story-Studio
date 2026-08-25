@@ -54,13 +54,16 @@ class SceneStatus(str, Enum):
 
 
 class ShotStatus(str, Enum):
-    PLANNED = "planned"
-    READY = "ready"
-    QUEUED = "queued"
-    GENERATING = "generating"
+    """Phase 4 lifecycle. Legacy values normalize on write."""
+    DRAFT = "draft"
     NEEDS_REVIEW = "needs_review"
     APPROVED = "approved"
+    READY_FOR_GENERATION = "ready_for_generation"
+    GENERATING = "generating"
+    GENERATED = "generated"
+    NEEDS_REVISION = "needs_revision"
     REJECTED = "rejected"
+    COMPLETE = "complete"
 
 
 class AssetCategory(str, Enum):

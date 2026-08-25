@@ -108,6 +108,28 @@ EXPECTED_EXTRA_COLUMNS: dict[str, dict[str, str]] = {
         "continuity_notes": "TEXT",
         "approval_status": "VARCHAR(32) DEFAULT 'registered'",
     },
+    # --- Phase 4 (storyboard/shot layer) ---
+    "shots": {
+        "title": "TEXT",
+        "description": "TEXT",
+        "camera_notes": "TEXT",
+        "lens_framing": "TEXT",
+        "composition": "TEXT",
+        "subject_position": "TEXT",
+        "character_action": "TEXT",
+        "facial_expression": "TEXT",
+        "environment_action": "TEXT",
+        "transition": "TEXT",
+        "lighting": "TEXT",
+        "weather": "TEXT",
+        "continuity_notes": "TEXT",
+        "character_state_notes": "TEXT",
+        "prop_state_notes": "TEXT",
+        "location_state_notes": "TEXT",
+        "prev_shot_id": "INTEGER",
+        "next_shot_id": "INTEGER",
+        "generation_status": "VARCHAR(32) DEFAULT 'pending'",
+    },
 }
 
 # Legacy Phase 1 status values → Phase 3 vocabulary (data-preserving rewrite
@@ -130,6 +152,11 @@ LEGACY_STATUS_MAP = {
         "boarded": "ready_for_storyboard",
         "shot_ready": "ready_for_storyboard",
         "generating": "in_production",
+    },
+    "shots": {
+        "planned": "draft",
+        "ready": "needs_review",
+        "queued": "generating",
     },
     "story_bibles": {
         # seeded creator canon starts approved
