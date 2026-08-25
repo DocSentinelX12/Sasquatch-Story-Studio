@@ -253,6 +253,15 @@ EXPECTED_INDEXES: dict[str, list[tuple[str, str]]] = {
 }
 
 
+def _ensure_tables(connection) -> None:
+    """Additive table creation for Phase 9 (key-value system settings)."""
+    from sqlalchemy import text
+
+    connection.execute(text(
+        "CREATE TABLE IF NOT EXISTS system_settings ("
+        " key TEXT PRIMARY KEY, value_json JSON NOT NULL, updated_at TEXT)"))
+
+
 def _ensure_indexes(connection) -> None:
     from sqlalchemy import inspect as sa_inspect, text
 
@@ -279,6 +288,7 @@ def ensure_schema_upgrades() -> None:
                     connection.execute(
                         text(f"ALTER TABLE {table} ADD COLUMN {column} {ddl}")
                     )
+        _ensure_tables(connection)
         _ensure_indexes(connection)
         # normalize legacy statuses once
         for table, mapping in LEGACY_STATUS_MAP.items():

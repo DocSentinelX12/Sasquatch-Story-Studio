@@ -31,3 +31,6 @@ assets/production/final-approved/**
 # Provider downloads, renders, and temporary work
 renders/
 tmp/
+
+# Automatic + manual series backups (JSON snapshots)
+backups/

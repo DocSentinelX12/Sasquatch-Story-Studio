@@ -14,7 +14,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 
-from .api import assets, batch, characters, dashboard, episodes, generation, phase8, postproduction, projects, shots, story, system, world
+from .api import assets, batch, characters, dashboard, episodes, generation, phase8, phase9, postproduction, projects, shots, story, system, world
 from .config import settings
 from .db import SessionLocal, create_all
 from .services.generation_service import resume_pending_jobs
@@ -37,6 +37,22 @@ async def lifespan(app: FastAPI):
         refresh_provider_status(session)
     finally:
         session.close()
+    try:
+        from .db import SessionLocal as _SL
+        from .api.phase9 import auto_backup_due
+        from .services.backup import write_auto_backup
+        _s = _SL()
+        try:
+            if auto_backup_due(_s):
+                from sqlalchemy import select as _sel
+                from .models import Project as _P
+                for _proj in _s.scalars(_sel(_P)).all():
+                    write_auto_backup(_s, _proj.id, "auto")
+                print("[studio] automatic backup written")
+        finally:
+            _s.close()
+    except Exception as _e:  # noqa: BLE001
+        print(f"[studio] auto-backup skipped: {_e}")
     try:
         resumed = resume_pending_jobs()
         if resumed:
@@ -69,6 +85,7 @@ def create_app() -> FastAPI:
     app.include_router(postproduction.router)
     app.include_router(batch.router)
     app.include_router(phase8.router)
+    app.include_router(phase9.router)
     app.include_router(generation.router)
     app.include_router(system.router)
 

@@ -31,7 +31,7 @@ ok("new series button", text().includes("New Series"));
 clickTab("Templates"); await wait(800);
 ok("TEMPLATES tab", text().includes("No templates") || text().includes("Instantiate"));
 clickTab("Backups"); await wait(800);
-ok("BACKUPS tab + media honesty", text().includes("referenced by path, not embedded") && text().includes("Download JSON backup"));
+ok("BACKUPS tab: restore + auto + export", text().includes("Restore backup") && text().includes("Automatic backups") && text().includes("Download JSON backup") && text().includes("validate"));
 // regression: dashboard + assistant + settings
 location.hash = "#/dashboard"; await wait(700);
 ok("dashboard intact", text().includes("The Great Moonberry Bounce"));

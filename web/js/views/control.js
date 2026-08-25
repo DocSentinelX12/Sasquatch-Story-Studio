@@ -236,24 +236,100 @@ function templateModal(episodes) {
   });
 }
 
-/* ---------------- backups ---------------- */
+/* ---------------- backups (export + restore + automatic) ---------------- */
 async function backupsPanel(panel) {
-  panel.append(loadingState("Loading series…"));
+  panel.append(loadingState("Loading backups…"));
   try {
-    const projects = await getJSON("/api/projects");
+    const [projects, auto] = await Promise.all([
+      getJSON("/api/projects"), getJSON("/api/backups/auto")]);
     panel.replaceChildren(
       el("div", { class: "callout", style: "font-size:12px; margin-bottom:12px" },
-        "Backups export the complete series (bible, canon, characters, episodes, scenes, shots, script, timeline, generation history, exports) as JSON. ",
-        el("b", {}, "Media files are referenced by path, not embedded"), " — back up assets/ and renders/ folders separately (e.g. with git or your file backup)."));
+        "Export the complete series as JSON (media referenced by path). ",
+        el("b", {}, "Restore"), " uploads a backup, validates it, shows you the results, and only writes after your explicit confirm — as a new series by default."),
+      el("div", { class: "card", style: "margin-bottom:12px" },
+        el("h3", {}, "Restore backup"),
+        el("input", { type: "file", accept: ".json", style: "margin:6px 0 10px",
+          onchange: (e) => { const f = e.target.files[0]; if (f) restorePreview(f); } }),
+        el("div", { class: "muted", style: "font-size:11.5px" }, "Upload → validate → preview → confirm. The active database is never modified before your confirmation.")),
+      el("div", { class: "card", style: "margin-bottom:12px" },
+        el("h3", {}, "Media restore"),
+        el("input", { type: "file", accept: ".zip", style: "margin:6px 0 10px",
+          onchange: async (e) => {
+            const f = e.target.files[0]; if (!f) return;
+            const form = new FormData(); form.append("file", f);
+            const response = await fetch("/api/backups/restore/media", { method: "POST", body: form });
+            const result = await response.json();
+            if (!response.ok) return toast(result.detail || "Media restore failed.", "error");
+            toast(`Restored ${result.restored.length} file(s); refused ${result.skipped.length} unsafe path(s).`, "ok");
+          } }),
+        el("div", { class: "muted", style: "font-size:11.5px" }, "Zip containing assets/ and/or renders/ paths. Unsafe paths are refused.")),
+      el("div", { class: "card", style: "margin-bottom:12px" },
+        el("h3", {}, "Automatic backups"),
+        el("div", { style: "display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin:8px 0" },
+          el("select", { id: "auto-cadence" },
+            el("option", { value: "daily" }, "Daily"),
+            el("option", { value: "weekly" }, "Weekly")),
+          el("button", { class: "btn small", onclick: async () => {
+            const cadence = document.getElementById("auto-cadence").value;
+            await postJSON("/api/backups/auto", { enabled: true, cadence });
+            toast(`Automatic ${cadence} backups enabled.`, "ok"); backupsPanel(panel);
+          } }, "Enable"),
+          el("button", { class: "btn small ghost", onclick: async () => {
+            await postJSON("/api/backups/auto", { enabled: false, cadence: "weekly" });
+            toast("Automatic backups disabled.", "info"); backupsPanel(panel);
+          } }, "Disable"),
+          el("button", { class: "btn small primary", onclick: async () => {
+            const run = await postJSON("/api/backups/auto/run?reason=manual");
+            toast(`Backup written: ${run.path}`, "ok"); backupsPanel(panel);
+          } }, "Run now")),
+        el("div", { class: "muted", style: "font-size:11px" },
+          `Config: ${auto.config.enabled ? auto.config.cadence : "disabled"}. A pre-restore snapshot is always taken unless you opt out.`),
+        auto.history.length ? el("div", { style: "margin-top:8px; font-size:11px; color:var(--text-dim)" },
+          ...auto.history.slice(-5).map((h) => el("div", {}, `📁 ${h.path} (${Math.round(h.bytes / 1024)}KB)`))) : null),
+      el("h3", { style: "font-size:13px; margin:6px 0 10px" }, "Download series backup"));
     for (const project of projects.projects) {
       panel.append(el("div", { class: "card", style: "padding:12px 14px; margin-bottom:9px; display:flex; gap:10px; align-items:center" },
         el("b", {}, project.name),
         el("button", { class: "btn small primary", style: "margin-left:auto", onclick: () => {
-          const url = `/api/series/${project.id}/backup`;
-          const link = el("a", { href: url, download: `${project.slug}-backup.json` });
+          const link = el("a", { href: `/api/series/${project.id}/backup`, download: `${project.slug}-backup.json` });
           document.body.append(link); link.click(); link.remove();
           toast("Backup download started.", "ok");
         } }, "Download JSON backup")));
     }
   } catch (error) { panel.replaceChildren(errorState(error, () => backupsPanel(panel))); }
+}
+
+async function restorePreview(file) {
+  toast("Validating backup…", "info");
+  const form = new FormData(); form.append("file", file);
+  const response = await fetch("/api/backups/restore/preview", { method: "POST", body: form });
+  const preview = await response.json();
+  if (!response.ok) return toast(preview.detail || "Upload failed.", "error");
+  const validation = preview.validation || {};
+  const body = el("div", {},
+    el("div", { style: "margin-bottom:10px" },
+      statusPill(validation.status === "valid" ? "approved" : validation.status === "warning" ? "needs_review" : "rejected",
+        `Validation: ${String(validation.status).toUpperCase()} (${validation.summary?.blocked ?? "?"} blocked, ${validation.summary?.warnings ?? "?"} warnings`)),
+    ...(validation.findings || []).slice(0, 8).map((f) => el("div", {
+      class: f.severity === "blocked" ? "callout" : "muted", style: "font-size:11.5px; margin-bottom:4px" },
+      f.severity === "blocked" ? "⛔ " : "⚠ ", f.message)),
+    el("div", { class: "muted", style: "font-size:12px; margin:10px 0" },
+      `Series: ${preview.series_name || "?"} · entities: `,
+      Object.entries(preview.entity_counts || {}).filter(([, n]) => n > 0).map(([k, n]) => `${n} ${k}`).join(", ")),
+    el("div", { class: "callout info", style: "font-size:11.5px" },
+      `Media on this machine: ${preview.media?.available ?? 0} available, ${preview.media?.missing ?? 0} missing`,
+      (preview.media?.missing_paths || []).length
+        ? el("div", { style: "margin-top:6px" }, "Missing: ", preview.media.missing_paths.slice(0, 5).join(", "), (preview.media.missing_paths.length > 5 ? ` +${preview.media.missing_paths.length - 5} more` : "")) : ""));
+  const actions = [];
+  if (preview.token) {
+    actions.push({ label: "Restore as new series (default)", kind: "primary", onClick: async (e, close) => {
+      const result = await postJSON(`/api/backups/restore/confirm?token=${preview.token}`,
+        { confirm: true, mode: "new_series" });
+      close();
+      if (result.restored) toast(`Restored as new series #${result.target_series_id}. Metadata restored; missing media listed.`, "ok", "Restore complete");
+      else toast(result.reason || "Restore failed (rolled back).", "error");
+    } });
+  }
+  actions.push({ label: "Cancel" });
+  openModal({ title: "Restore preview", sub: "Nothing restored yet — confirm to proceed.", wide: true, body, actions });
 }

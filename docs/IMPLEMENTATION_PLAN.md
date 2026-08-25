@@ -1,6 +1,6 @@
 # Sasquatch Story Studio — Application Implementation Plan
 
-Status: **Phase 8 (automation, multi-series, templates, backups, control center) — complete**
+Status: **Phase 9 (backup restore, webhooks, recovery, reliability) — complete**
 Owner: Creator (single-user studio)
 Scope of this document: the *application* being built on top of the existing
 content repository. It does not replace the content system; it runs above it.
@@ -175,7 +175,8 @@ exports skeleton) plus the QC/continuity table structure.
 | 6 | Post-production: local/self-hosted audio lane (Local Audio Server contract v1) + honest cloud audio boundaries, character voice profiles, versioned dialogue/narration recordings with approvals, episode timeline (6 mixer tracks, auto-assembly from approved material, non-destructive clip editing), rule-based QC with PASS/WARNING/BLOCKED, Ready-for-Render gate with audited overrides, async ffmpeg render queue (self-hosted free path; honest renderer_not_available), exports + shorts with approval-only publishing | **Done** |
 | 7 | Mass production: scale audit + indexed migrations (query-plan verified), cursor pagination, lazy libraries, batch video/audio generation with audited auto-prepare, Production Assistant (READY/MISSING/BLOCKED), configurable worker concurrency, retry classification, storage manager with orphan/duplicate detection and explicit-only cleanup, checksum duplicate detection on import | **Done** |
 | 8 | Automation engine (safe, audited rules — prepare/queue only, never approve/publish), notifications, multi-series management with isolation checks, episode templates (capture + instantiate as drafts), full-series JSON backups (media by path), production pause control, Control Center UI | **Done** |
-| 9 | Future growth | Next |
+| 9 | Recovery & reliability: staged backup restore (upload→validate→preview→confirm, new-series default, transactional rollback on any failure), backup verification (checksum + structure + corrupted-backup rejection), media restore with path-safety, versioned backup metadata (id/checksum/counts/media manifest), automatic backups (daily/weekly/pre-restore, persistent config), signed generation webhooks (HMAC-SHA256 + replay window; cloud providers honestly polling-only, local lane optional webhook) | **Done** |
+| 10 | Future growth | Next |
 | 7 | Scale hardening, automation, multi-series growth | Later |
 
 ## 9. Phase 1 acceptance checks
