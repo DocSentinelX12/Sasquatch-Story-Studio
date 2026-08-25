@@ -158,7 +158,7 @@ def create_job(db: Session, shot_id: int, provider_key: str, settings: dict) -> 
     shot = db.get(Shot, shot_id)
     if shot is None:
         raise ValueError("Shot not found")
-    allowed = ("ready_for_generation", "generating", "generated", "needs_revision")
+    allowed = ("ready_for_generation", "generating", "generated", "needs_revision", "complete")
     if shot.status not in allowed:
         raise PermissionError(
             f"Shot status is '{shot.status}' — must be one of {allowed} "
@@ -491,6 +491,11 @@ def review_result(db: Session, result_id: int, decision: str, reason: str | None
     shot = db.get(Shot, result.shot_id) if result.shot_id else None
     if shot is not None and decision == "approved":
         shot.generation_status = "generated"
+        shot.status = "complete"           # shot has an approved generated version
+    elif shot is not None and decision == "rejected":
+        shot.generation_status = "pending" # ready to generate a new version
+        if shot.status == "generating":
+            shot.status = "needs_revision"
     from ..models import Approval
     db.add(Approval(
         entity_type="generation_result", entity_id=str(result_id), decision=decision,

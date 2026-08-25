@@ -1,8 +1,7 @@
-"""Provider status + generation job endpoints.
+"""Phase 5 generation API: providers, jobs, results, review.
 
-The queue is a real job ledger. No provider is connected in Phase 1, so moving
-a job to `queued` is only allowed when the provider is genuinely configured —
-otherwise the API returns a structured, honest error. Nothing is ever faked.
+Every endpoint is honest: unconfigured providers report provider_not_configured
+with the missing env var NAMES; no results are fabricated.
 """
 
 from __future__ import annotations
@@ -10,94 +9,154 @@ from __future__ import annotations
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException
+from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
 from sqlalchemy import func, select
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 
-from ..models import GenerationJob, GenerationResult, MediaKind
-from ..providers.adapters import get_adapter
-from ..providers.base import GenerationRequest
-from ..providers.registry import DEFINITIONS, ProviderNotConfigured, provider_status_list
-from .deps import get_db, row_to_dict, slugify  # noqa: F401
+from ..config import env, settings
+from ..models import GenerationJob, GenerationResult, Shot
+from ..providers import adapters as adapter_factory
+from ..providers import health
+from ..providers.registry import (
+    DEFINITIONS,
+    ProviderApiError,
+    ProviderAuthError,
+    ProviderNotConfigured,
+    provider_status_list,
+)
+from ..services import generation_service as service
+from ..services.storage import resolve_repo_path
+from .deps import get_db, row_to_dict
 
 router = APIRouter(prefix="/api", tags=["generation"])
 
-JOB_STATUSES = {
-    "draft", "queued", "generating", "completed", "failed",
-    "needs_review", "approved", "rejected", "cancelled",
-}
 
-
-class JobCreate(BaseModel):
-    project_id: Optional[int] = None
-    episode_id: Optional[int] = None
-    scene_id: Optional[int] = None
-    shot_id: Optional[int] = None
-    provider_key: Optional[str] = None
-    media_kind: str = "video"
-    title: str = ""
-    prompt_package: Optional[dict] = None   # {positive_prompt, negative_constraints, reference_images, continuity_notes}
-    settings: Optional[dict] = None
-
-
-class JobAction(BaseModel):
-    note: Optional[str] = None
-
+# ==========================================================================
+# Providers (PART 1, 2, 3)
+# ==========================================================================
 
 @router.get("/providers")
 def list_providers():
-    """Provider status. Reports env var NAMES only — never credential values."""
+    """Status + capabilities. 'connected' only after a real validation call.
+    Credential values are never included."""
     return {"providers": provider_status_list()}
+
+
+@router.post("/providers/{key}/validate")
+def validate_provider(key: str):
+    """Run a REAL connection validation (free endpoint, no generation)."""
+    definition = DEFINITIONS.get(key)
+    if definition is None:
+        raise HTTPException(404, "Unknown provider")
+    try:
+        adapter = adapter_factory.get_video_adapter(key)
+    except ProviderNotConfigured as error:
+        health.record_validation(key, "not_configured", str(error))
+        raise HTTPException(409, {"error": "provider_not_configured",
+                                  "message": str(error)}) from error
+    try:
+        status_value = adapter.validate_connection()
+    except ProviderAuthError as error:
+        status_value = "auth_error"
+        health.record_validation(key, status_value, str(error))
+    except ProviderApiError as error:
+        status_value = "api_error"
+        health.record_validation(key, status_value, str(error))
+    else:
+        health.record_validation(key, status_value, "" if status_value == "connected" else status_value)
+    return {"key": key, "status": status_value,
+            "connected": status_value == "connected"}
+
+
+@router.post("/generation/select-provider")
+def select_provider(payload: dict, db: Session = Depends(get_db)):
+    """Recommend a provider for a shot (automatic mode) without cost claims."""
+    shot_id = payload.get("shot_id")
+    shot = db.get(Shot, shot_id)
+    if shot is None:
+        raise HTTPException(404, "Shot not found")
+    package = service.build_generation_package(db, shot)
+    resolved, errors = service.resolve_provider(payload.get("provider_key") or "auto",
+                                                package, payload.get("settings") or {})
+    return {"provider": resolved or None, "errors": errors,
+            "caps": service.provider_caps(resolved).as_dict() if resolved else None}
+
+
+# ==========================================================================
+# Jobs (PART 9, 10, 11)
+# ==========================================================================
+
+class GenerateRequest(BaseModel):
+    provider_key: str = "auto"
+    settings: dict = Field(default_factory=dict)
+
+
+@router.post("/shots/{shot_id}/generate", status_code=201)
+def create_generation_job(shot_id: int, payload: GenerateRequest, db: Session = Depends(get_db)):
+    """Create a DRAFT job (translate + validate, no submission yet)."""
+    try:
+        job = service.create_job(db, shot_id, payload.provider_key, payload.settings)
+    except ProviderNotConfigured as error:
+        raise HTTPException(409, {"error": "provider_not_configured",
+                                  "message": str(error)}) from error
+    except ValueError as error:
+        raise HTTPException(422, str(error)) from error
+    except PermissionError as error:
+        raise HTTPException(409, str(error)) from error
+    return job_payload(db, job)
+
+
+@router.get("/shots/{shot_id}/preview-request")
+def preview_request(shot_id: int, provider_key: str = "auto", settings: Optional[str] = None,
+                    db: Session = Depends(get_db)):
+    """Exact provider-translated request preview — nothing is submitted (PART 18)."""
+    import json as _json
+    try:
+        parsed = _json.loads(settings) if settings else {}
+    except ValueError:
+        raise HTTPException(422, "settings must be a JSON object")
+    preview = service.translate_preview(db, shot_id, provider_key, parsed)
+    return preview
 
 
 @router.get("/generation/jobs")
 def list_jobs(
     status: Optional[str] = None,
-    project_id: Optional[int] = None,
+    shot_id: Optional[int] = None,
+    provider_key: Optional[str] = None,
     limit: int = 100,
     db: Session = Depends(get_db),
 ):
-    if status is not None and status not in JOB_STATUSES:
-        raise HTTPException(422, f"status must be one of {sorted(JOB_STATUSES)}")
     query = select(GenerationJob)
     if status:
         query = query.where(GenerationJob.status == status)
-    if project_id:
-        query = query.where(GenerationJob.project_id == project_id)
+    if shot_id:
+        query = query.where(GenerationJob.shot_id == shot_id)
+    if provider_key:
+        query = query.where(GenerationJob.provider_key == provider_key)
     jobs = db.scalars(query.order_by(GenerationJob.id.desc()).limit(min(limit, 500))).all()
-    counts = dict(
-        db.execute(select(GenerationJob.status, func.count(GenerationJob.id)).group_by(GenerationJob.status)).all()
-    )
-    return {
-        "jobs": [
-            {**row_to_dict(j), "result_count": len(j.results)} for j in jobs
-        ],
-        "counts_by_status": counts,
+    counts = dict(db.execute(
+        select(GenerationJob.status, func.count(GenerationJob.id)).group_by(GenerationJob.status)
+    ).all())
+    return {"jobs": [job_payload(db, job, include_request=False) for job in jobs],
+            "counts_by_status": counts}
+
+
+def job_payload(db: Session, job: GenerationJob, include_request: bool = True) -> dict:
+    result = db.scalar(select(GenerationResult).where(GenerationResult.job_id == job.id))
+    shot = db.get(Shot, job.shot_id) if job.shot_id else None
+    data = {
+        **row_to_dict(job),
+        "shot_ref": shot.shot_ref if shot else None,
+        "result_id": result.id if result else None,
+        "result_status": result.status if result else None,
     }
-
-
-@router.post("/generation/jobs", status_code=201)
-def create_job(payload: JobCreate, db: Session = Depends(get_db)):
-    if payload.provider_key is not None and payload.provider_key not in DEFINITIONS:
-        raise HTTPException(422, f"Unknown provider '{payload.provider_key}'. Known: {sorted(DEFINITIONS)}")
-    if payload.media_kind not in {m.value for m in MediaKind}:
-        raise HTTPException(422, "media_kind must be video | image | animation_test")
-    job = GenerationJob(
-        project_id=payload.project_id,
-        episode_id=payload.episode_id,
-        scene_id=payload.scene_id,
-        shot_id=payload.shot_id,
-        provider_key=payload.provider_key,
-        media_kind=payload.media_kind,
-        status="draft",
-        title=payload.title,
-        prompt_package=payload.prompt_package,
-        settings=payload.settings,
-    )
-    db.add(job)
-    db.commit()
-    db.refresh(job)
-    return row_to_dict(job)
+    data.pop("prompt_package", None)  # heavy; use preview endpoints
+    if include_request:
+        data["translated_request"] = job.translated_request
+        data["references_report"] = job.submitted_references
+    return data
 
 
 @router.get("/generation/jobs/{job_id}")
@@ -105,115 +164,95 @@ def get_job(job_id: int, db: Session = Depends(get_db)):
     job = db.get(GenerationJob, job_id)
     if job is None:
         raise HTTPException(404, "Job not found")
-    results = db.scalars(
-        select(GenerationResult).where(GenerationResult.job_id == job_id).order_by(GenerationResult.version_number)
-    ).all()
-    return {**row_to_dict(job), "results": [row_to_dict(r) for r in results]}
+    data = row_to_dict(job)
+    data.pop("prompt_package", None)  # heavy; use preview endpoints
+    return data
 
 
-@router.post("/generation/jobs/{job_id}/queue")
-def queue_job(job_id: int, db: Session = Depends(get_db)):
-    """Move a draft/failed job to queued — only if its provider is truly configured."""
-    job = db.get(GenerationJob, job_id)
-    if job is None:
-        raise HTTPException(404, "Job not found")
-    if job.status not in ("draft", "failed"):
-        raise HTTPException(409, f"Cannot queue a job in status '{job.status}' (only draft or failed)")
-    if not job.provider_key:
-        raise HTTPException(422, "Job has no provider selected")
-
-    definition = DEFINITIONS.get(job.provider_key)
-    adapter = get_adapter(job.provider_key)
-    if definition is None or adapter is None:
-        raise HTTPException(422, f"Unknown provider '{job.provider_key}'")
-
-    # Build the normalized request for validation only (no network calls).
-    package = job.prompt_package or {}
-    request = GenerationRequest(
-        request_id=f"job-{job.id}",
-        episode_id=str(job.episode_id or ""),
-        scene_id=str(job.scene_id or ""),
-        shot_id=str(job.shot_id or ""),
-        media_kind=MediaKind(job.media_kind),
-        duration_seconds=float((job.settings or {}).get("duration_seconds", 6.0)),
-        aspect_ratio=(job.settings or {}).get("aspect_ratio", "16:9"),
-        positive_prompt={"main": package.get("positive_prompt", "")},
-        negative_constraints=tuple(package.get("negative_constraints", [])),
-    )
-    errors = list(adapter.validate(request))
-    missing_env = definition.missing_env()
-    if missing_env:
-        job.error = ProviderNotConfigured(job.provider_key, missing_env).args[0]
-        db.commit()
-        raise HTTPException(
-            409,
-            detail={
-                "error": "provider_not_configured",
-                "provider": job.provider_key,
-                "missing_env": missing_env,
-                "message": job.error,
-                "hint": "Add the listed environment variables to the server-side .env file and restart the studio.",
-            },
-        )
-    if errors:
-        job.error = "Validation failed: " + "; ".join(errors)
-        db.commit()
-        raise HTTPException(422, {"error": "invalid_request", "errors": errors})
-
-    # Credentials present but no real adapter in Phase 1 → honest refusal.
-    from ..providers.registry import AdapterNotImplemented
-
-    job.error = AdapterNotImplemented(job.provider_key).args[0]
-    db.commit()
-    raise HTTPException(
-        501,
-        detail={
-            "error": "adapter_not_implemented",
-            "provider": job.provider_key,
-            "message": job.error,
-            "hint": "The provider interface, configuration and job architecture are ready; the live adapter ships in a later phase.",
-        },
-    )
-
-
-@router.post("/generation/jobs/{job_id}/retry")
-def retry_job(job_id: int, db: Session = Depends(get_db)):
-    job = db.get(GenerationJob, job_id)
-    if job is None:
-        raise HTTPException(404, "Job not found")
-    if job.status not in ("failed", "rejected"):
-        raise HTTPException(409, f"Cannot retry a job in status '{job.status}'")
-    job.status = "draft"
-    job.error = None
-    db.commit()
-    db.refresh(job)
+@router.post("/generation/jobs/{job_id}/submit")
+def submit(job_id: int, db: Session = Depends(get_db)):
+    try:
+        job = service.submit_job(job_id)
+    except (ValueError, PermissionError) as error:
+        raise HTTPException(409, str(error)) from error
     return row_to_dict(job)
 
 
 @router.post("/generation/jobs/{job_id}/cancel")
-def cancel_job(job_id: int, payload: JobAction | None = None, db: Session = Depends(get_db)):
-    job = db.get(GenerationJob, job_id)
-    if job is None:
-        raise HTTPException(404, "Job not found")
-    if job.status in ("completed", "approved", "cancelled"):
-        raise HTTPException(409, f"Cannot cancel a job in status '{job.status}'")
-    job.status = "cancelled"
-    if payload and payload.note:
-        job.error = payload.note
-    db.commit()
-    db.refresh(job)
+def cancel(job_id: int, db: Session = Depends(get_db)):
+    try:
+        job = service.cancel_job(db, job_id)
+    except (ValueError, PermissionError) as error:
+        raise HTTPException(409, str(error)) from error
     return row_to_dict(job)
 
 
-@router.post("/generation/jobs/{job_id}/review")
-def review_job(job_id: int, decision: str, note: Optional[str] = None, db: Session = Depends(get_db)):
-    """Record an explicit review decision (approval-first workflow)."""
-    job = db.get(GenerationJob, job_id)
-    if job is None:
-        raise HTTPException(404, "Job not found")
-    if decision not in ("needs_review", "approved", "rejected"):
-        raise HTTPException(422, "decision must be needs_review | approved | rejected")
-    job.status = decision
-    db.commit()
-    db.refresh(job)
+class RetryRequest(BaseModel):
+    provider_key: Optional[str] = None
+    settings_overrides: Optional[dict] = None
+
+
+@router.post("/generation/jobs/{job_id}/retry", status_code=201)
+def retry(job_id: int, payload: RetryRequest, db: Session = Depends(get_db)):
+    """Retry creates a NEW attempt; the previous attempt is preserved."""
+    try:
+        job = service.retry_job(db, job_id, payload.provider_key, payload.settings_overrides)
+    except ProviderNotConfigured as error:
+        raise HTTPException(409, {"error": "provider_not_configured", "message": str(error)}) from error
+    except (ValueError, PermissionError) as error:
+        raise HTTPException(409 or 422, str(error)) from error
     return row_to_dict(job)
+
+
+# ==========================================================================
+# Results + review (PART 15, 16, 17)
+# ==========================================================================
+
+@router.get("/generation/results")
+def list_results(shot_id: Optional[int] = None, status: Optional[str] = None,
+                 db: Session = Depends(get_db)):
+    query = select(GenerationResult)
+    if shot_id:
+        query = query.where(GenerationResult.shot_id == shot_id)
+    if status:
+        query = query.where(GenerationResult.status == status)
+    results = db.scalars(query.order_by(GenerationResult.id.desc())).all()
+    payload = []
+    for result in results:
+        job = db.get(GenerationJob, result.job_id)
+        shot = db.get(Shot, result.shot_id) if result.shot_id else None
+        payload.append({
+            **row_to_dict(result),
+            "shot_ref": shot.shot_ref if shot else None,
+            "job_status": job.status if job else None,
+            "test_adapter": (result.provider_metadata or {}).get("test_adapter", False),
+        })
+    return {"results": payload}
+
+
+@router.get("/generation/results/{result_id}/file")
+def result_file(result_id: int, db: Session = Depends(get_db)):
+    result = db.get(GenerationResult, result_id)
+    if result is None or not result.repo_path:
+        raise HTTPException(404, "Result file not available")
+    path = resolve_repo_path(result.repo_path)
+    if path is None:
+        raise HTTPException(404, "Result file missing on disk")
+    return FileResponse(path, media_type="video/mp4",
+                        filename=path.name)
+
+
+class ReviewRequest(BaseModel):
+    decision: str = Field(pattern="^(approved|rejected)$")
+    reason: Optional[str] = None
+
+
+@router.post("/generation/results/{result_id}/review")
+def review(result_id: int, payload: ReviewRequest, db: Session = Depends(get_db)):
+    try:
+        result = service.review_result(db, result_id, payload.decision, payload.reason)
+    except PermissionError as error:
+        raise HTTPException(422, str(error)) from error
+    except ValueError as error:
+        raise HTTPException(404, str(error)) from error
+    return row_to_dict(result)

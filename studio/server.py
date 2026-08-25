@@ -17,6 +17,7 @@ from fastapi.staticfiles import StaticFiles
 from .api import assets, characters, dashboard, episodes, generation, projects, shots, story, system, world
 from .config import settings
 from .db import SessionLocal, create_all
+from .services.generation_service import resume_pending_jobs
 from .services.seed import backfill_canon_fields, refresh_provider_status, seed_if_empty, seed_story_layer
 
 
@@ -31,6 +32,12 @@ async def lifespan(app: FastAPI):
         refresh_provider_status(session)
     finally:
         session.close()
+    try:
+        resumed = resume_pending_jobs()
+        if resumed:
+            print(f"[studio] resumed polling for {resumed} in-flight generation job(s)")
+    except Exception as error:  # noqa: BLE001 - never block boot on resume
+        print(f"[studio] generation resume skipped: {error}")
     yield
 
 
