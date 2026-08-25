@@ -97,4 +97,11 @@ A stage may advance only after its continuity checks are resolved. The detailed 
 
 ## What is not connected
 
-There are currently no Seedance, Veo, Higgsfield, voice, music, storage, or publishing integrations. Generation plans stay provider-neutral. Future providers can implement the interface in `studio/providers/base.py` and translate the stable internal request without changing episode content.
+**Video generation (Phase 5):** real adapters exist for Google Veo (Gemini
+API), Seedance (Volcano Engine Ark), and Wan (DashScope / self-hosted), with a
+capability system, async generation queue, per-shot versioned results, and a
+review workflow — see [`docs/PROVIDER_SETUP.md`](docs/PROVIDER_SETUP.md).
+No credentials are configured in this repository, so all providers honestly
+report "Not Configured" until keys are added server-side. There are still no
+voice, music, storage, or publishing integrations. Nothing auto-approves or
+auto-publishes.

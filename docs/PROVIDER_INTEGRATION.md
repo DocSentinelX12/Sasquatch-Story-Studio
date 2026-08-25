@@ -38,3 +38,10 @@ When a provider is chosen:
 - never describe the adapter as connected until an authenticated end-to-end test succeeds;
 - map ordered normalized `ReferenceImage` values to the provider's real reference-image API;
 - record provider, model, parameters, seed (when available), request ID, source reference IDs, and output asset class in the asset manifest.
+
+---
+**Phase 5 update:** the real adapters now exist (Veo / Seedance / Wan) with
+verified REST contracts, a capability system, an async generation queue, and
+versioned results. See **[PROVIDER_SETUP.md](PROVIDER_SETUP.md)** for setup,
+capabilities, workflow, and testing. The rules above still apply: never fake a
+generation, never auto-approve, creator artwork remains authoritative.
