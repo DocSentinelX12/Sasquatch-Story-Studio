@@ -120,6 +120,13 @@ function registerViews() {
       await mod.render(container, Number(id), params);
     },
   });
+  paramRoutes.push({
+    prefix: "/generate/",
+    load: async (container, id, params) => {
+      const mod = await import("./views/generate.js");
+      await mod.render(container, Number(id), params);
+    },
+  });
 }
 
 const PLACEHOLDER_COPY = {

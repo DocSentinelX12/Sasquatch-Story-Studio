@@ -47,7 +47,7 @@ function renderList(data) {
           el("thead", {}, el("tr", {},
             el("th", {}, "Shot"), el("th", {}, "Scene"), el("th", {}, "Title"),
             el("th", {}, "Type"), el("th", {}, "Camera"), el("th", {}, "Duration"),
-            el("th", {}, "Cast"), el("th", {}, "Status"))),
+            el("th", {}, "Cast"), el("th", {}, "Status"), el("th", {}, ""))),
           el("tbody", {}, ...data.shots.map((s) => el("tr", { class: "clickable", onclick: () => location.hash = `#/scenes/${s.scene_id}/director` },
             el("td", {}, el("span", { class: "pill s-outline" }, s.shot_ref || `#${s.number}`)),
             el("td", {}, s.scene_ref || `Scene ${s.scene_id}`),
@@ -56,7 +56,10 @@ function renderList(data) {
             el("td", {}, [s.camera_angle && pretty(s.camera_angle), s.camera_movement && pretty(s.camera_movement)].filter(Boolean).join(" / ") || "—"),
             el("td", {}, `${s.duration_seconds || 0}s`),
             el("td", {}, (s.cast || []).map((l) => l.character?.name).filter(Boolean).join(", ") || "—"),
-            el("td", {}, statusPill(s.status)))))))
+            el("td", {}, statusPill(s.status)),
+            el("td", {},
+              el("a", { class: "btn small primary", href: `#/generate/${s.id}`, style: "text-decoration:none",
+                onclick: (e) => e.stopPropagation() }, "⚡ Generate")))))))
     : emptyState({
         big: state.q || state.status ? "No shots match" : "No shots yet",
         small: state.q || state.status ? "Try clearing filters." : "Open a scene's Director view and build its storyboard.",

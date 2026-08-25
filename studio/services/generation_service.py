@@ -58,24 +58,35 @@ def provider_caps(provider_key: str) -> ProviderCapabilities | None:
 
 
 def resolve_provider(provider_key: str | None, package: dict, settings: dict) -> tuple[str, list[str]]:
-    """Automatic selection: pick a configured provider whose capabilities match
-    the request (aspect ratio, duration, frames). No cost/performance claims."""
+    """Automatic Best Match: pick a configured provider whose declared
+    capabilities support the requested shot. No cost/performance claims.
+
+    Examined: image-to-video, text-to-video, reference count, first/last
+    frame (continuation), duration, resolution, aspect ratio, audio, and
+    current provider availability (credentials present + adapter implemented).
+    """
     if provider_key and provider_key != "auto":
         return provider_key, []
+    from ..providers.adapters import test_provider_enabled
+
     errors: list[str] = []
-    for key in ("veo", "seedance", "wan"):
+    candidates: list[str] = ["local", "veo", "seedance", "wan"]
+    if test_provider_enabled():
+        candidates.append("test-echo")
+    for key in candidates:
         definition = DEFINITIONS.get(key)
+        # availability: credentials present AND an implemented adapter (caps declared)
         if definition is None or definition.caps is None or definition.missing_env():
             continue
         caps_errors = _caps_errors(definition.caps, package, settings)
         if not caps_errors:
             return key, []
         errors.extend(f"{key}: {e}" for e in caps_errors)
-    from ..providers.adapters import test_provider_enabled
-    if test_provider_enabled():
-        return "test-echo", []
-    return "", errors or ["No video provider is configured (set GEMINI_API_KEY, "
-                          "SEEDANCE_API_KEY, or WAN_API_KEY/DASHSCOPE_API_KEY)."]
+    return "", errors or [
+        "No video provider is configured. Add credentials for a cloud provider "
+        "(GEMINI_API_KEY / SEEDANCE_API_KEY / WAN_API_KEY) or set LOCAL_VIDEO_API_URL "
+        "for the self-hosted lane.",
+    ]
 
 
 def _caps_errors(caps: ProviderCapabilities, package: dict, settings: dict) -> list[str]:
@@ -87,6 +98,17 @@ def _caps_errors(caps: ProviderCapabilities, package: dict, settings: dict) -> l
         errors.append("first-frame conditioning requested but unsupported")
     if wants_last and not (caps.last_frame or caps.start_end_frames):
         errors.append("last-frame conditioning requested but unsupported")
+    # reference count vs provider slots
+    reference_count = 0
+    frames_count = sum(1 for purpose in ("first_frame", "last_frame", "prev_shot_frame",
+                                         "next_shot_frame") if frames.get(purpose))
+    reference_count += frames_count
+    for character in package.get("characters", []):
+        reference_count += sum(len(v) for v in (character.get("references") or {}).values())
+    if reference_count and not (caps.reference_images or caps.image_to_video or caps.last_frame):
+        errors.append(f"{reference_count} reference image(s) requested but provider takes none")
+    if settings.get("generate_audio") and not caps.audio_generation:
+        errors.append("audio generation requested but unsupported")
     return errors
 
 

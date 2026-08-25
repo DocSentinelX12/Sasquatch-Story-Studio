@@ -56,6 +56,8 @@ async function refreshJobsQuietly() {
     if (strip) strip.replaceChildren(...Object.entries(counts).map(([k, v]) => statusPill(k, `${pretty(k)} · ${v}`)));
     const tbody = panel.querySelector("tbody");
     if (tbody) fillJobRows(tbody, data.jobs);
+    const cardList = panel.querySelector(".queue-cards");
+    if (cardList) fillJobCards(cardList, data.jobs);
   } catch { /* server unreachable — keep last state */ }
 }
 
@@ -79,9 +81,11 @@ function renderJobTable(panel) {
         el("th", {}, "Job"), el("th", {}, "Shot"), el("th", {}, "Provider"), el("th", {}, "Status"),
         el("th", {}, "Provider job"), el("th", {}, "Error"), el("th", {}, "Updated"), el("th", {}, "Actions"))),
       el("tbody", {})));
+  const cards = el("div", { class: "queue-cards" });
   panel.className = "queue-panel";
-  panel.append(strip, table);
+  panel.append(strip, cards, table);
   fillJobRows(table.querySelector("tbody"), jobsData.jobs);
+  fillJobCards(cards, jobsData.jobs);
   if (!jobsData.jobs.length) {
     panel.append(emptyState({ big: "No generation jobs yet",
       small: "Open a Scene Director, approve a shot, and use Generate." }));
@@ -104,6 +108,61 @@ function fillJobRows(tbody, jobs) {
     tbody.append(row);
   }
 }
+
+function fillJobCards(holder, jobs) {
+  holder.replaceChildren();
+  for (const job of jobs) {
+    const active = ["submitting", "submitted", "generating"].includes(job.status);
+    holder.append(el("div", { class: "queue-card" },
+      el("div", { class: "row1" },
+        el("div", { class: "thumb" }, job.result_id
+          ? el("img", { src: `/api/generation/results/${job.result_id}/file#t=0.5`, loading: "lazy", alt: "" })
+          : el("span", {}, "🎬")),
+        el("div", { style: "flex:1; min-width:0" },
+          el("div", { style: "font-weight:650" }, job.shot_ref || `Shot ${job.shot_id}`, " · attempt ", String(job.attempt)),
+          el("div", { class: "muted", style: "font-size:11.5px" },
+            (job.provider_key === "test-echo" ? "TEST adapter" : pretty(job.provider_key || ""))
+            + (job.settings?.duration_seconds ? ` · ${job.settings.duration_seconds}s` : ""))),
+        statusPill(job.status)),
+      active ? el("div", { class: "progress-track", style: "margin-bottom:8px" },
+        el("div", { class: "progress-fill", style: `width:${job.status === "generating" ? 55 : 25}%` })) : null,
+      job.error ? el("div", { style: "color:var(--red); font-size:11.5px; margin-bottom:6px" },
+        `${job.error_code || "error"}: ${job.error.slice(0, 80)}`) : null,
+      el("div", { class: "actions" }, cardActions(job))));
+  }
+  if (!jobs.length) {
+    holder.append(emptyState({ big: "No generation jobs yet", small: "Open a shot and tap Generate." }));
+  }
+}
+
+function cardActions(job) {
+  const wrap = el("div", { style: "display:flex; gap:7px; flex-wrap:wrap" });
+  const goToGenerate = () => { location.hash = job.shot_id ? `#/generate/${job.shot_id}` : "#/queue"; };
+  if (job.status === "draft") {
+    wrap.append(el("button", { class: "btn small primary", onclick: async () => {
+      try { await postJSON(`/api/generation/jobs/${job.id}/submit`); toast("Submitted.", "ok"); }
+      catch (error) { toast(error.message, "error", "Submit refused"); }
+      refreshNow();
+    } }, "Submit"));
+  }
+  if (active(job) ) {
+    wrap.append(el("button", { class: "btn small ghost", onclick: async () => {
+      await postJSON(`/api/generation/jobs/${job.id}/cancel`); toast("Cancelled.", "ok"); refreshNow();
+    } }, "Cancel"));
+  }
+  if (["failed", "cancelled", "rejected"].includes(job.status)) {
+    wrap.append(el("button", { class: "btn small", onclick: async () => {
+      try {
+        const retry = await postJSON(`/api/generation/jobs/${job.id}/retry`, {});
+        toast(`New attempt #${retry.attempt}.`, "ok"); refreshNow();
+      } catch (error) { toast(error.message, "error"); }
+    } }, "Retry"));
+  }
+  wrap.append(el("button", { class: "btn small", onclick: goToGenerate }, job.result_id ? "Review" : "Open"));
+  return wrap;
+}
+
+const active = (job) => ["draft", "queued", "submitting", "submitted", "generating"].includes(job.status);
 
 function jobActions(job) {
   const wrap = el("div", { style: "display:flex; gap:4px" });

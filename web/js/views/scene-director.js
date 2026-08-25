@@ -169,7 +169,12 @@ function shotCard(shot) {
       el("div", { style: "display:flex; gap:5px; margin-top:7px; flex-wrap:wrap; align-items:center" },
         statusPill(shot.status),
         shot.version_count > 1 ? el("span", { class: "pill s-outline" }, `v${shot.version_count}`) : null,
-        (shot.dialogue || []).length ? el("span", { class: "pill s-outline" }, `${(shot.dialogue || []).length} lines`) : null)));
+        (shot.dialogue || []).length ? el("span", { class: "pill s-outline" }, `${(shot.dialogue || []).length} lines`) : null),
+      el("a", {
+        class: "btn-generate", href: `#/generate/${shot.id}`,
+        style: "min-height:44px; font-size:14px; margin-top:10px; text-decoration:none; display:flex",
+        onclick: (e) => e.stopPropagation(),
+      }, el("span", { html: ICONS.spark }), "Generate Video")));
   return card;
 }
 

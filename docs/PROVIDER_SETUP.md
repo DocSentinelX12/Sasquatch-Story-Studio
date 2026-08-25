@@ -16,7 +16,15 @@ contracts** (researched from official documentation — nothing invented):
 | Seedance (ByteDance) | `studio/providers/adapters/seedance.py` | Volcano Engine Ark `contents/generations/tasks` (create + poll), `content.video_url` | https://www.volcengine.com/docs/85621 |
 | Wan (Alibaba) | `studio/providers/adapters/wan.py` | DashScope async `video-synthesis` (`X-DashScope-Async`), `tasks/{id}` poll, `output.video_url`; custom base URL for self-hosted endpoints | https://www.alibabacloud.com/help/en/model-studio/ |
 
-A fourth **TEST adapter** (`test-echo`) exists for development/testing. It is
+Additional provider **boundaries** (registered, honestly `Not configured`):
+
+| Provider | Status |
+| --- | --- |
+| Local / Self-Hosted (`local`) | Real adapter implementing the documented **Local Video Server contract v1** below — activates when `LOCAL_VIDEO_API_URL` is set. The unlimited-generation lane on your own hardware (the studio adds no per-video limits; your hardware/storage/electricity apply). |
+| Gemini Omni Flash | Boundary only — no verified public video REST contract existed at build time; refuses honestly (never fakes). |
+| Higgsfield | Boundary only — same honest refusal until a verified contract is implemented. |
+
+A **TEST adapter** (`test-echo`) exists for development/testing. It is
 disabled by default, clearly labelled everywhere, performs no network calls,
 and its outputs are marker files explicitly marked
 "TEST ADAPTER OUTPUT — NOT A REAL VIDEO". It is never presented as real AI
@@ -123,7 +131,35 @@ capability gating, automatic-mode intersection, security, the full shot
 workflow (draft → … → approved, second version on a complete shot), retry,
 versioning, review rules, and Phase 1–4 endpoint regression.
 
-## 6. Current limitations
+## 6. Mobile generation workflow
+
+The studio is phone-first for generation: **Episode → Scene → Shot → Generate**
+at `#/generate/{shotId}` — provider cards (Automatic Best Match + every
+provider with honest status), capability-gated Advanced settings (bottom
+sheet on phones), sticky Generate button, live progress, in-page video
+preview with Approve / Reject (reason sheet) / Retry / Generate another
+version. The phone is the control surface; generation runs on the configured
+backend/local machine. The Generation Queue renders as touch cards with
+Cancel/Retry/Review actions on phone widths. Entry points: Scene Director
+shot cards and the Shots browser (⚡ Generate).
+
+### Local Video Server contract v1 (self-hosted lane)
+
+```
+GET  {LOCAL_VIDEO_API_URL}/health        -> 200 {"status":"ok"}
+POST {LOCAL_VIDEO_API_URL}/generate      -> {"job_id": "..."}
+     {prompt, negative_prompt, settings{duration_seconds,resolution,
+      aspect_ratio,seed,generate_audio}, first_frame{mime_type,data_base64}?,
+      last_frame{...}?}
+GET  {LOCAL_VIDEO_API_URL}/jobs/{job_id} -> {status: queued|running|succeeded|failed,
+                                              video_url?, error?, usage?}
+POST {LOCAL_VIDEO_API_URL}/jobs/{job_id}/cancel   (optional)
+```
+
+Any server implementing this contract (wrapping an open-source model) plugs
+straight into the queue — no studio changes needed.
+
+## 7. Current limitations
 
 - **No credentials are configured in this environment** — all three real
   providers honestly report "Not Configured". Add keys to `.env` and restart;
@@ -135,4 +171,11 @@ versioning, review rules, and Phase 1–4 endpoint regression.
   added later.
 - Model identifiers default to the documented versions at research time and
   are overridable via env; verify current model names with your account.
+- Gemini Omni Flash and Higgsfield are boundaries only — no verified public
+  video-generation contracts existed at build time, so they stay
+  `Not configured` and refuse generation honestly rather than guessing
+  endpoints.
+- Automatic Best Match prefers the Local lane when configured (no per-video
+  cloud spend), then cloud providers by capability fit. No cost or speed
+  claims are made.
 - No automatic publishing, no automatic approvals — by design.

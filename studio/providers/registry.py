@@ -180,6 +180,58 @@ DEFINITIONS: dict[str, ProviderDefinition] = {
         ),
         # --- Phase 3: story/text assistance providers (contracts only) -------
         ProviderDefinition(
+            key="local",
+            display_name="Local / Self-Hosted",
+            kind="video",
+            required_env=("LOCAL_VIDEO_API_URL",),
+            optional_env=("LOCAL_VIDEO_API_KEY",),
+            caps=ProviderCapabilities(
+                text_to_video=True, image_to_video=True, last_frame=True,
+                start_end_frames=True, reference_images=True, audio_generation=True,
+                seed_support=True, camera_controls=True,
+                local_reference_files=True, cancel_supported=True,
+                durations=(4.0, 5.0, 6.0, 8.0, 10.0),
+                resolutions=("480p", "720p", "1080p"),
+                aspect_ratios=("16:9", "9:16", "1:1"),
+                max_reference_slots=4,
+                notes=(
+                    "Self-hosted lane: same provider-neutral package, no per-video credits "
+                    "(subject to your hardware). Configure LOCAL_VIDEO_API_URL.",
+                    "Implements the documented Local Video Server contract v1.",
+                ),
+            ),
+            docs_url="https://github.com/DocSentinelX12/Sasquatch-Story-Studio/blob/main/docs/PROVIDER_SETUP.md",
+            notes="Unlimited generation lane on your own hardware.",
+            adapter_module="studio.providers.adapters.local",
+        ),
+        ProviderDefinition(
+            key="gemini-omni-flash",
+            display_name="Gemini Omni Flash",
+            kind="video",
+            required_env=("GEMINI_API_KEY",),
+            optional_env=("GEMINI_OMNI_VIDEO_MODEL",),
+            caps=None,  # capabilities declared when a verified video API contract exists
+            notes=(
+                "No verified public video-generation REST contract for this model could be "
+                "confirmed at build time. The adapter boundary is ready; it will honestly "
+                "refuse generation until implemented against the published contract."
+            ),
+            adapter_module="studio.providers.adapters.placeholders",
+        ),
+        ProviderDefinition(
+            key="higgsfield",
+            display_name="Higgsfield",
+            kind="video",
+            required_env=("HIGGSFIELD_API_KEY",),
+            optional_env=("HIGGSFIELD_API_BASE_URL",),
+            caps=None,
+            notes=(
+                "No verified public video-generation REST contract could be confirmed at "
+                "build time. Structurally ready; refuses honestly until implemented."
+            ),
+            adapter_module="studio.providers.adapters.placeholders",
+        ),
+        ProviderDefinition(
             key="test-echo",
             display_name="TEST Adapter (development only)",
             kind="video",
