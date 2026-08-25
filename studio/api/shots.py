@@ -382,22 +382,33 @@ def list_shots(
     scene_id: Optional[int] = None,
     status: Optional[str] = None,
     q: Optional[str] = None,
-    limit: int = 200,
+    episode_id: Optional[int] = None,
+    limit: int = 60,
+    after_id: Optional[int] = None,
     db: Session = Depends(get_db),
 ):
+    from ..models import Scene as SceneModel
     normalized = SHOT_ALIASES.get(status, status) if status else None
     if normalized is not None and normalized not in SHOT_STATUSES:
         raise HTTPException(422, f"status must be one of {sorted(SHOT_STATUSES)}")
     query = select(Shot)
     if scene_id:
         query = query.where(Shot.scene_id == scene_id)
+    if episode_id:
+        query = query.where(Shot.scene_id.in_(
+            select(SceneModel.id).where(SceneModel.episode_id == episode_id)))
     if normalized:
         query = query.where(Shot.status == normalized)
     if q:
         like = f"%{q.lower()}%"
         query = query.where(func.lower(Shot.title).like(like) | func.lower(Shot.description).like(like) |
                             func.lower(Shot.action).like(like))
-    shots = db.scalars(query.order_by(Shot.scene_id, Shot.order_index).limit(min(limit, 500))).all()
+    if after_id is not None:
+        query = query.where(Shot.id > after_id)
+        shots = db.scalars(query.order_by(Shot.id).limit(min(limit, 200))).all()
+        return {"shots": [shot_payload(db, s) for s in shots],
+                "next_cursor": shots[-1].id if len(shots) == min(limit, 200) else None}
+    shots = db.scalars(query.order_by(Shot.scene_id, Shot.order_index).limit(min(limit, 200))).all()
     counts = dict(db.execute(select(Shot.status, func.count(Shot.id)).group_by(Shot.status)).all())
     return {"shots": [shot_payload(db, s) for s in shots], "counts_by_status": counts}
 

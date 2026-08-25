@@ -171,6 +171,8 @@ EXPECTED_EXTRA_COLUMNS: dict[str, dict[str, str]] = {
     },
     # --- Phase 5 (generation layer) ---
     "generation_jobs": {
+        "priority": "INTEGER DEFAULT 1",
+        "queued_by": "TEXT",
         "provider_job_id": "TEXT",
         "package_version": "INTEGER",
         "attempt": "INTEGER",
@@ -220,6 +222,49 @@ LEGACY_STATUS_MAP = {
 }
 
 
+EXPECTED_INDEXES: dict[str, list[tuple[str, str]]] = {
+    # table -> [(index_name, column_list)]
+    "assets": [
+        ("ix_assets_category_status", "category, status"),
+        ("ix_assets_created_at", "created_at"),
+        ("ix_assets_updated_at", "updated_at"),
+    ],
+    "characters": [("ix_characters_project_life", "project_id, life_status")],
+    "scenes": [("ix_scenes_episode_order", "episode_id, order_index")],
+    "shots": [
+        ("ix_shots_status", "status"),
+        ("ix_shots_generation_status", "generation_status"),
+        ("ix_shots_created_at", "created_at"),
+    ],
+    "generation_jobs": [
+        ("ix_genjobs_status_created", "status, id"),
+        ("ix_genjobs_provider", "provider_key"),
+    ],
+    "audio_recordings": [
+        ("ix_audio_rec_char", "character_id"),
+        ("ix_audio_rec_episode_status", "episode_id, status"),
+    ],
+    "timeline_items": [
+        ("ix_ti_episode_start", "episode_id, start_seconds"),
+        ("ix_ti_track_order", "track_id, order_index"),
+    ],
+    "exports": [("ix_exports_episode_status", "episode_id, status"),
+                ("ix_exports_created", "created_at")],
+}
+
+
+def _ensure_indexes(connection) -> None:
+    from sqlalchemy import inspect as sa_inspect, text
+
+    inspector = sa_inspect(_engine)
+    existing = {idx["name"] for table in inspector.get_table_names()
+                for idx in inspector.get_indexes(table)}
+    for table, indexes in EXPECTED_INDEXES.items():
+        for name, columns in indexes:
+            if name not in existing:
+                connection.execute(text(f"CREATE INDEX IF NOT EXISTS {name} ON {table} ({columns})"))
+
+
 def ensure_schema_upgrades() -> None:
     from sqlalchemy import inspect, text
 
@@ -234,6 +279,7 @@ def ensure_schema_upgrades() -> None:
                     connection.execute(
                         text(f"ALTER TABLE {table} ADD COLUMN {column} {ddl}")
                     )
+        _ensure_indexes(connection)
         # normalize legacy statuses once
         for table, mapping in LEGACY_STATUS_MAP.items():
             if table not in inspector.get_table_names():

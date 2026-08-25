@@ -43,6 +43,7 @@ class GenerationJob(TimestampMixin, Base):
     provider_key: Mapped[Optional[str]] = mapped_column(nullable=True, index=True)
     media_kind: Mapped[str] = mapped_column(default=MediaKind.VIDEO.value)
     status: Mapped[str] = mapped_column(default=JobStatus.DRAFT.value, index=True)
+    priority: Mapped[int] = mapped_column(default=1)   # 0=urgent 1=high? see PRIORITY_MAP
     title: Mapped[str] = mapped_column(default="")
     # Normalized, provider-neutral prompt package:
     #   {positive_prompt, negative_constraints, reference_images: [{asset_id,

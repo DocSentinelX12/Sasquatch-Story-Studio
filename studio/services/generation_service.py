@@ -251,6 +251,32 @@ def translate_preview(db: Session, shot_id: int, provider_key: str, settings: di
 _active_pollers: set[int] = set()
 _poller_lock = threading.Lock()
 
+# --- Worker pool (Step 11): configurable concurrency ------------------------
+PRIORITY_ORDER = {"urgent": 0, "high": 1, "normal": 2, "low": 3}
+PRIORITY_LABELS = {v: k for k, v in PRIORITY_ORDER.items()}
+_semaphore: threading.Semaphore | None = None
+_semaphore_size = 0
+_worker_lock = threading.Lock()
+
+
+def worker_concurrency() -> int:
+    from ..config import env
+    try:
+        value = int(env("STUDIO_WORKERS") or 2)
+    except (TypeError, ValueError):
+        value = 2
+    return max(1, min(value, 32))
+
+
+def _get_semaphore() -> threading.Semaphore:
+    global _semaphore, _semaphore_size
+    with _worker_lock:
+        size = worker_concurrency()
+        if _semaphore is None or _semaphore_size != size:
+            _semaphore = threading.Semaphore(size)
+            _semaphore_size = size
+        return _semaphore
+
 
 def submit_job(job_id: int) -> GenerationJob:
     """Submit synchronously (HTTP call), then hand polling to a worker thread."""
@@ -325,8 +351,39 @@ def _spawn_poller(job_id: int) -> None:
         if job_id in _active_pollers:
             return
         _active_pollers.add(job_id)
-    thread = threading.Thread(target=_poll_worker, args=(job_id,), daemon=True)
-    thread.start()
+
+    def runner():
+        sem = _get_semaphore()
+        acquired = sem.acquire(timeout=MAX_POLL_SECONDS)
+        try:
+            if not acquired:
+                _fail_job(job_id, "provider_timeout",
+                          f"worker pool busy for over {MAX_POLL_SECONDS // 60} minutes")
+                return
+            _poll_worker(job_id)
+        finally:
+            if acquired:
+                sem.release()
+            with _poller_lock:
+                _active_pollers.discard(job_id)
+
+    threading.Thread(target=runner, daemon=True).start()
+
+
+def _fail_job(job_id: int, code: str, message: str) -> None:
+    from ..db import SessionLocal
+
+    session = SessionLocal()
+    try:
+        job = session.get(GenerationJob, job_id)
+        if job and job.status in ("submitted", "generating", "submitting"):
+            job.status = "failed"
+            job.error_code = code
+            job.error = message
+            job.completed_at = datetime.now(timezone.utc)
+            session.commit()
+    finally:
+        session.close()
 
 
 def resume_pending_jobs() -> int:

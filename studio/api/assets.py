@@ -111,6 +111,7 @@ def list_assets(
     sort: str = "newest",
     limit: int = 60,
     offset: int = 0,
+    after_id: Optional[int] = None,
     db: Session = Depends(get_db),
 ):
     _validate_choice(category, CATEGORIES, "category")
@@ -157,10 +158,19 @@ def list_assets(
         before = created_before + " 23:59:59" if len(created_before) == 10 else created_before
         query = query.where(Asset.created_at <= before)
 
-    total = db.scalar(select(func.count()).select_from(query.subquery())) or 0
-    rows = db.scalars(
-        query.order_by(SORTS[sort]).offset(offset).limit(min(limit, 200))
-    ).all()
+    # cursor pagination: stable and index-friendly for very large libraries
+    if after_id is not None:
+        if sort in ("newest", "size"):
+            query = query.where(Asset.id < after_id)
+        else:  # oldest / title (stable by id within tie-break)
+            query = query.where(Asset.id > after_id)
+        total = None  # counts skipped in cursor mode (they are the expensive part)
+        rows = db.scalars(query.order_by(SORTS[sort]).limit(min(limit, 200))).all()
+    else:
+        total = db.scalar(select(func.count()).select_from(query.subquery())) or 0
+        rows = db.scalars(
+            query.order_by(SORTS[sort]).offset(offset).limit(min(limit, 200))
+        ).all()
 
     counts = dict(
         db.execute(
@@ -170,11 +180,13 @@ def list_assets(
     status_counts = dict(
         db.execute(select(Asset.status, func.count(Asset.id)).group_by(Asset.status)).all()
     )
+    next_cursor = rows[-1].id if (after_id is not None and len(rows) == min(limit, 200)) else None
     return {
         "assets": [row_to_dict(a) for a in rows],
         "total": total,
         "offset": offset,
         "limit": limit,
+        "next_cursor": next_cursor,
         "counts_by_category": counts,
         "counts_by_status": status_counts,
     }
@@ -210,13 +222,15 @@ async def upload_asset(
     character_id: Optional[int] = Form(None),
     location_id: Optional[int] = Form(None),
     episode_id: Optional[int] = Form(None),
+    check_duplicates: bool = Form(True),
+    force: bool = Form(False),
     db: Session = Depends(get_db),
 ):
     """Import an externally generated file (e.g. Meta AI artwork) as an asset.
 
-    The file is stored under app-managed storage; existing repository files are
-    never touched. New assets start as pending_approval (approval-first).
-    """
+    Duplicate detection: when the file checksum already exists and
+    check_duplicates is enabled, the import is refused with the existing asset
+    (unless force=true — 'import anyway')."""
     _validate_choice(category, CATEGORIES, "category")
     _validate_choice(provenance, PROVENANCES, "provenance")
     content = await file.read()
@@ -227,6 +241,18 @@ async def upload_asset(
     except ValueError as error:
         raise HTTPException(422, str(error)) from error
 
+    import hashlib as _hashlib
+    checksum = _hashlib.sha256(content).hexdigest()
+    if check_duplicates and not force:
+        existing = db.scalar(select(Asset).where(Asset.sha256 == checksum))
+        if existing is not None:
+            raise HTTPException(409, {
+                "error": "duplicate_asset",
+                "message": "Existing identical asset found.",
+                "existing": {"id": existing.id, "title": existing.title,
+                             "status": existing.status, "repo_path": existing.repo_path},
+                "options": ["use existing", "import anyway (force=true)", "cancel"],
+            })
     tag_list = [t.strip() for t in tags.split(",") if t.strip()]
     version = AssetVersion(
         version_number=1,
