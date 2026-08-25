@@ -69,6 +69,7 @@ class ProviderDefinition:
     docs_url: str = ""
     notes: str = ""
     adapter_module: str = ""
+    is_test: bool = False
 
     def missing_env(self, environ: dict[str, str] | None = None) -> list[str]:
         lookup = environ if environ is not None else dict(os.environ)
@@ -179,6 +180,26 @@ DEFINITIONS: dict[str, ProviderDefinition] = {
         ),
         # --- Phase 3: story/text assistance providers (contracts only) -------
         ProviderDefinition(
+            key="test-echo",
+            display_name="TEST Adapter (development only)",
+            kind="video",
+            required_env=("STUDIO_TEST_PROVIDER",),
+            is_test=True,
+            caps=ProviderCapabilities(
+                text_to_video=True, image_to_video=True, last_frame=True,
+                start_end_frames=True, reference_images=True, audio_generation=False,
+                seed_support=True, camera_controls=True,
+                local_reference_files=True, cancel_supported=True,
+                durations=(1.0, 2.0, 3.0), resolutions=("480p", "720p"),
+                aspect_ratios=("16:9", "9:16"), max_reference_slots=8,
+                notes=("TEST ADAPTER — not a real provider. Enable with STUDIO_TEST_PROVIDER=1.",
+                       "Outputs are labelled test marker files, never real AI generation."),
+            ),
+            notes="Development/testing only. Clearly marked; disabled by default.",
+            adapter_module="studio.providers.adapters.test_echo",
+        ),
+        # --- Phase 3: story/text assistance providers (contracts only) -------
+        ProviderDefinition(
             key="openai-text",
             display_name="OpenAI (story assistance)",
             kind="story",
@@ -245,6 +266,8 @@ def provider_status_list() -> list[dict]:
         base_status = d.status()  # not_configured when env missing, else ready
         override = health.get_status_override(d.key)
         status = override or base_status
+        if d.is_test and (env("STUDIO_TEST_PROVIDER") or "").lower() not in ("1", "true", "yes"):
+            continue
         result.append({
             "key": d.key,
             "display_name": d.display_name,
@@ -260,5 +283,6 @@ def provider_status_list() -> list[dict]:
             "notes": d.notes,
             "last_validation": health.get_last_validation(d.key),
             "adapter_connected": d.kind == "video",  # real adapters ship in Phase 5
+            "is_test": d.is_test,
         })
     return result

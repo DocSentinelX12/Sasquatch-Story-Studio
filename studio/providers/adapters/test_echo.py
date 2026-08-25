@@ -29,6 +29,18 @@ TEST_CAPS = ProviderCapabilities(
 _counter = itertools.count(1)
 
 
+def _clip(body) -> dict:
+    """Keep translated request previews small for storage."""
+    import json
+    try:
+        text = json.dumps(body, default=str)
+        if len(text) > 4000:
+            return {"truncated": True, "preview": text[:4000]}
+        return body
+    except (TypeError, ValueError):
+        return {"unserializable": True}
+
+
 class TestEchoAdapter(HttpVideoAdapter):
     key = "test-echo"
     kind = "video"
@@ -36,8 +48,6 @@ class TestEchoAdapter(HttpVideoAdapter):
 
     def __init__(self, transport=None) -> None:
         super().__init__("test-key", TEST_CAPS, base_url="test://local", transport=transport)
-        self.submitted_at: dict[str, float] = {}
-        self.behavior: dict[str, dict] = {}   # job_id -> {"fail": bool, "succeed_after_polls": n}
 
     def _headers(self) -> dict:
         return {}
@@ -55,24 +65,29 @@ class TestEchoAdapter(HttpVideoAdapter):
             "test_marker": "TEST ADAPTER REQUEST — no provider was contacted"}}
 
     def submit(self, translated: dict) -> ProviderHandle:
-        job_id = f"test-{next(_counter):06d}-{int(time.time())}"
-        self.submitted_at[job_id] = time.time()
-        self.behavior[job_id] = {
-            "fail": bool((translated.get("settings") or {}).get("test_force_failure")),
-        }
+        # stateless by design: the id encodes submit time + failure intent so
+        # any adapter instance (e.g. the poll worker's) can poll it.
+        body = translated.get("body") or {}
+        fail = bool((body.get("settings") or {}).get("test_force_failure"))
+        job_id = f"test-{next(_counter):06d}-{int(time.time())}{'-fail' if fail else ''}"
         return ProviderHandle(provider_job_id=job_id, state="submitted",
-                              raw={"test": True, "request": translated["body"]})
+                              raw={"test": True, "request": _clip(translated["body"])})
 
     def poll(self, provider_job_id: str) -> ProviderHandle:
-        config = self.behavior.get(provider_job_id, {})
-        elapsed = time.time() - self.submitted_at.get(provider_job_id, time.time())
-        if config.get("fail"):
+        parts = provider_job_id.rsplit("-", 2)
+        try:
+            submitted_at = float(parts[-2])
+        except (ValueError, IndexError):
+            submitted_at = time.time() - 10.0
+        forced_fail = provider_job_id.endswith("-fail")
+        if forced_fail:
             return ProviderHandle(provider_job_id=provider_job_id, state="failed",
                                   raw={"test": True, "error": "test-forced-failure"})
+        elapsed = time.time() - submitted_at
         # succeed ~2s after submit so tests exercise the generating state
         state = "generating" if elapsed < 2.0 else "succeeded"
         return ProviderHandle(provider_job_id=provider_job_id, state=state,
-                              raw={"test": True, "elapsed": elapsed})
+                              raw={"test": True, "elapsed": round(elapsed, 2)})
 
     def fetch_result(self, provider_job_id: str) -> ProviderResultInfo:
         return ProviderResultInfo(
@@ -83,7 +98,6 @@ class TestEchoAdapter(HttpVideoAdapter):
         )
 
     def cancel(self, provider_job_id: str) -> bool:
-        self.behavior[provider_job_id] = {"fail": True}
         return True
 
     def validate_connection(self) -> str:

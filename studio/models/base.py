@@ -123,15 +123,18 @@ class ApprovalStatus(str, Enum):
 
 
 class JobStatus(str, Enum):
+    """Phase 5 lifecycle (legacy: queued covers submitting/submitted reads)."""
     DRAFT = "draft"
     QUEUED = "queued"
+    SUBMITTING = "submitting"
+    SUBMITTED = "submitted"
     GENERATING = "generating"
     COMPLETED = "completed"
     FAILED = "failed"
+    CANCELLED = "cancelled"
     NEEDS_REVIEW = "needs_review"
     APPROVED = "approved"
     REJECTED = "rejected"
-    CANCELLED = "cancelled"
 
 
 class MediaKind(str, Enum):

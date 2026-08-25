@@ -50,6 +50,14 @@ class GenerationJob(TimestampMixin, Base):
     prompt_package: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
     settings: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
     error: Mapped[Optional[str]] = mapped_column(nullable=True)
+    error_code: Mapped[Optional[str]] = mapped_column(nullable=True, index=True)
+    provider_job_id: Mapped[Optional[str]] = mapped_column(nullable=True, index=True)
+    attempt: Mapped[int] = mapped_column(default=1)
+    package_version: Mapped[Optional[int]] = mapped_column(nullable=True)
+    translated_request: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
+    submitted_references: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
+    usage: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
+    poll_metadata: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
     submitted_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
     started_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
     completed_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
@@ -69,11 +77,17 @@ class GenerationResult(TimestampMixin, Base):
 
     id: Mapped[int] = mapped_column(primary_key=True)
     job_id: Mapped[int] = mapped_column(ForeignKey("generation_jobs.id", ondelete="CASCADE"), index=True)
+    shot_id: Mapped[Optional[int]] = mapped_column(nullable=True, index=True)
+    provider_key: Mapped[Optional[str]] = mapped_column(nullable=True, index=True)
     version_number: Mapped[int] = mapped_column(default=1)
     storage_mode: Mapped[Optional[str]] = mapped_column(nullable=True)
     repo_path: Mapped[Optional[str]] = mapped_column(nullable=True)
     uri: Mapped[Optional[str]] = mapped_column(nullable=True)
     checksum: Mapped[Optional[str]] = mapped_column(nullable=True)
+    duration_seconds: Mapped[Optional[float]] = mapped_column(nullable=True)
+    resolution: Mapped[Optional[str]] = mapped_column(nullable=True)
+    status: Mapped[str] = mapped_column(default="needs_review")  # needs_review|approved|rejected
+    file_size: Mapped[Optional[int]] = mapped_column(nullable=True)
     provider_metadata: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
     is_approved: Mapped[bool] = mapped_column(default=False)  # approval-first: never auto-true
 
