@@ -61,4 +61,18 @@ class TimelineItem(TimestampMixin, Base):
     asset_id: Mapped[Optional[int]] = mapped_column(ForeignKey("assets.id", ondelete="SET NULL"), nullable=True)
     order_index: Mapped[int] = mapped_column(default=0)
     transition_in: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)   # {type, duration_seconds}
+    # --- Phase 6 additive: mixer + non-destructive editing ---
+    track_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("timeline_tracks.id", ondelete="CASCADE"), nullable=True, index=True)
+    source_type: Mapped[str] = mapped_column(default="shot_result")  # shot_result|recording|asset|gap
+    source_id: Mapped[Optional[int]] = mapped_column(nullable=True)
+    trim_in: Mapped[float] = mapped_column(default=0.0)
+    trim_out: Mapped[float] = mapped_column(default=0.0)
+    volume_gain: Mapped[float] = mapped_column(default=1.0)
+    fade_in: Mapped[float] = mapped_column(default=0.0)
+    fade_out: Mapped[float] = mapped_column(default=0.0)
+    locked: Mapped[bool] = mapped_column(default=False)
     metadata_json: Mapped[Optional[dict]] = mapped_column("metadata", JSON, nullable=True)
+
+    track_ref: Mapped[Optional["TimelineTrack"]] = relationship(back_populates="items")  # noqa: F821
+    shot_ref: Mapped[Optional["Shot"]] = relationship(back_populates="timeline_items")   # noqa: F821

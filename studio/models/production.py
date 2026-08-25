@@ -185,6 +185,9 @@ class Shot(TimestampMixin, Base):
     generation_jobs: Mapped[list["GenerationJob"]] = relationship(  # noqa: F821
         back_populates="shot"
     )
+    timeline_items: Mapped[list["TimelineItem"]] = relationship(  # noqa: F821
+        foreign_keys="TimelineItem.shot_id", back_populates="shot_ref"
+    )
     cast: Mapped[list["ShotCharacter"]] = relationship(  # noqa: F821
         back_populates="shot", cascade="all, delete-orphan", order_by="ShotCharacter.id"
     )

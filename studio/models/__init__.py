@@ -1,5 +1,18 @@
 """All ORM models (importing this package registers every table)."""
 
+from .audio import (
+    AUDIO_JOB_STATUSES,
+    AudioJob,
+    AudioRecording,
+    EpisodeRender,
+    EXPORT_KINDS,
+    EXPORT_STATUSES,
+    RECORDING_KINDS,
+    RECORDING_STATUSES,
+    RENDER_STATUSES,
+    TimelineTrack,
+    TRACK_KINDS,
+)
 from .assets import (
     Asset,
     AssetTag,
@@ -66,6 +79,9 @@ from .story import (
 
 __all__ = [
     "Act",
+    "AudioJob",
+    "AUDIO_JOB_STATUSES",
+    "AudioRecording",
     "CAMERA_ANGLES",
     "CAMERA_MOVEMENTS",
     "CANON_CATEGORIES",
@@ -93,7 +109,10 @@ __all__ = [
     "ContinuityRecord",
     "Episode",
     "EpisodeStatus",
+    "EpisodeRender",
     "ExportKind",
+    "EXPORT_KINDS",
+    "EXPORT_STATUSES",
     "ExportRecord",
     "GenerationJob",
     "GenerationResult",

@@ -72,6 +72,45 @@ EXPECTED_EXTRA_COLUMNS: dict[str, dict[str, str]] = {
     "asset_versions": {
         "status": "VARCHAR(32) DEFAULT 'registered'",
     },
+    "assets": {
+        "artist_source": "TEXT",
+        "bpm": "REAL",
+        "mood": "TEXT",
+        "license_note": "TEXT",
+        "duration_seconds": "REAL",
+    },
+    # --- Phase 6 (audio/timeline/render/export layer) ---
+    "voice_profiles": {
+        "voice_id": "TEXT",
+        "voice_style": "TEXT",
+        "speaking_speed": "REAL DEFAULT 1.0",
+        "pitch": "REAL",
+        "emotion_notes": "TEXT",
+    },
+    "timeline_items": {
+        "track_id": "INTEGER",
+        "source_type": "VARCHAR(32) DEFAULT 'shot_result'",
+        "source_id": "INTEGER",
+        "trim_in": "REAL DEFAULT 0.0",
+        "trim_out": "REAL DEFAULT 0.0",
+        "volume_gain": "REAL DEFAULT 1.0",
+        "fade_in": "REAL DEFAULT 0.0",
+        "fade_out": "REAL DEFAULT 0.0",
+        "locked": "INTEGER DEFAULT 0",
+    },
+    "exports": {
+        "render_id": "INTEGER",
+        "source_result_id": "INTEGER",
+        "start_seconds": "REAL",
+        "end_seconds": "REAL",
+        "format": "TEXT",
+        "output_path": "TEXT",
+        "duration_seconds": "REAL",
+        "error": "TEXT",
+        "title_text": "TEXT",
+        "description_text": "TEXT",
+        "tags_text": "TEXT",
+    },
     # --- Phase 3 (story layer) ---
     "story_bibles": {
         "status": "VARCHAR(32) DEFAULT 'draft'",
@@ -109,24 +148,6 @@ EXPECTED_EXTRA_COLUMNS: dict[str, dict[str, str]] = {
         "approval_status": "VARCHAR(32) DEFAULT 'registered'",
     },
     # --- Phase 4 (storyboard/shot layer) ---
-    "generation_jobs": {
-        "provider_job_id": "TEXT",
-        "package_version": "INTEGER",
-        "attempt": "INTEGER",
-        "error_code": "VARCHAR(64)",
-        "translated_request": "JSON",
-        "submitted_references": "JSON",
-        "usage": "JSON",
-        "poll_metadata": "JSON",
-    },
-    "generation_results": {
-        "shot_id": "INTEGER",
-        "provider_key": "VARCHAR(64)",
-        "duration_seconds": "REAL",
-        "resolution": "VARCHAR(32)",
-        "status": "VARCHAR(32) DEFAULT 'needs_review'",
-        "file_size": "INTEGER",
-    },
     "shots": {
         "title": "TEXT",
         "description": "TEXT",
@@ -148,9 +169,28 @@ EXPECTED_EXTRA_COLUMNS: dict[str, dict[str, str]] = {
         "next_shot_id": "INTEGER",
         "generation_status": "VARCHAR(32) DEFAULT 'pending'",
     },
+    # --- Phase 5 (generation layer) ---
+    "generation_jobs": {
+        "provider_job_id": "TEXT",
+        "package_version": "INTEGER",
+        "attempt": "INTEGER",
+        "error_code": "VARCHAR(64)",
+        "translated_request": "JSON",
+        "submitted_references": "JSON",
+        "usage": "JSON",
+        "poll_metadata": "JSON",
+    },
+    "generation_results": {
+        "shot_id": "INTEGER",
+        "provider_key": "VARCHAR(64)",
+        "duration_seconds": "REAL",
+        "resolution": "VARCHAR(32)",
+        "status": "VARCHAR(32) DEFAULT 'needs_review'",
+        "file_size": "INTEGER",
+    },
 }
 
-# Legacy Phase 1 status values → Phase 3 vocabulary (data-preserving rewrite
+# Legacy Phase 1 status values -> Phase 3/4 vocabulary (data-preserving rewrite
 # of a single TEXT column; runs once).
 LEGACY_STATUS_MAP = {
     "episodes": {
@@ -171,32 +211,12 @@ LEGACY_STATUS_MAP = {
         "shot_ready": "ready_for_storyboard",
         "generating": "in_production",
     },
-    "generation_jobs": {
-        "provider_job_id": "TEXT",
-        "package_version": "INTEGER",
-        "attempt": "INTEGER",
-        "error_code": "VARCHAR(64)",
-        "translated_request": "JSON",
-        "submitted_references": "JSON",
-        "usage": "JSON",
-        "poll_metadata": "JSON",
-    },
-    "generation_results": {
-        "shot_id": "INTEGER",
-        "provider_key": "VARCHAR(64)",
-        "duration_seconds": "REAL",
-        "resolution": "VARCHAR(32)",
-        "status": "VARCHAR(32) DEFAULT 'needs_review'",
-        "file_size": "INTEGER",
-    },
     "shots": {
         "planned": "draft",
         "ready": "needs_review",
         "queued": "generating",
     },
-    "story_bibles": {
-        # seeded creator canon starts approved
-    },
+    "story_bibles": {},
 }
 
 

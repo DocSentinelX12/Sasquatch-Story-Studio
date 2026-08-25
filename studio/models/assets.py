@@ -212,6 +212,12 @@ class Asset(TimestampMixin, Base):
     is_favorite: Mapped[bool] = mapped_column(default=False)
     tags: Mapped[Optional[list]] = mapped_column(JSON, nullable=True)
     notes: Mapped[Optional[str]] = mapped_column(nullable=True)
+    # --- Phase 6 audio/library metadata ---
+    artist_source: Mapped[Optional[str]] = mapped_column(nullable=True)
+    bpm: Mapped[Optional[float]] = mapped_column(nullable=True)
+    mood: Mapped[Optional[str]] = mapped_column(nullable=True)
+    license_note: Mapped[Optional[str]] = mapped_column(nullable=True)
+    duration_seconds: Mapped[Optional[float]] = mapped_column(nullable=True)
     character_id: Mapped[Optional[int]] = mapped_column(ForeignKey("characters.id", ondelete="SET NULL"), nullable=True)
     location_id: Mapped[Optional[int]] = mapped_column(ForeignKey("locations.id", ondelete="SET NULL"), nullable=True)
     episode_id: Mapped[Optional[int]] = mapped_column(ForeignKey("episodes.id", ondelete="SET NULL"), nullable=True)

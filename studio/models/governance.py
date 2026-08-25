@@ -73,6 +73,18 @@ class ExportRecord(TimestampMixin, Base):
     title: Mapped[str] = mapped_column(default="")
     description: Mapped[Optional[str]] = mapped_column(nullable=True)
     tags: Mapped[Optional[list]] = mapped_column(JSON, nullable=True)
-    status: Mapped[str] = mapped_column(default="draft")  # draft|pending_approval|approved|exported
+    status: Mapped[str] = mapped_column(default="draft")  # draft|queued|rendering|completed|failed|cancelled|needs_review|approved|rejected|exported
     thumbnail_asset_id: Mapped[Optional[int]] = mapped_column(ForeignKey("assets.id", ondelete="SET NULL"), nullable=True)
+    # --- Phase 6 additive ---
+    render_id: Mapped[Optional[int]] = mapped_column(ForeignKey("episode_renders.id", ondelete="SET NULL"), nullable=True)
+    source_result_id: Mapped[Optional[int]] = mapped_column(nullable=True)   # generation result for clips/shorts
+    start_seconds: Mapped[Optional[float]] = mapped_column(nullable=True)
+    end_seconds: Mapped[Optional[float]] = mapped_column(nullable=True)
+    format: Mapped[Optional[str]] = mapped_column(nullable=True)
+    output_path: Mapped[Optional[str]] = mapped_column(nullable=True)
+    duration_seconds: Mapped[Optional[float]] = mapped_column(nullable=True)
+    error: Mapped[Optional[str]] = mapped_column(nullable=True)
+    title_text: Mapped[Optional[str]] = mapped_column(nullable=True)
+    description_text: Mapped[Optional[str]] = mapped_column(nullable=True)
+    tags_text: Mapped[Optional[str]] = mapped_column(nullable=True)
     metadata_json: Mapped[Optional[dict]] = mapped_column("metadata", JSON, nullable=True)
