@@ -53,6 +53,23 @@ python3 tools/new_episode.py EP-002 "Yeti and the Impossible Picnic"
 
 The command creates a complete, editable episode workspace beneath `episodes/in-development/`. It does not generate story content or contact any service.
 
+## The Studio application
+
+A local web application (FastAPI + SQLite + a dark SPA frontend) runs above this
+content repository:
+
+```bash
+python3 -m venv .venv && .venv/bin/pip install -r requirements.txt
+./run.sh            # or: .venv/bin/uvicorn studio.server:app --host 0.0.0.0 --port 8000
+```
+
+It currently provides the Dashboard, a Character Bible browser (profiles,
+reference management with approval workflow, relationships, continuity fields)
+and the Asset Library (upload/search/filter/sort/tags/favorites/versioning with
+an explicit **Meta AI import workflow**). Uploaded binaries live under
+`assets/studio-uploads/` (git-ignored); the JSON content in this repository
+remains the canon source of truth. No AI provider is connected or simulated.
+
 Validate all current canon and episode data:
 
 ```bash

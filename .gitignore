@@ -2,6 +2,12 @@
 __pycache__/
 *.py[cod]
 .venv/
+node_modules/
+.data/
+
+# App-managed binary uploads (registered in DB, kept out of git)
+assets/studio-uploads/**
+!assets/studio-uploads/README.md
 
 # Editors and OS
 .DS_Store
