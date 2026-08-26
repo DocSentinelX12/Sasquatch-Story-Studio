@@ -98,3 +98,18 @@ def smart_plan_endpoint(
     return planner.smart_generation_plan(
         db, episode_ids=ids, max_queue_size=max_queue_size,
         include_failed=include_failed, include_new_versions=include_new_versions)
+
+
+@router.get("/character-consistency")
+def character_consistency_endpoint(
+    character_id: Optional[int] = Query(default=None, ge=1),
+    episode_id: Optional[int] = Query(default=None, ge=1),
+    scene_id: Optional[int] = Query(default=None, ge=1),
+    db: Session = Depends(get_db),
+):
+    """Milestone G: read-only character consistency report."""
+    try:
+        return planner.character_consistency_report(
+            db, character_id=character_id, episode_id=episode_id, scene_id=scene_id)
+    except ValueError as error:
+        raise HTTPException(422, str(error)) from error
