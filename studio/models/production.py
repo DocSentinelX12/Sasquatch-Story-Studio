@@ -176,6 +176,9 @@ class Shot(TimestampMixin, Base):
     location_state_notes: Mapped[Optional[str]] = mapped_column(nullable=True)
     prev_shot_id: Mapped[Optional[int]] = mapped_column(nullable=True)
     next_shot_id: Mapped[Optional[int]] = mapped_column(nullable=True)
+    # Explicit pointer to the approved production version (Phase 10 H).
+    # Set ONLY by explicit user selection; never auto-assigned.
+    current_result_id: Mapped[Optional[int]] = mapped_column(nullable=True)
     generation_status: Mapped[str] = mapped_column(default="pending")   # pending | generating | generated | failed
     status: Mapped[str] = mapped_column(default=ShotStatus.DRAFT.value)
     order_index: Mapped[int] = mapped_column(default=0)

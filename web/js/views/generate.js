@@ -277,6 +277,94 @@ async function renderProgress() {
         el("button", { class: "btn small ghost", style: "margin-left:6px", onclick: () => { selected = "auto"; draw(); } }, "Try another provider"))));
   }
   for (const result of results.results || []) renderResultCard(result);
+  // Milestone H: full version history card list (approved clearly marked)
+  renderVersionHistory();
+}
+
+let versionHistoryData = null;
+
+async function renderVersionHistory() {
+  if (!progressMount) return;
+  try {
+    versionHistoryData = await getJSON(`/api/shots/${shotId}/video-versions`);
+  } catch { return; }
+  const hist = versionHistoryData;
+  if (!hist.versions.length && !hist.failed_attempts.length) return;
+  const currentId = hist.current_production_version && hist.current_production_version.id;
+
+  const wrap = el("div", { class: "card", style: "margin-bottom:12px" },
+    el("h3", {}, "Version History",
+      el("span", { class: "pill s-outline", style: "margin-left:8px" }, String(hist.versions.length)),
+      hist.current_production_version
+        ? el("span", { class: "pill s-green", style: "margin-left:6px" }, `✓ v${hist.current_production_version.version_number} is production version`)
+        : el("span", { class: "pill s-amber", style: "margin-left:6px" }, "no production version selected")));
+
+  for (const v of hist.versions) {
+    const isCurrent = v.id === currentId;
+    wrap.append(el("div", {
+      style: `display:flex; gap:9px; align-items:center; padding:10px 0; border-bottom:1px solid rgba(38,49,42,.5); min-height:52px;
+        ${isCurrent ? "background:rgba(143,209,155,.06); border-radius:8px; padding-left:6px;" : ""}`,
+    },
+      el("b", { style: "flex:0 0 34px" }, `v${v.version_number}`),
+      el("div", { style: "flex:1; min-width:0" },
+        el("div", { style: "display:flex; gap:5px; flex-wrap:wrap; align-items:center" },
+          statusPill(v.status === "approved" ? "approved" : v.status === "rejected" ? "rejected" : "needs_review",
+            v.status === "approved" ? "Approved" : v.status === "rejected" ? "Rejected" : "Needs Review"),
+          v.provider ? el("span", { class: "pill s-outline" }, v.provider) : null,
+          isCurrent ? el("span", { class: "pill s-green", style: "padding:1px 6px" }, "PRODUCTION") : null,
+          v.test_adapter ? el("span", { class: "pill s-purple", style: "padding:1px 6px" }, "TEST") : null),
+        el("div", { class: "muted", style: "font-size:11px; margin-top:3px" },
+          [v.created_at ? new Date(v.created_at).toLocaleString() : null,
+           v.attempt ? `attempt ${v.attempt}` : null].filter(Boolean).join(" · ")),
+        v.rejection_reason ? el("div", { style: "color:var(--red); font-size:11.5px; margin-top:2px" },
+          `Rejection: ${v.rejection_reason}`) : null),
+      el("div", { style: "display:flex; gap:5px; flex:0 0 auto" },
+        el("a", { class: "btn small ghost", href: `/api/generation/results/${v.id}/file`, target: "_blank",
+          style: "text-decoration:none" }, "View"),
+        hist.versions.length > 1 ? el("button", { class: "btn small ghost", onclick: () => compareModal(v) }, "Compare") : null,
+        (v.status === "approved" && !isCurrent)
+          ? el("button", { class: "btn small", onclick: async () => {
+              try {
+                await postJSON(`/api/shots/${shotId}/video-versions/${v.id}/select-current`, {});
+                toast(`v${v.version_number} is now the production version (audited).`, "ok");
+                renderProgress();
+              } catch (error) { toast(error.message, "error", "Selection refused"); }
+            } }, "Select") : null)));
+  }
+  for (const a of hist.failed_attempts || []) {
+    wrap.append(el("div", { style: "display:flex; gap:9px; align-items:center; padding:9px 0; opacity:.7" },
+      el("span", { class: "pill s-red" }, "failed"),
+      el("div", { style: "flex:1; min-width:0" },
+        el("div", { class: "muted", style: "font-size:11.5px" },
+          `attempt ${a.attempt || "?"} · ${a.provider || "?"} · ${a.error_code || "error"}`)),
+      el("span", { class: "muted", style: "font-size:10.5px" }, "kept for inspection")));
+  }
+  progressMount.append(wrap);
+}
+
+function compareModal(version) {
+  const others = (versionHistoryData ? versionHistoryData.versions : [])
+    .filter((v) => v.id !== version.id);
+  if (!others.length) return toast("Only one version exists.", "info");
+  const other = others[0];
+  getJSON(`/api/shots/${shotId}/video-versions/compare/${version.id}/${other.id}`).then((result) => {
+    openModal({
+      title: `Compare v${version.version_number} ↔ v${other.version_number}`,
+      sub: "Only stored metadata is compared — no visual analysis exists.",
+      wide: true,
+      body: el("div", {},
+        result.differences.length
+          ? el("table", { class: "data" },
+              el("thead", {}, el("tr", {}, el("th", {}, "Field"), el("th", {}, `v${version.version_number}`), el("th", {}, `v${other.version_number}`))),
+              el("tbody", {}, ...result.differences.map((d) => el("tr", {},
+                el("td", { style: "font-weight:600" }, d.field),
+                el("td", {}, String(d.version_a ?? "—")),
+                el("td", {}, String(d.version_b ?? "—"))))))
+          : el("div", { class: "callout green", style: "font-size:12.5px" }, "No stored differences."),
+        el("div", { class: "muted", style: "font-size:11px; margin-top:8px" }, result.note)),
+      actions: [{ label: "Close" }],
+    });
+  }).catch((error) => toast(error.message, "error"));
 }
 
 function renderResultCard(result) {

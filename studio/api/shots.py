@@ -36,6 +36,14 @@ from ..models.shots import (
     SHOT_STATUSES,
     SHOT_TYPES,
 )
+from ..services.version_control import (
+    VersionControlError,
+    compare_versions,
+    select_current_version,
+    version_detail,
+    version_history,
+    version_safety_check,
+)
 from ..services.shot_package import (
     build_generation_package,
     build_prompt_package,
@@ -778,3 +786,58 @@ def restore_version(shot_id: int, version_id: int, db: Session = Depends(get_db)
         shot.status = "needs_review"  # restoring content re-opens review
     db.commit()
     return {"restored_fields": restored, "shot": shot_payload(db, shot)}
+
+
+# ==========================================================================
+# Phase 10 Milestone H: video version control
+# ==========================================================================
+
+@router.get("/shots/{shot_id}/video-versions")
+def shot_video_version_history(shot_id: int, db: Session = Depends(get_db)):
+    """Read-only VIDEO version history: results (all statuses) + failed attempts.
+    (Distinct from the Phase 4 creative-snapshot /versions endpoint.)"""
+    try:
+        return version_history(db, shot_id)
+    except VersionControlError as error:
+        raise HTTPException(404, str(error)) from error
+
+
+@router.get("/shots/{shot_id}/video-versions/safety-check")
+def shot_video_version_safety(shot_id: int, db: Session = Depends(get_db)):
+    return version_safety_check(db, shot_id)
+
+@router.get("/shots/{shot_id}/video-versions/{version_id}")
+def shot_video_version_detail(shot_id: int, version_id: int, db: Session = Depends(get_db)):
+    try:
+        return version_detail(db, shot_id, version_id)
+    except VersionControlError as error:
+        raise HTTPException(404, str(error)) from error
+
+
+@router.get("/shots/{shot_id}/video-versions/compare/{version_a}/{version_b}")
+def shot_video_version_compare(shot_id: int, version_a: int, version_b: int,
+                         db: Session = Depends(get_db)):
+    """Only real stored differences — no invented visual analysis."""
+    try:
+        return compare_versions(db, shot_id, version_a, version_b)
+    except VersionControlError as error:
+        raise HTTPException(404, str(error)) from error
+
+
+class SelectCurrentRequest(BaseModel):
+    note: Optional[str] = None
+
+
+@router.post("/shots/{shot_id}/video-versions/{version_id}/select-current")
+def shot_select_current(shot_id: int, version_id: int,
+                        payload: SelectCurrentRequest | None = None,
+                        db: Session = Depends(get_db)):
+    """EXPLICIT selection of an approved version as the production version.
+    Audited; never deletes/mutates history; refuses invalid versions."""
+    try:
+        return select_current_version(db, shot_id, version_id,
+                                      payload.note if payload else None)
+    except VersionControlError as error:
+        raise HTTPException(409, str(error)) from error
+
+

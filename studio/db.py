@@ -149,6 +149,7 @@ EXPECTED_EXTRA_COLUMNS: dict[str, dict[str, str]] = {
     },
     # --- Phase 4 (storyboard/shot layer) ---
     "shots": {
+        "current_result_id": "INTEGER",
         "title": "TEXT",
         "description": "TEXT",
         "camera_notes": "TEXT",
