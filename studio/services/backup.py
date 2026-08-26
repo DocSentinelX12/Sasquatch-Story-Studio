@@ -396,12 +396,17 @@ def restore_backup(db: Session, payload: dict, mode: str, target_series_id: int 
             job = GenerationJob(**data); db.add(job); db.flush()
             id_map.setdefault("gen_job", {})[row.get("id")] = job.id
 
+        skipped_orphan_results = 0
         for row in payload.get("generation_results") or []:
             data = _clean_row(GenerationResult, row, drop=("id", "job_id"))
             data["shot_id"] = new_id("shot", data.get("shot_id")) or data.get("shot_id")
             data["job_id"] = new_id("gen_job", data.get("job_id"))
-            if data.get("shot_id") is not None:
-                db.add(GenerationResult(**data))
+            if data.get("shot_id") is None or data.get("job_id") is None:
+                # result references a job/shot missing from this backup — skip it
+                # honestly instead of crashing the restore
+                skipped_orphan_results += 1
+                continue
+            db.add(GenerationResult(**data))
 
         for row in payload.get("renders") or []:
             data = _clean_row(EpisodeRender, row)
@@ -418,8 +423,12 @@ def restore_backup(db: Session, payload: dict, mode: str, target_series_id: int 
         db.commit()
         counts = {key: len(payload.get(key) or []) for key in ENTITY_ORDER}
         manifest = media_manifest(payload)
+        if skipped_orphan_results:
+            db.add(Notification(project_id=target, kind="warning",
+                                message=f"Restore skipped {skipped_orphan_results} generation result(s) "
+                                        "whose job was not included in the backup."))
         return {"restored": True, "mode": mode, "target_series_id": target,
-                "entity_counts": counts,
+                "entity_counts": counts, "skipped_orphan_results": skipped_orphan_results,
                 "media": {"total_referenced": manifest["total"],
                           "available": manifest["available"], "missing": manifest["missing"],
                           "missing_paths": [e["path"] for e in manifest["entries"] if e["status"] == "missing"][:50]},

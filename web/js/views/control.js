@@ -18,6 +18,7 @@ function draw() {
       el("div", {}, el("h2", {}, "Control Center"),
         el("div", { class: "desc" }, "Automation, notifications, series, templates and backups. Automation may prepare or queue work — it never approves creative content and never publishes."))),
     tabBar([
+      { id: "production", label: "Production" },
       { id: "automation", label: "Automation" },
       { id: "notifications", label: "Notifications" },
       { id: "series", label: "Series" },
@@ -26,12 +27,112 @@ function draw() {
     ], tab, (id) => { tab = id; location.hash = `#/control?tab=${id}`; draw(); }));
   const panel = el("div", {});
   container.append(panel);
-  if (tab === "automation") automationPanel(panel);
+  if (tab === "production") productionPanel(panel);
+  else if (tab === "automation") automationPanel(panel);
   else if (tab === "notifications") notificationsPanel(panel);
   else if (tab === "series") seriesPanel(panel);
   else if (tab === "templates") templatesPanel(panel);
   else backupsPanel(panel);
 }
+
+/* ---------------- production planner (Milestone F) ---------------- */
+async function productionPanel(panel) {
+  panel.append(loadingState("Analyzing production…"));
+  try {
+    const [overview, smart] = await Promise.all([
+      getJSON("/api/production/overview"),
+      getJSON("/api/production/smart-plan"),
+    ]);
+    panel.replaceChildren();
+    const s = overview;
+    const summary = smart.summary;
+
+    // stat tiles (real counts only)
+    const tiles = el("div", { class: "grid cols-4", style: "margin-bottom:14px" },
+      tile(s.episodes, "Episodes"), tile(s.shots_total, "Shots"),
+      tile(s.ready_to_generate, "Ready to Gen"), tile(s.completed_shots, "Completed"),
+      tile(summary.recommended, "Recommended"), tile(summary.blocked, "Blocked"),
+      tile(s.failed_jobs, "Failed"), tile(s.waiting_for_approval, "To Approve"));
+    panel.append(tiles);
+
+    // next actions first
+    panel.append(el("div", { class: "card", style: "margin-bottom:12px" },
+      el("h3", {}, "Recommended next"),
+      smart.recommended_next.length ? el("div", {},
+        ...smart.recommended_next.slice(0, 8).map((r) => el("div", {
+          style: "display:flex; gap:9px; align-items:center; padding:9px 0; border-bottom:1px solid rgba(38,49,42,.5); min-height:48px",
+        },
+          el("span", { class: "pill s-green" }, `P${r.priority}`),
+          el("div", { style: "flex:1; min-width:0" },
+            el("div", { style: "font-weight:600" }, r.recommendation),
+            el("div", { class: "muted", style: "font-size:11.5px" }, r.reason.slice(0, 90))),
+          el("a", { class: "btn small ghost", href: r.route, style: "text-decoration:none; flex:0 0 auto" }, "Open"))))
+        : el("div", { class: "muted", style: "font-size:12.5px" }, "Nothing eligible right now — see blocked work below.")));
+
+    // blocked work (separate, with reasons)
+    if (smart.blocked.length) {
+      panel.append(el("div", { class: "card", style: "margin-bottom:12px" },
+        el("h3", {}, `Blocked (${smart.blocked.length})`, el("span", { class: "pill s-red" }, "not ready")),
+        ...smart.blocked.slice(0, 6).map((b) => el("div", {
+          style: "display:flex; gap:9px; align-items:center; padding:8px 0; border-bottom:1px solid rgba(38,49,42,.5)",
+        },
+          el("span", { class: "pill s-red", style: "flex:0 0 auto" }, "⛔"),
+          el("div", { style: "flex:1; min-width:0" },
+            el("div", { style: "font-size:12.5px; font-weight:600" }, `Shot ${b.shot_id}`),
+            el("div", { class: "muted", style: "font-size:11.5px" }, b.reason.slice(0, 90))),
+          el("a", { class: "btn small ghost", href: b.route, style: "text-decoration:none" }, "Fix")))));
+    }
+
+    // requires approval (never presented as ready)
+    if (smart.requires_approval.length) {
+      panel.append(el("div", { class: "card", style: "margin-bottom:12px" },
+        el("h3", {}, `Needs your approval (${smart.requires_approval.length})`),
+        el("div", { class: "muted", style: "font-size:11.5px; margin-bottom:6px" },
+          "These are never auto-promoted — approval is always yours."),
+        ...smart.requires_approval.slice(0, 5).map((a) => el("div", {
+          style: "display:flex; gap:9px; align-items:center; padding:8px 0; border-bottom:1px solid rgba(38,49,42,.5)",
+        },
+          el("span", { class: "pill s-amber", style: "flex:0 0 auto" }, "human"),
+          el("div", { style: "flex:1; min-width:0" }, el("div", { class: "muted", style: "font-size:11.5px" }, a.reason.slice(0, 90))),
+          el("a", { class: "btn small ghost", href: a.route, style: "text-decoration:none" }, "Open")))));
+    }
+
+    // missing references / audio — honest
+    if (smart.missing_requirements.length || (s.qc_blockers || []).length) {
+      panel.append(el("div", { class: "card", style: "margin-bottom:12px" },
+        el("h3", {}, "Missing requirements"),
+        ...smart.missing_requirements.slice(0, 5).map((m) => el("div", {
+          style: "display:flex; gap:9px; align-items:center; padding:7px 0; min-height:44px",
+        },
+          el("span", { class: "pill s-outline", style: "flex:0 0 auto" }, m.kind.replace("_", " ")),
+          el("div", { style: "flex:1; min-width:0" }, el("div", { class: "muted", style: "font-size:12px" }, m.detail)),
+          m.route ? el("a", { class: "btn small ghost", href: m.route, style: "text-decoration:none" }, "Fix") : null)),
+        ...(s.qc_blockers || []).map((q) => el("div", { style: "padding:7px 0; font-size:12px; color:var(--red)" },
+          `EP-${String(q.number).padStart(3, "0")}: ${q.blockers} QC blocker(s)`))));
+    }
+
+    // per-episode
+    panel.append(el("div", { class: "card" },
+      el("h3", {}, "Episodes"),
+      ...smart.by_episode.map((e) => el("div", {
+        style: "display:flex; gap:9px; align-items:center; padding:9px 0; border-bottom:1px solid rgba(38,49,42,.5); min-height:48px",
+      },
+        el("b", { style: "flex:0 0 auto" }, `EP ${String(e.number).padStart(3, "0")}`),
+        el("div", { style: "flex:1; min-width:0" },
+          el("div", { style: "font-size:12.5px" }, `${e.approved}/${e.shots} approved · ${e.recommended_now} recommended now`),
+          el("div", { class: "muted", style: "font-size:11px" },
+            `${Math.round(e.completion_ratio_calculated * 100)}% complete (calculated database ratio) · QC: ${e.qc_status}`)),
+        statusPill(e.qc_status === "pass" ? "approved" : e.qc_status === "warning" ? "needs_review" : "rejected", e.qc_status),
+        el("a", { class: "btn small ghost", href: e.route, style: "text-decoration:none" }, "Open")))));
+
+    panel.append(el("div", { class: "muted", style: "font-size:11px; margin-top:10px" },
+      smart.summary.note + " No time/credit estimates exist — the studio never fabricates them."));
+  } catch (error) { panel.replaceChildren(errorState(error, () => productionPanel(panel))); }
+}
+
+const tile = (value, label) => el("div", { class: "card stat-card", style: "padding:10px 12px" },
+  el("div", { class: "value", style: "font-size:20px" }, String(value)),
+  el("div", { class: "label", style: "font-size:11px" }, label));
 
 /* ---------------- automation ---------------- */
 async function automationPanel(panel) {
