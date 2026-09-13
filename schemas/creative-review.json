@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "sasquatch-story-studio/schemas/creative-review.json",
+  "title": "Creative Review Item",
+  "type": "object",
+  "required": ["id", "reason", "source", "proposal", "status"],
+  "properties": {
+    "id": {"type": "string", "minLength": 1},
+    "reason": {"type": "string", "minLength": 1},
+    "source": {"type": "string", "minLength": 1},
+    "proposal": {"type": "string", "minLength": 1},
+    "status": {"enum": ["pending", "approved", "rejected"]},
+    "reviewer_note": {"type": "string"}
+  },
+  "additionalProperties": false
+}
