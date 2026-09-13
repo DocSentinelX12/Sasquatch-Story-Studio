@@ -1,17 +1,24 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "sasquatch-story-studio/schemas/story-interpretation.json",
-  "title": "Story Interpretation",
+  "title": "Canonical Story Interpretation",
   "type": "object",
-  "required": ["story_id", "source_hash", "facts", "events", "dialogue", "review_items"],
+  "additionalProperties": false,
+  "required": ["story_id", "source_hash", "facts", "events", "dialogue", "review_items", "provenance"],
   "properties": {
     "story_id": {"type": "string", "minLength": 1},
-    "source_hash": {"type": "string", "minLength": 1},
-    "facts": {"type": "array", "items": {"type": "object"}},
-    "events": {"type": "array", "items": {"type": "object"}},
-    "dialogue": {"type": "array", "items": {"type": "object"}},
-    "review_items": {"type": "array", "items": {"type": "object"}},
-    "provenance": {"type": "object"}
+    "source_hash": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+    "facts": {"type": "array", "items": {"$ref": "#/$defs/fact"}},
+    "events": {"type": "array", "items": {"$ref": "#/$defs/event"}},
+    "dialogue": {"type": "array", "items": {"$ref": "#/$defs/dialogue"}},
+    "review_items": {"type": "array", "items": {"$ref": "#/$defs/review"}},
+    "provenance": {"type": "object", "additionalProperties": true}
   },
-  "additionalProperties": false
+  "$defs": {
+    "source": {"type": "object", "required": ["excerpt"], "properties": {"excerpt": {"type": "string"}, "locator": {"type": "string"}}, "additionalProperties": false},
+    "fact": {"type": "object", "required": ["id", "statement", "source"], "properties": {"id": {"type": "string", "minLength": 1}, "statement": {"type": "string", "minLength": 1}, "source": {"$ref": "#/$defs/source"}, "explicit": {"type": "boolean"}}, "additionalProperties": false},
+    "event": {"type": "object", "required": ["id", "scene_id", "order", "description", "source_excerpt"], "properties": {"id": {"type": "string", "minLength": 1}, "scene_id": {"type": "string", "minLength": 1}, "order": {"type": "integer", "minimum": 1}, "kind": {"type": "string"}, "description": {"type": "string", "minLength": 1}, "required": {"type": "boolean"}, "source_excerpt": {"type": "string", "minLength": 1}, "characters": {"type": "array"}, "location_id": {"type": "string"}, "duration_seconds": {"type": "number", "exclusiveMinimum": 0}}, "additionalProperties": false},
+    "dialogue": {"type": "object", "required": ["id", "scene_id", "speaker", "text", "source_text"], "properties": {"id": {"type": "string", "minLength": 1}, "scene_id": {"type": "string", "minLength": 1}, "speaker": {"type": "string", "minLength": 1}, "text": {"type": "string"}, "source_text": {"type": "string"}}, "additionalProperties": false},
+    "review": {"type": "object", "required": ["id", "reason"], "properties": {"id": {"type": "string", "minLength": 1}, "reason": {"type": "string", "minLength": 1}, "severity": {"enum": ["low", "medium", "high"]}, "proposed_options": {"type": "array", "items": {"type": "string"}}}, "additionalProperties": false}
+  }
 }
