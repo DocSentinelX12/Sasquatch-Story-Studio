@@ -21,6 +21,20 @@ class LLMRequest:
     seed: int | None = None
     metadata: dict[str, Any] = field(default_factory=dict)
 
+    def validate(self, max_temperature: float = 0.7) -> None:
+        if not self.task.strip():
+            raise ValueError("LLM task is required")
+        if not self.system_instruction.strip():
+            raise ValueError("LLM system instruction is required")
+        if not self.user_input.strip():
+            raise ValueError("LLM user input is required")
+        if not self.canonical_source.strip():
+            raise ValueError("canonical source is required")
+        if self.temperature < 0 or self.temperature > max_temperature:
+            raise ValueError(f"temperature must be between 0 and {max_temperature}")
+        if self.canonical_source != self.user_input:
+            raise ValueError("canonical_source must exactly match user_input for protected story tasks")
+
 
 @dataclass(frozen=True)
 class LLMResponse:
@@ -49,17 +63,22 @@ class LLMPolicy:
 
 
 class LLMRouter:
-    """Selects only verified LLM adapters and records the routing decision."""
+    """Select only verified, policy-eligible LLM adapters."""
 
     def __init__(self, adapters: list[LLMAdapter], policy: LLMPolicy | None = None):
         self.adapters = adapters
         self.policy = policy or LLMPolicy()
 
     def eligible(self, task: str) -> list[LLMAdapter]:
-        candidates = []
+        candidates: list[LLMAdapter] = []
         for adapter in self.adapters:
-            if self.policy.require_verified:
-                require_verified(adapter)
+            if self.policy.require_verified and not adapter.info.verified:
+                continue
+            if not self.policy.allow_unknown_license and not adapter.info.license.strip():
+                continue
+            is_local = "local" in adapter.info.capabilities
+            if not self.policy.allow_remote and not is_local:
+                continue
             if task in adapter.info.capabilities or "llm" in adapter.info.capabilities:
                 candidates.append(adapter)
         return candidates
@@ -67,12 +86,20 @@ class LLMRouter:
     def choose(self, task: str) -> LLMAdapter:
         candidates = self.eligible(task)
         if not candidates:
-            raise RuntimeError(f"No verified LLM adapter is available for task: {task}")
+            raise RuntimeError(f"No policy-eligible verified LLM adapter is available for task: {task}")
         if self.policy.prefer_local:
             local = [a for a in candidates if "local" in a.info.capabilities]
             if local:
                 return local[0]
         return candidates[0]
+
+    def generate(self, request: LLMRequest) -> LLMResponse:
+        request.validate(self.policy.max_temperature)
+        adapter = self.choose(request.task)
+        response = adapter.generate(request)
+        if not response.provenance:
+            raise RuntimeError("LLM adapter returned no provenance")
+        return response
 
 
 CANONICAL_LLM_INSTRUCTION = (
