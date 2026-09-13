@@ -1,0 +1,52 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://sasquatch-story-studio.local/schemas/episode-plan.json",
+  "title": "Episode Production Plan",
+  "type": "object",
+  "required": ["id", "story_id", "title", "scenes"],
+  "properties": {
+    "id": {"type": "string", "minLength": 1},
+    "story_id": {"type": "string", "minLength": 1},
+    "title": {"type": "string", "minLength": 1},
+    "scenes": {"type": "array", "items": {"$ref": "#/$defs/scene"}},
+    "fidelity_notes": {"type": "array", "items": {"type": "string"}},
+    "review_items": {"type": "array", "items": {"type": "string"}}
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "scene": {
+      "type": "object",
+      "required": ["id", "order", "description", "shots"],
+      "properties": {
+        "id": {"type": "string"},
+        "order": {"type": "integer", "minimum": 1},
+        "description": {"type": "string"},
+        "location_id": {"type": ["string", "null"]},
+        "time_of_day": {"type": ["string", "null"]},
+        "characters": {"type": "array"},
+        "events": {"type": "array"},
+        "shots": {"type": "array", "items": {"$ref": "#/$defs/shot"}}
+      },
+      "additionalProperties": false
+    },
+    "shot": {
+      "type": "object",
+      "required": ["id", "scene_id", "order", "purpose", "duration_seconds"],
+      "properties": {
+        "id": {"type": "string"},
+        "scene_id": {"type": "string"},
+        "order": {"type": "integer", "minimum": 1},
+        "purpose": {"type": "string"},
+        "duration_seconds": {"type": "number", "exclusiveMinimum": 0},
+        "characters": {"type": "array"},
+        "location_id": {"type": ["string", "null"]},
+        "required_events": {"type": "array", "items": {"type": "string"}},
+        "dialogue_ids": {"type": "array", "items": {"type": "string"}},
+        "camera": {"type": "object"},
+        "animation": {"type": "object"},
+        "sound": {"type": "object"}
+      },
+      "additionalProperties": false
+    }
+  }
+}

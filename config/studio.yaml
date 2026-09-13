@@ -1,0 +1,21 @@
+# Non-secret studio configuration
+
+studio_version: "0.1.0"
+canonical_source_priority:
+  - creator_story
+  - creator_scene_instructions
+  - series_bible
+  - character_bible
+  - production_rules
+  - ai_expansion
+
+release_requires:
+  - automated_qc
+  - story_fidelity
+  - human_approval
+
+model_policy:
+  prefer_local: true
+  require_verified_license: true
+  allow_unknown_license: false
+  allow_placeholder_integrations: false

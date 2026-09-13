@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://sasquatch-story-studio.local/schemas/story.json",
+  "title": "Canonical Story",
+  "type": "object",
+  "required": ["id", "title", "source_text", "source_kind"],
+  "properties": {
+    "id": {"type": "string", "minLength": 1},
+    "title": {"type": "string", "minLength": 1},
+    "source_text": {"type": "string", "minLength": 1},
+    "source_kind": {"enum": ["idea", "story", "script", "director_script"]},
+    "author_version": {"type": "string", "minLength": 1},
+    "metadata": {"type": "object"}
+  },
+  "additionalProperties": false
+}
