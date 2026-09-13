@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://sasquatch-story-studio.local/schemas/production-manifest.json",
+  "$id": "sasquatch-story-studio/schemas/production-manifest.json",
   "title": "Production Manifest",
   "type": "object",
   "required": ["episode_id", "story_id", "studio_version", "created_at", "inputs", "completed_stages"],
