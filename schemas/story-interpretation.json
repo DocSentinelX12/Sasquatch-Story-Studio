@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "sasquatch-story-studio/schemas/story-interpretation.json",
+  "title": "Story Interpretation",
+  "type": "object",
+  "required": ["story_id", "source_hash", "facts", "events", "dialogue", "review_items"],
+  "properties": {
+    "story_id": {"type": "string", "minLength": 1},
+    "source_hash": {"type": "string", "minLength": 1},
+    "facts": {"type": "array", "items": {"type": "object"}},
+    "events": {"type": "array", "items": {"type": "object"}},
+    "dialogue": {"type": "array", "items": {"type": "object"}},
+    "review_items": {"type": "array", "items": {"type": "object"}},
+    "provenance": {"type": "object"}
+  },
+  "additionalProperties": false
+}
