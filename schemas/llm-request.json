@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://sasquatch-story-studio.local/schemas/llm-request.json",
+  "$id": "sasquatch-story-studio/schemas/llm-request.json",
   "title": "LLM Production Request",
   "type": "object",
   "required": ["task", "system_instruction", "user_input", "canonical_source"],
