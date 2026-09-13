@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://sasquatch-story-studio.local/schemas/production-manifest.json",
+  "title": "Production Manifest",
+  "type": "object",
+  "required": ["episode_id", "story_id", "studio_version", "created_at", "inputs", "completed_stages"],
+  "properties": {
+    "episode_id": {"type": "string", "minLength": 1},
+    "story_id": {"type": "string", "minLength": 1},
+    "studio_version": {"type": "string", "minLength": 1},
+    "created_at": {"type": "string", "minLength": 1},
+    "inputs": {"type": "object", "additionalProperties": {"type": "string"}},
+    "models": {"type": "object", "additionalProperties": {"type": "string"}},
+    "seeds": {"type": "object", "additionalProperties": {"type": "integer"}},
+    "parameters": {"type": "object"},
+    "outputs": {"type": "object", "additionalProperties": {"type": "string"}},
+    "completed_stages": {"type": "array", "items": {"type": "string"}}
+  },
+  "additionalProperties": false
+}
