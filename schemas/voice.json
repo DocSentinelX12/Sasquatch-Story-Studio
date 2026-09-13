@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "sasquatch-story-studio/schemas/voice.json",
+  "title": "Voice Assignment",
+  "type": "object",
+  "required": ["id", "character_id", "canonical_source"],
+  "properties": {
+    "id": {"type": "string", "minLength": 1},
+    "character_id": {"type": "string", "minLength": 1},
+    "canonical_source": {"type": "string", "minLength": 1},
+    "provider_adapter_id": {"type": ["string", "null"]},
+    "voice_model_id": {"type": ["string", "null"]},
+    "performance_notes": {"type": "string"},
+    "license_record_id": {"type": ["string", "null"]}
+  },
+  "additionalProperties": false
+}
