@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://sasquatch-story-studio.local/schemas/adapter-registry.json",
+  "$id": "sasquatch-story-studio/schemas/adapter-registry.json",
   "title": "Verified Production Adapter Registry",
   "type": "object",
   "required": ["adapters"],
