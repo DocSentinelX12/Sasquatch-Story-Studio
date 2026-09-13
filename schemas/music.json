@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "sasquatch-story-studio/schemas/music.json",
+  "title": "Music Assignment",
+  "type": "object",
+  "required": ["id", "canonical_source"],
+  "properties": {
+    "id": {"type": "string", "minLength": 1},
+    "canonical_source": {"type": "string", "minLength": 1},
+    "asset_refs": {"type": "array", "items": {"type": "string"}},
+    "cue_notes": {"type": "string"},
+    "timing_notes": {"type": "string"},
+    "license_record_id": {"type": ["string", "null"]}
+  },
+  "additionalProperties": false
+}
