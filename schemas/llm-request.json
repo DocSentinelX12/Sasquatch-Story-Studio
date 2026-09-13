@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://sasquatch-story-studio.local/schemas/llm-request.json",
+  "title": "LLM Production Request",
+  "type": "object",
+  "required": ["task", "system_instruction", "user_input", "canonical_source"],
+  "properties": {
+    "task": {"type": "string", "minLength": 1},
+    "system_instruction": {"type": "string", "minLength": 1},
+    "user_input": {"type": "string", "minLength": 1},
+    "canonical_source": {"type": "string", "minLength": 1},
+    "output_schema": {"type": ["object", "null"]},
+    "temperature": {"type": "number", "minimum": 0, "maximum": 1},
+    "seed": {"type": ["integer", "null"]},
+    "metadata": {"type": "object"}
+  },
+  "additionalProperties": false
+}
