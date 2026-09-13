@@ -1,12 +1,7 @@
-"""Checkpointed stage execution.
-
-The executor tracks completed stages and treats failed work as retryable. A real
-render adapter can later implement the stage callable without changing this state
-machine.
-"""
+"""Checkpointed stage execution with durable resume support."""
 
 from dataclasses import dataclass, field
-from typing import Callable, Any
+from typing import Callable, Any, Protocol
 
 STAGES = (
     "interpret",
@@ -36,9 +31,15 @@ class RunState:
     failures: dict[str, str] = field(default_factory=dict)
 
 
+class CheckpointWriter(Protocol):
+    def save(self, state: RunState) -> object:
+        ...
+
+
 class Pipeline:
-    def __init__(self, state: RunState):
+    def __init__(self, state: RunState, checkpoint: CheckpointWriter | None = None):
         self.state = state
+        self.checkpoint = checkpoint
 
     def run(self, handlers: dict[str, Callable[[RunState], Any]]) -> RunState:
         for stage in STAGES:
@@ -53,7 +54,11 @@ class Pipeline:
                     self.state.outputs[stage] = str(result)
                 self.state.completed.add(stage)
                 self.state.failures.pop(stage, None)
+                if self.checkpoint is not None:
+                    self.checkpoint.save(self.state)
             except Exception as exc:
                 self.state.failures[stage] = f"{type(exc).__name__}: {exc}"
+                if self.checkpoint is not None:
+                    self.checkpoint.save(self.state)
                 raise
         return self.state
