@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "sasquatch-story-studio/schemas/dialogue.json",
+  "title": "Dialogue Line",
+  "type": "object",
+  "required": ["id", "speaker", "text", "canonical_source"],
+  "properties": {
+    "id": {"type": "string", "minLength": 1},
+    "speaker": {"type": "string", "minLength": 1},
+    "text": {"type": "string", "minLength": 1},
+    "canonical_source": {"type": "string", "minLength": 1},
+    "delivery": {"type": "string"},
+    "emotion": {"type": "string"},
+    "timing_notes": {"type": "string"},
+    "must_match_verbatim": {"type": "boolean"}
+  },
+  "additionalProperties": false
+}
