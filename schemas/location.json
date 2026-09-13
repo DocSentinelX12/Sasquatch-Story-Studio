@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "sasquatch-story-studio/schemas/location.json",
+  "title": "Location",
+  "type": "object",
+  "required": ["id", "name", "canonical_source"],
+  "properties": {
+    "id": {"type": "string", "minLength": 1},
+    "name": {"type": "string", "minLength": 1},
+    "canonical_source": {"type": "string", "minLength": 1},
+    "description": {"type": "string"},
+    "asset_refs": {"type": "array", "items": {"type": "string"}},
+    "constraints": {"type": "array", "items": {"type": "string"}}
+  },
+  "additionalProperties": false
+}
