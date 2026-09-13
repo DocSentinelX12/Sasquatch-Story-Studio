@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "sasquatch-story-studio/schemas/story-fidelity-report.json",
+  "title": "Story Fidelity Report",
+  "type": "object",
+  "required": ["story_id", "episode_id", "passed", "required_event_ids", "covered_event_ids", "missing_event_ids", "unauthorized_event_ids"],
+  "properties": {
+    "story_id": {"type": "string", "minLength": 1},
+    "episode_id": {"type": "string", "minLength": 1},
+    "passed": {"type": "boolean"},
+    "required_event_ids": {"type": "array", "items": {"type": "string"}},
+    "covered_event_ids": {"type": "array", "items": {"type": "string"}},
+    "missing_event_ids": {"type": "array", "items": {"type": "string"}},
+    "unauthorized_event_ids": {"type": "array", "items": {"type": "string"}},
+    "dialogue_mismatches": {"type": "array", "items": {"type": "string"}},
+    "review_items": {"type": "array", "items": {"type": "string"}}
+  },
+  "additionalProperties": false
+}
