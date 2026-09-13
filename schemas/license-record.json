@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "sasquatch-story-studio/schemas/license-record.json",
+  "title": "Verified Production License Record",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["asset_id", "source", "license", "verified", "verification_basis"],
+  "properties": {
+    "asset_id": {"type": "string", "minLength": 1},
+    "source": {"type": "string", "minLength": 1},
+    "license": {"type": "string", "minLength": 1},
+    "verified": {"type": "boolean"},
+    "verification_basis": {"type": "string", "minLength": 1},
+    "commercial_use": {"type": "boolean"},
+    "redistribution": {"type": "boolean"},
+    "attribution_required": {"type": "boolean"},
+    "notes": {"type": "string"}
+  }
+}
