@@ -133,10 +133,10 @@ def install(engine_id: str, with_models: bool) -> None:
         source_dir = ROOT / engine_id / "source"
         clone("https://github.com/opentoonz/opentoonz.git", source_dir)
         tiff_dir = source_dir / "thirdparty" / "tiff-4.0.3"
-        run("./configure", "--with-pic", "--disable-jbig", cwd=tiff_dir, timeout=1800)
-        run("make", "-j", str(max(2, os.cpu_count() or 2)), cwd=tiff_dir, timeout=3600)
         tiff_prefix = (tiff_dir / "ci-install").resolve()
-        run("make", "install", f"prefix={tiff_prefix}", cwd=tiff_dir, timeout=1800)
+        run("./configure", "--with-pic", "--disable-jbig", f"--prefix={tiff_prefix}", cwd=tiff_dir, timeout=1800)
+        run("make", "-j", str(max(2, os.cpu_count() or 2)), cwd=tiff_dir, timeout=3600)
+        run("make", "install", cwd=tiff_dir, timeout=1800)
         build = source_dir / "toonz" / "build"
         build.mkdir(parents=True, exist_ok=True)
         tiff_lib = tiff_prefix / "lib" / "libtiff.so"
