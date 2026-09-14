@@ -5,7 +5,7 @@ start a server, download models, or silently substitute another provider.
 """
 from __future__ import annotations
 
-import base64
+import hashlib
 import json
 import time
 from dataclasses import dataclass
@@ -43,9 +43,8 @@ class AceStepServiceAdapter:
             headers["Content-Type"] = "application/json"
         if self.api_key:
             headers["Authorization"] = f"Bearer {self.api_key}"
-        request = Request(self._url(path), method=method, headers=headers)
-        if payload is not None:
-            request.data = json.dumps(payload).encode("utf-8")
+        data = json.dumps(payload).encode("utf-8") if payload is not None else None
+        request = Request(self._url(path), data=data, method=method, headers=headers)
         try:
             with urlopen(request, timeout=30) as response:
                 body = response.read().decode("utf-8")
@@ -140,7 +139,8 @@ class AceStepServiceAdapter:
         else:
             url = self._url(file_url)
         suffix = Path(parsed.path).suffix or ".audio"
-        destination = output_dir / f"acestep-{base64.urlsafe_b64encode(file_url.encode()).decode().rstrip('=')}{suffix}"
+        digest = hashlib.sha256(file_url.encode("utf-8")).hexdigest()[:24]
+        destination = output_dir / f"acestep-{digest}{suffix}"
         request = Request(url, method="GET", headers={"Accept": "audio/*"})
         if self.api_key:
             request.add_header("Authorization", f"Bearer {self.api_key}")
