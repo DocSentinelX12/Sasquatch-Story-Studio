@@ -1,13 +1,10 @@
-"""Creator-asset indexing and immutable lineage metadata."""
-
+"""Creator-asset indexing and deterministic resolution."""
 from __future__ import annotations
-
 from dataclasses import dataclass, asdict
 from hashlib import sha256
 from pathlib import Path
 import json
 from typing import Any
-
 
 @dataclass(frozen=True)
 class AssetRecord:
@@ -19,14 +16,12 @@ class AssetRecord:
     source_asset_id: str | None = None
     metadata: dict[str, Any] | None = None
 
-
 def sha256_file(path: Path) -> str:
     digest = sha256()
     with path.open("rb") as handle:
         for block in iter(lambda: handle.read(1024 * 1024), b""):
             digest.update(block)
     return digest.hexdigest()
-
 
 def index_assets(root: str | Path, *, creator_owned: bool = True) -> list[AssetRecord]:
     base = Path(root)
@@ -40,12 +35,22 @@ def index_assets(root: str | Path, *, creator_owned: bool = True) -> list[AssetR
         records.append(AssetRecord(asset_id, relative, kind, sha256_file(path), creator_owned, metadata={"size_bytes": path.stat().st_size}))
     return records
 
+def resolve_asset(records: list[AssetRecord], asset_id: str) -> AssetRecord:
+    matches = [record for record in records if record.asset_id == asset_id]
+    if not matches:
+        raise RuntimeError(f"Required creator asset is missing: {asset_id}")
+    if len(matches) != 1:
+        raise RuntimeError(f"Asset identity is ambiguous: {asset_id}")
+    return matches[0]
+
+def require_creator_asset(record: AssetRecord) -> None:
+    if not record.creator_owned:
+        raise RuntimeError(f"Non-creator asset cannot replace a required creator asset: {record.asset_id}")
 
 def write_index(records: list[AssetRecord], destination: str | Path) -> Path:
     target = Path(destination)
     target.parent.mkdir(parents=True, exist_ok=True)
-    payload = [asdict(record) for record in records]
     temporary = target.with_suffix(target.suffix + ".tmp")
-    temporary.write_text(json.dumps(payload, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+    temporary.write_text(json.dumps([asdict(record) for record in records], indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
     temporary.replace(target)
     return target
