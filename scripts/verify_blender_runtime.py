@@ -45,6 +45,8 @@ def main() -> int:
         scene_script = root / "scene.py"
         blend_file = root / "verification.blend"
         output = root / "render.png"
+        output_token = "__SASQUATCH_OUTPUT_PATH__"
+        blend_token = "__SASQUATCH_BLEND_PATH__"
         scene_script.write_text(
             """
 import bpy
@@ -53,12 +55,22 @@ import os
 bpy.ops.wm.read_factory_settings(use_empty=True)
 scene = bpy.context.scene
 scene.frame_set(1)
-scene.render.engine = 'BLENDER_EEVEE_NEXT'
+engine_property = scene.bl_rna.properties["render"].fixed_type.properties["engine"]
+available_engines = {item.identifier for item in engine_property.enum_items}
+for preferred_engine in ("BLENDER_EEVEE_NEXT", "BLENDER_EEVEE"):
+    if preferred_engine in available_engines:
+        scene.render.engine = preferred_engine
+        break
+else:
+    raise RuntimeError(
+        "Blender has no supported Eevee render engine. "
+        f"Available engines: {sorted(available_engines)!r}"
+    )
 scene.render.resolution_x = 320
 scene.render.resolution_y = 180
 scene.render.resolution_percentage = 100
 scene.render.image_settings.file_format = 'PNG'
-scene.render.filepath = 'OUTPUT'
+scene.render.filepath = '__SASQUATCH_OUTPUT_PATH__'
 
 bpy.ops.mesh.primitive_uv_sphere_add(location=(0, 0, 0))
 sphere = bpy.context.object
@@ -75,16 +87,16 @@ camera = bpy.context.object
 camera.rotation_euler = (sphere.location - camera.location).to_track_quat('-Z', 'Y').to_euler()
 scene.camera = camera
 
-bpy.ops.wm.save_as_mainfile(filepath='BLEND')
+bpy.ops.wm.save_as_mainfile(filepath='__SASQUATCH_BLEND_PATH__')
 result = bpy.ops.render.render(write_still=True)
 if 'FINISHED' not in result:
     raise RuntimeError(f'Blender render operator did not finish: {result!r}')
-if not os.path.isfile('OUTPUT') or os.path.getsize('OUTPUT') == 0:
+if not os.path.isfile('__SASQUATCH_OUTPUT_PATH__') or os.path.getsize('__SASQUATCH_OUTPUT_PATH__') == 0:
     raise RuntimeError('Blender render completed but the configured output file was not written')
-print('BLENDER_RENDER_OK:OUTPUT')
+print('BLENDER_RENDER_OK:__SASQUATCH_OUTPUT_PATH__')
 """
-            .replace("OUTPUT", str(output))
-            .replace("BLEND", str(blend_file))
+            .replace(output_token, str(output))
+            .replace(blend_token, str(blend_file))
         )
 
         completed = subprocess.run(
