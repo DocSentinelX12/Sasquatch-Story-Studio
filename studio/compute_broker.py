@@ -2,9 +2,6 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Iterable
-
-from .resources import ComputeResource
 from .scheduler import Job, JobRequirements, Scheduler
 from .worker_registry import WorkerRecord, WorkerRegistry, WorkerState
 
@@ -67,15 +64,12 @@ class ComputeBroker:
         rejected: list[tuple[str, str]] = []
         for worker in self.registry.snapshot():
             ok, reason = self._fits(task, worker)
-            (eligible if ok else rejected).append(worker.id if ok else (worker.id, reason))
+            if ok:
+                eligible.append(worker.id)
+            else:
+                rejected.append((worker.id, reason))
         selected = min(eligible) if eligible else None
-        return BrokerDecision(
-            task.id,
-            tuple(eligible),
-            tuple(rejected),
-            selected,
-            "eligible worker selected" if selected else "no verified eligible worker",
-        )
+        return BrokerDecision(task.id, tuple(eligible), tuple(rejected), selected, "eligible worker selected" if selected else "no verified eligible worker")
 
     def submit(self, task: ProductionTask) -> Job:
         job = Job(task.id, task.requirements, task.priority)
@@ -87,18 +81,12 @@ class ComputeBroker:
         if decision.selected_worker is None:
             return decision, None
         worker = self.registry.get(decision.selected_worker)
-        job = self.scheduler.choose_on_worker(
-            worker.id,
-            worker.resource,
-            0,
-            now,
-            lease_seconds,
-        )
+        power_budget = worker.resource.power_budget_watts or 0
+        job = self.scheduler.choose_on_worker(worker.id, worker.resource, power_budget, now, lease_seconds)
         if job is None:
             return BrokerDecision(task.id, decision.eligible_workers, decision.rejected_workers, None, "eligible capacity is currently reserved"), None
         return decision, job
 
     def release_or_requeue(self, job_id: str, now: int) -> bool:
         """Recover an expired lease; return whether the job is queued afterward."""
-        recovered = self.scheduler.recover_expired(now)
-        return job_id in recovered
+        return job_id in self.scheduler.recover_expired(now)
