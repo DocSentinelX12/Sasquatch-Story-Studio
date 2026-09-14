@@ -116,7 +116,7 @@ def install(engine_id: str, with_models: bool) -> None:
         run("sudo", "cmake", "--install", ".", cwd=build, timeout=1800)
         opentoonz = Path("/opt/opentoonz/bin/opentoonz")
         if not opentoonz.is_file() or not os.access(opentoonz, os.X_OK): raise RuntimeError(f"OpenToonz install completed without an executable at {opentoonz}")
-        run(str(opentoonz), "--version", timeout=120)
+        run(str(opentoonz), "-version", timeout=120)
         evidence(engine_id, "https://github.com/opentoonz/opentoonz", ROOT / engine_id, [], ["Bundled TIFF was configured with an absolute CI prefix and private include path.", "Translation generation disabled for the CI software build.", "Installed OpenToonz executable was required before evidence was written."]); return
 
     if engine_id in {"wan2.1", "wan2.2"}:
