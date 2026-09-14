@@ -25,12 +25,16 @@ class WorkerTask:
     input_hashes: tuple[str, ...]
     requirements: object
     provenance_context: tuple[tuple[str, str], ...] = ()
+    canonical_source_hash: str = ""
+    payload_json: str = ""
 
     def __post_init__(self) -> None:
         if not self.task_id.strip():
             raise ValueError("task_id is required")
         if len(self.input_refs) != len(self.input_hashes):
             raise ValueError("input references and hashes must have equal lengths")
+        if self.canonical_source_hash and (len(self.canonical_source_hash) != 64 or any(c not in "0123456789abcdef" for c in self.canonical_source_hash.lower())):
+            raise ValueError("canonical_source_hash must be a SHA-256 hex digest")
 
 
 @dataclass(frozen=True)
