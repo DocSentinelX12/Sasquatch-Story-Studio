@@ -25,6 +25,7 @@ def test_coordinator_persists_stage_output_and_canonical_hash(tmp_path):
         now=10,
     )
     completed = coordinator.complete("ep-001:animate", "worker-1", "artifact://shot-001")
+    scheduler_store.save(scheduler)
     assert completed.output_ref == "artifact://shot-001"
 
     restored_scheduler = scheduler_store.load()
