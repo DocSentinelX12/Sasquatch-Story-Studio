@@ -11,5 +11,14 @@ def test_opentoonz_tiff_paths_are_absolute_from_repo_root():
 
 def test_opentoonz_uses_supported_version_qualifier():
     script = Path("scripts/install_engine.py").read_text()
-    assert 'run(str(opentoonz), "-version", timeout=120)' in script
-    assert 'run(str(opentoonz), "--version", timeout=120)' not in script
+    assert 'run(str(opentoonz), "-version", timeout=120)' not in script
+    assert 'subprocess.run(\n        [str(executable), "-version"]' in script
+    assert 'result.returncode not in (0, 1)' in script
+    assert 'OpenToonz\\s+v?(\\d+\\.\\d+(?:\\.\\d+)?)' in script
+
+
+def test_opentoonz_version_probe_does_not_mask_other_failures():
+    script = Path("scripts/install_engine.py").read_text()
+    assert 'if result.returncode not in (0, 1):' in script
+    assert 'OpenToonz version probe failed with exit code' in script
+    assert 'OpenToonz version probe did not report a parseable OpenToonz version' in script
