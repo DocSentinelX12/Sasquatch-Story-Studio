@@ -1,5 +1,7 @@
+from pathlib import Path
+
 from studio.resources import ComputeResource, PowerResource, PowerSourceKind, ResourceSnapshot, StorageResource
-from studio.scheduler import Job, JobRequirements, JobState, Scheduler
+from studio.scheduler import Job, JobRequirements, JobState, Scheduler, SQLiteSchedulerStore
 
 
 def snapshot():
@@ -30,3 +32,30 @@ def test_scheduler_uses_shared_pool_and_recovers_expired_lease():
 def test_scheduler_rejects_missing_real_capacity():
     scheduler = Scheduler([Job("video-2", JobRequirements(vram_bytes=32 * 1024**3, engines=("wan2.2",)))])
     assert scheduler.choose("worker-a", snapshot(), now=100) is None
+
+
+def test_scheduler_persists_and_restores_leases(tmp_path: Path):
+    db = tmp_path / "scheduler.sqlite3"
+    store = SQLiteSchedulerStore(db)
+    original = Scheduler([Job("video-3", JobRequirements(vram_bytes=8 * 1024**3), priority=7)])
+    leased = original.choose("worker-a", snapshot(), now=100, lease_seconds=900)
+    assert leased is not None
+    store.save(original)
+
+    restored = store.load()
+    assert restored.snapshot() == original.snapshot()
+    restored.complete("video-3", "worker-a")
+    store.save(restored)
+    assert store.load().snapshot()[0].state == JobState.COMPLETED
+
+
+def test_scheduler_persistence_survives_expired_lease_recovery(tmp_path: Path):
+    store = SQLiteSchedulerStore(tmp_path / "scheduler.sqlite3")
+    scheduler = Scheduler([Job("video-4", JobRequirements())])
+    assert scheduler.choose("worker-a", snapshot(), now=100, lease_seconds=10) is not None
+    store.save(scheduler)
+
+    restored = store.load()
+    assert restored.recover_expired(110) == ("video-4",)
+    store.save(restored)
+    assert store.load().snapshot()[0].state == JobState.QUEUED
