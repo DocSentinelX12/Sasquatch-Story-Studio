@@ -6,6 +6,7 @@ import argparse
 import hashlib
 import json
 import os
+import re
 import subprocess
 import sys
 from pathlib import Path
@@ -23,6 +24,38 @@ def run(*args: str, cwd: Path | None = None, timeout: int = 3600) -> subprocess.
             print(result.stderr[-8000:], file=sys.stderr, flush=True)
         raise RuntimeError(f"command failed with exit code {result.returncode}: {' '.join(args)}")
     return result
+
+
+def verify_opentoonz_version(executable: Path) -> str:
+    """Verify the installed OpenToonz binary reports a real version.
+
+    OpenToonz's command-line version probe on the CI Linux worker reports the
+    version text but exits with status 1. That nonzero status is therefore not
+    treated as success by the generic command runner. We accept only that exact
+    observed CLI behavior: exit 0 or 1 plus a parseable OpenToonz version line.
+    Any other exit code, or missing/invalid version output, remains a failure.
+    """
+    result = subprocess.run(
+        [str(executable), "-version"],
+        check=False,
+        text=True,
+        capture_output=True,
+        timeout=120,
+    )
+    if result.stdout:
+        print(result.stdout[-8000:], flush=True)
+    if result.stderr:
+        print(result.stderr[-8000:], file=sys.stderr, flush=True)
+    if result.returncode not in (0, 1):
+        raise RuntimeError(
+            f"OpenToonz version probe failed with exit code {result.returncode}"
+        )
+    match = re.search(r"OpenToonz\\s+v?(\\d+\\.\\d+(?:\\.\\d+)?)", result.stdout)
+    if not match:
+        raise RuntimeError(
+            "OpenToonz version probe did not report a parseable OpenToonz version"
+        )
+    return match.group(1)
 
 
 def sha256(path: Path) -> str:
@@ -116,8 +149,8 @@ def install(engine_id: str, with_models: bool) -> None:
         run("sudo", "cmake", "--install", ".", cwd=build, timeout=1800)
         opentoonz = Path("/opt/opentoonz/bin/opentoonz")
         if not opentoonz.is_file() or not os.access(opentoonz, os.X_OK): raise RuntimeError(f"OpenToonz install completed without an executable at {opentoonz}")
-        run(str(opentoonz), "-version", timeout=120)
-        evidence(engine_id, "https://github.com/opentoonz/opentoonz", ROOT / engine_id, [], ["Bundled TIFF was configured with an absolute CI prefix and private include path.", "Translation generation disabled for the CI software build.", "Installed OpenToonz executable was required before evidence was written."]); return
+        version = verify_opentoonz_version(opentoonz)
+        evidence(engine_id, "https://github.com/opentoonz/opentoonz", ROOT / engine_id, [], ["Bundled TIFF was configured with an absolute CI prefix and private include path.", "Translation generation disabled for the CI software build.", "Installed OpenToonz executable was required before evidence was written.", f"OpenToonz version probe reported {version}; the probe exited with its observed status and produced parseable version output."]); return
 
     if engine_id in {"wan2.1", "wan2.2"}:
         root = ROOT / engine_id; repo = "Wan2.1" if engine_id == "wan2.1" else "Wan2.2"; clone(f"https://github.com/Wan-Video/{repo}.git", root / repo); install_wan_dependencies(root / repo)
