@@ -15,7 +15,15 @@ def _memory_bytes() -> int:
         for line in Path("/proc/meminfo").read_text(encoding="utf-8").splitlines():
             if line.startswith("MemTotal:"):
                 return int(line.split()[1]) * 1024
-    return 0
+    if hasattr(os, "sysconf"):
+        try:
+            pages = os.sysconf("SC_PHYS_PAGES")
+            page_size = os.sysconf("SC_PAGE_SIZE")
+            if isinstance(pages, int) and isinstance(page_size, int) and pages > 0 and page_size > 0:
+                return pages * page_size
+        except (ValueError, OSError):
+            pass
+    return 1
 
 
 def _gpu_info() -> tuple[tuple[str, ...], int, int]:
@@ -79,15 +87,16 @@ def discover_compute_resource(
         if _engine_is_installed(engine, roots.get(engine.id))
     )
     capabilities = tuple(sorted({capability for engine in engines if engine.id in installed for capability in engine.capabilities}))
+    cpu_count = max(os.cpu_count() or 1, 1)
     return ComputeResource(
         id=worker_id,
-        cpu_cores=max(os.cpu_count() or 1, 1),
+        cpu_cores=cpu_count,
         memory_bytes=_memory_bytes(),
         gpu_count=gpu_count,
         gpu_models=gpu_models,
         vram_bytes=vram_bytes,
         capabilities=capabilities,
         installed_engines=installed,
-        logical_slots=max(os.cpu_count() or 1, 1),
+        logical_slots=cpu_count,
         healthy=True,
     )
