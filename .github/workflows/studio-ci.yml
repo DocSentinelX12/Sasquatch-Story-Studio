@@ -21,3 +21,18 @@ jobs:
         run: python -m pip install --upgrade pip pytest
       - name: Run tests
         run: python -m pytest -q
+      - name: Install real Blender engine
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y blender
+      - name: Verify Blender by rendering a real frame
+        run: python3 scripts/verify_blender_runtime.py
+      - name: Publish real Blender evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: blender-runtime-evidence
+          path: |
+            blender-runtime-evidence.json
+            blender-runtime-render.png
+            blender-runtime-source.blend
+          if-no-files-found: error
