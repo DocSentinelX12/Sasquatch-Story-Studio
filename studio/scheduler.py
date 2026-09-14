@@ -81,14 +81,7 @@ class Scheduler:
             return leased
         return None
 
-    def choose_on_worker(
-        self,
-        worker_id: str,
-        worker_resource: ComputeResource,
-        pool_power_watts: int,
-        now: int,
-        lease_seconds: int = 900,
-    ) -> Job | None:
+    def choose_on_worker(self, worker_id: str, worker_resource: ComputeResource, pool_power_watts: int, now: int, lease_seconds: int = 900) -> Job | None:
         """Lease work only when that specific worker has the compute capacity."""
         if not worker_id.strip() or lease_seconds < 1 or pool_power_watts < 0:
             raise ValueError("worker_id, lease duration, and power must be valid")
@@ -114,16 +107,25 @@ class Scheduler:
             raise RuntimeError("only the current lease owner can complete a job")
         self._jobs[job.id] = Job(job.id, job.requirements, job.priority, JobState.COMPLETED)
 
+    def requeue(self, job_id: str, worker_id: str) -> None:
+        """Return a leased job to the queue without losing its requirements or priority."""
+        job = self._jobs[job_id]
+        if job.state != JobState.LEASED or job.lease_owner != worker_id:
+            raise RuntimeError("only the current lease owner can requeue a job")
+        self._jobs[job.id] = Job(job.id, job.requirements, job.priority, JobState.QUEUED)
+
+    def fail(self, job_id: str, worker_id: str) -> None:
+        """Permanently mark the current lease as failed after an execution error."""
+        job = self._jobs[job_id]
+        if job.state != JobState.LEASED or job.lease_owner != worker_id:
+            raise RuntimeError("only the current lease owner can fail a job")
+        self._jobs[job.id] = Job(job.id, job.requirements, job.priority, JobState.FAILED)
+
     def snapshot(self) -> tuple[Job, ...]:
         return tuple(self._jobs[key] for key in sorted(self._jobs))
 
 
-def _fits(
-    req: JobRequirements,
-    resources: ResourceSnapshot,
-    reserved: Iterable[JobRequirements] = (),
-    check_power: bool = True,
-) -> bool:
+def _fits(req: JobRequirements, resources: ResourceSnapshot, reserved: Iterable[JobRequirements] = (), check_power: bool = True) -> bool:
     healthy = [r for r in resources.compute if r.healthy]
     reserved_requirements = tuple(reserved)
     reserved_slots = sum(item.slots for item in reserved_requirements)
@@ -153,31 +155,12 @@ class SQLiteSchedulerStore:
         self.path = Path(path)
         self.path.parent.mkdir(parents=True, exist_ok=True)
         with sqlite3.connect(self.path) as connection:
-            connection.execute(
-                "CREATE TABLE IF NOT EXISTS scheduler_jobs ("
-                "id TEXT PRIMARY KEY, requirements_json TEXT NOT NULL, priority INTEGER NOT NULL, "
-                "state TEXT NOT NULL, lease_owner TEXT, lease_until INTEGER)"
-            )
+            connection.execute("CREATE TABLE IF NOT EXISTS scheduler_jobs (id TEXT PRIMARY KEY, requirements_json TEXT NOT NULL, priority INTEGER NOT NULL, state TEXT NOT NULL, lease_owner TEXT, lease_until INTEGER)")
 
     def save(self, scheduler: Scheduler) -> None:
         rows = []
         for job in scheduler.snapshot():
-            rows.append((
-                job.id,
-                json.dumps({
-                    "slots": job.requirements.slots,
-                    "memory_bytes": job.requirements.memory_bytes,
-                    "vram_bytes": job.requirements.vram_bytes,
-                    "scratch_bytes": job.requirements.scratch_bytes,
-                    "power_watts": job.requirements.power_watts,
-                    "capabilities": job.requirements.capabilities,
-                    "engines": job.requirements.engines,
-                }, sort_keys=True),
-                job.priority,
-                job.state.value,
-                job.lease_owner,
-                job.lease_until,
-            ))
+            rows.append((job.id, json.dumps({"slots": job.requirements.slots, "memory_bytes": job.requirements.memory_bytes, "vram_bytes": job.requirements.vram_bytes, "scratch_bytes": job.requirements.scratch_bytes, "power_watts": job.requirements.power_watts, "capabilities": job.requirements.capabilities, "engines": job.requirements.engines}, sort_keys=True), job.priority, job.state.value, job.lease_owner, job.lease_until))
         with sqlite3.connect(self.path) as connection:
             connection.execute("BEGIN IMMEDIATE")
             connection.execute("DELETE FROM scheduler_jobs")
@@ -185,17 +168,10 @@ class SQLiteSchedulerStore:
 
     def load(self) -> Scheduler:
         with sqlite3.connect(self.path) as connection:
-            rows = connection.execute(
-                "SELECT id, requirements_json, priority, state, lease_owner, lease_until "
-                "FROM scheduler_jobs ORDER BY id"
-            ).fetchall()
+            rows = connection.execute("SELECT id, requirements_json, priority, state, lease_owner, lease_until FROM scheduler_jobs ORDER BY id").fetchall()
         jobs = []
         for job_id, requirements_json, priority, state, lease_owner, lease_until in rows:
             data = json.loads(requirements_json)
-            requirements = JobRequirements(
-                slots=data["slots"], memory_bytes=data["memory_bytes"], vram_bytes=data["vram_bytes"],
-                scratch_bytes=data["scratch_bytes"], power_watts=data["power_watts"],
-                capabilities=tuple(data["capabilities"]), engines=tuple(data["engines"]),
-            )
+            requirements = JobRequirements(slots=data["slots"], memory_bytes=data["memory_bytes"], vram_bytes=data["vram_bytes"], scratch_bytes=data["scratch_bytes"], power_watts=data["power_watts"], capabilities=tuple(data["capabilities"]), engines=tuple(data["engines"]))
             jobs.append(Job(job_id, requirements, priority, JobState(state), lease_owner, lease_until))
         return Scheduler(jobs)
