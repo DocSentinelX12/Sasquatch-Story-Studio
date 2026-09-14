@@ -126,11 +126,11 @@ def install(engine_id: str, with_models: bool) -> None:
         clone("https://github.com/opentoonz/opentoonz.git", source_dir)
         build = source_dir / "toonz" / "build"
         build.mkdir(parents=True, exist_ok=True)
-        run("cmake", "../sources", "-DTIFF_LIBRARY=/usr/lib/x86_64-linux-gnu/libtiff.so", cwd=build, timeout=1800)
+        run("cmake", "../sources", "-DTIFF_LIBRARY=/usr/lib/x86_64-linux-gnu/libtiff.so", "-DWITH_TRANSLATION=OFF", cwd=build, timeout=1800)
         run("cmake", "--build", ".", "--parallel", str(max(2, os.cpu_count() or 2)), cwd=build, timeout=3600)
         run("sudo", "cmake", "--install", ".", cwd=build, timeout=1800)
         run("/opt/opentoonz/bin/opentoonz", "--version", timeout=120)
-        evidence(engine_id, "https://github.com/opentoonz/opentoonz", ROOT / engine_id, [], ["TIFF library path is supplied explicitly for the upstream CMake finder."])
+        evidence(engine_id, "https://github.com/opentoonz/opentoonz", ROOT / engine_id, [], ["TIFF library path is supplied explicitly for the upstream CMake finder.", "Translation generation is disabled for the CI software build because upstream documents WITH_TRANSLATION=OFF as the workaround for duplicate Qt translation build rules."])
         return
 
     if engine_id == "rhubarb-lip-sync":
@@ -183,8 +183,8 @@ def install(engine_id: str, with_models: bool) -> None:
                 raise RuntimeError(f"{engine_id} model download produced no files")
         else:
             models = []
-        run(sys.executable, "generate.py", "--help", cwd=root / repo, timeout=180)
-        evidence(engine_id, f"https://github.com/Wan-Video/{repo}", root, models, ["Model download is opt-in because standard GitHub-hosted workers have limited disk. flash_attn is omitted on CPU-only installation workers."])
+        run(sys.executable, "-m", "py_compile", "generate.py", cwd=root / repo, timeout=180)
+        evidence(engine_id, f"https://github.com/Wan-Video/{repo}", root, models, ["Model download is opt-in because standard GitHub-hosted workers have limited disk. flash_attn is omitted on CPU-only installation workers.", "The CI software check compiles the real entrypoint without importing it, because the upstream entrypoint initializes CUDA at module import and a standard CPU worker cannot honestly be treated as a Wan runtime worker."])
         return
 
     if engine_id == "ltx-video":
