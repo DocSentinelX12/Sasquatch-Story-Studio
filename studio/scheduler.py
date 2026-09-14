@@ -82,19 +82,20 @@ class Scheduler:
         return None
 
     def choose_on_worker(self, worker_id: str, worker_resource: ComputeResource, pool_power_watts: int, now: int, lease_seconds: int = 900) -> Job | None:
-        """Lease work only when that specific worker has the compute capacity."""
+        """Lease work only when that worker has remaining capacity and pool power is available."""
         if not worker_id.strip() or lease_seconds < 1 or pool_power_watts < 0:
             raise ValueError("worker_id, lease duration, and power must be valid")
         if not worker_resource.healthy:
             return None
         candidates = sorted((j for j in self._jobs.values() if j.state == JobState.QUEUED), key=lambda j: (-j.priority, j.id))
-        reserved = tuple(job.requirements for job in self._jobs.values() if job.state == JobState.LEASED)
+        leased_jobs = tuple(job for job in self._jobs.values() if job.state == JobState.LEASED)
+        reserved_pool_power = sum(job.requirements.power_watts for job in leased_jobs)
+        reserved_on_worker = tuple(job.requirements for job in leased_jobs if job.lease_owner == worker_id)
         worker_snapshot = ResourceSnapshot(compute=(worker_resource,), power=())
-        reserved_power = sum(item.power_watts for item in reserved)
         for job in candidates:
-            if pool_power_watts - reserved_power < job.requirements.power_watts:
+            if pool_power_watts - reserved_pool_power < job.requirements.power_watts:
                 continue
-            if not _fits(job.requirements, worker_snapshot, reserved=(), check_power=False):
+            if not _fits(job.requirements, worker_snapshot, reserved=reserved_on_worker, check_power=False):
                 continue
             leased = Job(job.id, job.requirements, job.priority, JobState.LEASED, worker_id, now + lease_seconds)
             self._jobs[job.id] = leased
@@ -108,14 +109,12 @@ class Scheduler:
         self._jobs[job.id] = Job(job.id, job.requirements, job.priority, JobState.COMPLETED)
 
     def requeue(self, job_id: str, worker_id: str) -> None:
-        """Return a leased job to the queue without losing its requirements or priority."""
         job = self._jobs[job_id]
         if job.state != JobState.LEASED or job.lease_owner != worker_id:
             raise RuntimeError("only the current lease owner can requeue a job")
         self._jobs[job.id] = Job(job.id, job.requirements, job.priority, JobState.QUEUED)
 
     def fail(self, job_id: str, worker_id: str) -> None:
-        """Permanently mark the current lease as failed after an execution error."""
         job = self._jobs[job_id]
         if job.state != JobState.LEASED or job.lease_owner != worker_id:
             raise RuntimeError("only the current lease owner can fail a job")
