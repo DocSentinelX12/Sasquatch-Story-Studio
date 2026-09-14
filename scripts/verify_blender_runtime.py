@@ -38,19 +38,19 @@ def main() -> int:
         root = Path(temp)
         scene_script = root / "scene.py"
         blend_file = root / "verification.blend"
-        output_prefix = root / "render"
+        output = root / "render.png"
         scene_script.write_text(
             """
 import bpy
 
 bpy.ops.wm.read_factory_settings(use_empty=True)
 scene = bpy.context.scene
+scene.frame_set(1)
 scene.render.engine = 'BLENDER_EEVEE_NEXT'
 scene.render.resolution_x = 320
 scene.render.resolution_y = 180
 scene.render.resolution_percentage = 100
 scene.render.image_settings.file_format = 'PNG'
-scene.render.filepath = 'OUTPUT'
 
 bpy.ops.mesh.primitive_uv_sphere_add(location=(0, 0, 0))
 sphere = bpy.context.object
@@ -62,14 +62,16 @@ light.data.energy = 900
 light.data.shape = 'DISK'
 light.data.size = 4
 
-bpy.ops.object.camera_add(location=(0, -7, 1.5), rotation=(1.45, 0, 0))
+bpy.ops.object.camera_add(location=(0, -7, 1.5))
 camera = bpy.context.object
+camera.rotation_euler = (1.45, 0, 0)
 scene.camera = camera
 
 bpy.ops.wm.save_as_mainfile(filepath='BLEND')
-bpy.ops.render.render(write_still=True)
+bpy.ops.render.render()
+bpy.data.images['Render Result'].save_render(filepath='OUTPUT')
 """
-            .replace("OUTPUT", str(output_prefix))
+            .replace("OUTPUT", str(output))
             .replace("BLEND", str(blend_file))
         )
 
@@ -86,9 +88,12 @@ bpy.ops.render.render(write_still=True)
                 f"{completed.returncode}: {(completed.stderr or completed.stdout).strip()}"
             )
 
-        output = Path(f"{output_prefix}0001.png")
         if not output.is_file() or output.stat().st_size == 0:
-            raise RuntimeError("Blender exited successfully but produced no PNG render")
+            diagnostics = (completed.stdout or "")[-4000:]
+            raise RuntimeError(
+                "Blender exited successfully but produced no PNG render. "
+                f"Output directory: {root}. Blender output: {diagnostics}"
+            )
         if not blend_file.is_file() or blend_file.stat().st_size == 0:
             raise RuntimeError("Blender did not produce the source .blend artifact")
 
@@ -122,9 +127,7 @@ bpy.ops.render.render(write_still=True)
             "executable": blender,
             "version_observation": version,
             "checkpoint_path": "not_required_for_blender_runtime",
-            "checkpoint_sha256": hashlib.sha256(
-                b"Blender runtime has no model checkpoint requirement"
-            ).hexdigest(),
+            "checkpoint_sha256": None,
             "license_source": "https://github.com/blender/blender",
             "license_evidence": "Blender source repository declares GPL-3.0-or-later",
             "runtime_output_sha256": output_hash,
