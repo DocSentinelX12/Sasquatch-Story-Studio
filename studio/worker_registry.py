@@ -33,7 +33,7 @@ class WorkerRecord:
     def __post_init__(self) -> None:
         if not self.id.strip():
             raise ValueError("worker id is required")
-        if self.resource.id.strip() == "":
+        if not self.resource.id.strip():
             raise ValueError("worker resource id is required")
 
 
@@ -62,11 +62,11 @@ class WorkerRegistry:
     def snapshot(self) -> tuple[WorkerRecord, ...]:
         return tuple(self._records[key] for key in sorted(self._records))
 
-    def mark_unavailable(self, worker_id: str, state: WorkerState, observed_at: int | None = None) -> WorkerRecord:
+    def mark_unavailable(self, worker_id: str, state: WorkerState, observed_at: int | None = None, quota_note: str | None = None) -> WorkerRecord:
         if state not in {WorkerState.TEMPORARILY_UNAVAILABLE, WorkerState.QUOTA_EXHAUSTED, WorkerState.OFFLINE}:
             raise ValueError("mark_unavailable requires an unavailable worker state")
         current = self.get(worker_id)
-        updated = WorkerRecord(current.id, current.resource, state, observed_at, current.observation_source, current.quota_note)
+        updated = WorkerRecord(current.id, current.resource, state, observed_at, current.observation_source, current.quota_note if quota_note is None else quota_note)
         self._records[worker_id] = updated
         return updated
 
