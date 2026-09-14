@@ -4,6 +4,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Iterable
 
+from .licensing import CommercialStatus, LicenseRecord
+
 
 @dataclass(frozen=True)
 class EngineSpec:
@@ -76,6 +78,19 @@ def engines_for(capability: str) -> tuple[EngineSpec, ...]:
 def assert_verified_engine(engine: EngineSpec) -> None:
     if not engine.official_source or not engine.license or engine.quality_tier == "generic":
         raise RuntimeError(f"Unacceptable production engine: {engine.id}")
+
+
+def license_record(engine_id: str) -> LicenseRecord:
+    engine = get_engine(engine_id)
+    status = CommercialStatus.REVIEW_REQUIRED if engine.commercial_use_review_required else CommercialStatus.ALLOWED
+    return LicenseRecord(
+        subject_id=engine.id,
+        subject_version=engine.version_family,
+        official_source=engine.official_source,
+        license_name=engine.license,
+        commercial_status=status,
+        territory_restriction=engine.territory_restriction,
+    )
 
 
 def ids(engines: Iterable[EngineSpec] = VERIFIED_ENGINES) -> tuple[str, ...]:
