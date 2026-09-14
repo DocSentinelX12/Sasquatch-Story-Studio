@@ -17,8 +17,10 @@ release_requires:
 cost_policy:
   allow_paid_services: false
   allow_paid_apis: false
-  require_local_execution: true
+  require_local_execution: false
   require_free_or_open_source_software: true
+  allow_free_remote_compute: true
+  remote_resources_are_optional: true
 
 model_policy:
   prefer_local: true
