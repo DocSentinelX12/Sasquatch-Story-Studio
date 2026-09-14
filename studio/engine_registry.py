@@ -43,8 +43,8 @@ ENGINE_CATALOG: tuple[EngineSpec, ...] = (
 )
 
 CATALOG_ENGINES = ENGINE_CATALOG
-
-# Nothing is production-verified merely because it appears in the catalog.
+# Only entries promoted with real runtime, license, and checkpoint evidence may
+# appear here. An empty tuple is truthful until such evidence exists.
 VERIFIED_ENGINES: tuple[EngineSpec, ...] = ()
 
 
@@ -56,14 +56,22 @@ def get_catalog_engine(engine_id: str) -> EngineSpec:
 
 
 def get_engine(engine_id: str) -> EngineSpec:
+    """Return a production-verified engine only."""
     for engine in VERIFIED_ENGINES:
         if engine.id == engine_id:
+            assert_verified_engine(engine)
             return engine
     raise KeyError(f"Engine is not runtime verified for production: {engine_id}")
 
 
 def engines_for(capability: str) -> tuple[EngineSpec, ...]:
+    """Return only production-verified engines supporting a capability."""
     return tuple(e for e in VERIFIED_ENGINES if capability in e.capabilities)
+
+
+def catalog_engines_for(capability: str) -> tuple[EngineSpec, ...]:
+    """Return catalog candidates without implying installation or verification."""
+    return tuple(e for e in ENGINE_CATALOG if capability in e.capabilities)
 
 
 def assert_verified_engine(engine: EngineSpec) -> None:
@@ -92,7 +100,22 @@ def verified_engine(
     )
 
 
+def catalog_license_record(engine_id: str) -> LicenseRecord:
+    """Describe catalog licensing without claiming production verification."""
+    engine = get_catalog_engine(engine_id)
+    status = CommercialStatus.REVIEW_REQUIRED if engine.commercial_use_review_required else CommercialStatus.ALLOWED
+    return LicenseRecord(
+        subject_id=engine.id,
+        subject_version=engine.version_family,
+        official_source=engine.official_source,
+        license_name=engine.license,
+        commercial_status=status,
+        territory_restriction=engine.territory_restriction,
+    )
+
+
 def license_record(engine_id: str) -> LicenseRecord:
+    """Return the license record for a production-verified engine."""
     engine = get_engine(engine_id)
     status = CommercialStatus.REVIEW_REQUIRED if engine.commercial_use_review_required else CommercialStatus.ALLOWED
     return LicenseRecord(
