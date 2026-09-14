@@ -39,13 +39,21 @@ AI engines are adapters, not the source of truth. An adapter receives a typed sh
 
 Future adapters should cover text interpretation, image generation, video generation, character animation, voice, lip sync, music, sound effects, upscaling, and quality analysis. Each adapter must declare license, model version, runtime requirements, input/output contract, and deterministic controls where available.
 
+## Elastic local production fabric
+
+Compute, storage, and power are observed resources, not invented capacity. Workers advertise their actual CPU, memory, GPU, VRAM, installed engines, logical slots, scratch space, health, and telemetry. Worker observations are durably persisted locally. Scheduler leases are durable and recoverable, and work may only be assigned to a specific worker when that worker itself satisfies the job's compute requirements. Shared power is admitted from observed sustained capacity, never from assumed capacity.
+
+Production artifacts are immutable content-addressed objects using SHA-256. Repeated outputs are deduplicated, object integrity is verified, and replica placement is recorded separately from media bytes. This permits horizontal expansion without making the coordinator a media-storage bottleneck.
+
+The baseline resource architecture supports at least 40 logical execution slots and expands horizontally as genuinely available local resources are registered. No paid cloud GPU, metered inference API, paid storage, hosted queue, subscription, or per-generation service is part of the production path.
+
 ## Episode independence
 
 An episode may reuse characters, locations, props, rigs, voices, and visual language from the studio library without inheriting plot consequences from another episode. Continuity is asset-level unless the creator explicitly makes story continuity canonical.
 
 ## Reproducibility
 
-Each production run should record source hashes, plan hashes, asset IDs, adapter/model versions, prompts, parameters, seeds, environment information, stage outputs, failures, approvals, and final checksums.
+Each production run should record source hashes, plan hashes, asset IDs, adapter/model versions, prompts, parameters, seeds, environment information, stage outputs, failures, approvals, and final checksums. Content-addressed artifact storage must preserve prior versions rather than overwrite them.
 
 ## Release gate
 
