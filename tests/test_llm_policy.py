@@ -1,11 +1,12 @@
+import hashlib
 import pytest
 
 from studio.adapters import AdapterInfo
-from studio.llm import LLMPolicy, LLMRequest, LLMRouter, CANONICAL_LLM_INSTRUCTION
+from studio.llm import LLMPolicy, LLMRequest, LLMResponse, LLMRouter, CANONICAL_LLM_INSTRUCTION
 
 
 class FakeLLM:
-    def __init__(self, *, verified: bool, local: bool):
+    def __init__(self, *, verified: bool, local: bool, complete_provenance: bool = False):
         capabilities = ["llm", "interpret"]
         if local:
             capabilities.append("local")
@@ -16,6 +17,18 @@ class FakeLLM:
             capabilities=tuple(capabilities),
             verified=verified,
         )
+        self.complete_provenance = complete_provenance
+
+    def generate(self, request: LLMRequest) -> LLMResponse:
+        provenance = {}
+        if self.complete_provenance:
+            provenance = {
+                "provider_id": "test-provider",
+                "model_id": "test-model",
+                "model_version": "1",
+                "canonical_source_hash": hashlib.sha256(request.canonical_source.encode("utf-8")).hexdigest(),
+            }
+        return LLMResponse("test-provider", "test-model", "1", "{}", {}, provenance)
 
 
 def test_unverified_llm_cannot_route():
@@ -64,3 +77,25 @@ def test_request_rejects_non_object_structured_schema():
     )
     with pytest.raises(ValueError):
         request.validate()
+
+
+def test_llm_generation_requires_complete_provenance():
+    request = LLMRequest(
+        task="interpret",
+        system_instruction=CANONICAL_LLM_INSTRUCTION,
+        user_input="A story",
+        canonical_source="A story",
+    )
+    with pytest.raises(RuntimeError, match="provenance"):
+        LLMRouter([FakeLLM(verified=True, local=True)]).generate(request)
+
+
+def test_llm_generation_accepts_matching_provenance():
+    request = LLMRequest(
+        task="interpret",
+        system_instruction=CANONICAL_LLM_INSTRUCTION,
+        user_input="A story",
+        canonical_source="A story",
+    )
+    response = LLMRouter([FakeLLM(verified=True, local=True, complete_provenance=True)]).generate(request)
+    assert response.provenance["canonical_source_hash"] == hashlib.sha256(b"A story").hexdigest()
