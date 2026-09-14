@@ -110,6 +110,17 @@ class LLMRouter:
         response = adapter.generate(request)
         if not response.provenance:
             raise RuntimeError("LLM adapter returned no provenance")
+        if request.output_schema is not None and response.structured_output is None:
+            raise RuntimeError("LLM adapter returned no structured output for a structured request")
+        required_provenance = {
+            "provider_id": response.provider_id,
+            "model_id": response.model_id,
+            "model_version": response.model_version,
+            "canonical_source_hash": __import__("hashlib").sha256(request.canonical_source.encode("utf-8")).hexdigest(),
+        }
+        for key, expected in required_provenance.items():
+            if response.provenance.get(key) != expected:
+                raise RuntimeError(f"LLM provenance missing or mismatched: {key}")
         response.provenance.setdefault("cost_policy", "zero_recurring_cost_local_only")
         return response
 
