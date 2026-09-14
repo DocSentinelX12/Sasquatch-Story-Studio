@@ -133,19 +133,30 @@ def install(engine_id: str, with_models: bool) -> None:
         source_dir = ROOT / engine_id / "source"
         clone("https://github.com/opentoonz/opentoonz.git", source_dir)
         tiff_dir = source_dir / "thirdparty" / "tiff-4.0.3"
-        tiff_prefix = (tiff_dir / "ci-install").resolve()
-        run("./configure", "--with-pic", "--disable-jbig", f"--prefix={tiff_prefix}", cwd=tiff_dir, timeout=1800)
+        run("./configure", "--with-pic", "--disable-jbig", cwd=tiff_dir, timeout=1800)
         run("make", "-j", str(max(2, os.cpu_count() or 2)), cwd=tiff_dir, timeout=3600)
-        run("make", "install", cwd=tiff_dir, timeout=1800)
+        tiff_prefix = (tiff_dir / "ci-install").resolve()
+        run("make", "install", f"prefix={tiff_prefix}", cwd=tiff_dir, timeout=1800)
         build = source_dir / "toonz" / "build"
         build.mkdir(parents=True, exist_ok=True)
         tiff_lib = tiff_prefix / "lib" / "libtiff.so"
         tiff_include = tiff_prefix / "include"
+        tiff_private_include = tiff_dir / "libtiff"
         if not tiff_lib.is_file():
             raise RuntimeError(f"bundled OpenToonz libtiff build produced no shared library: {tiff_lib}")
         if not tiff_include.is_dir():
             raise RuntimeError(f"bundled OpenToonz libtiff build produced no include directory: {tiff_include}")
-        run("cmake", "../sources", f"-DTIFF_LIBRARY={tiff_lib}", f"-DTIFF_INCLUDE_DIR={tiff_include}", "-DWITH_TRANSLATION=OFF", cwd=build, timeout=1800)
+        if not (tiff_private_include / "tiffiop.h").is_file():
+            raise RuntimeError(f"bundled OpenToonz libtiff source produced no private header: {tiff_private_include / 'tiffiop.h'}")
+        run(
+            "cmake", "../sources",
+            f"-DTIFF_LIBRARY={tiff_lib}",
+            f"-DTIFF_INCLUDE_DIR={tiff_include}",
+            f"-DCMAKE_C_FLAGS=-I{tiff_private_include}",
+            f"-DCMAKE_CXX_FLAGS=-I{tiff_private_include}",
+            "-DWITH_TRANSLATION=OFF",
+            cwd=build, timeout=1800,
+        )
         run("cmake", "--build", ".", "--parallel", str(max(2, os.cpu_count() or 2)), cwd=build, timeout=3600)
         run("sudo", "cmake", "--install", ".", cwd=build, timeout=1800)
         opentoonz = Path("/opt/opentoonz/bin/opentoonz")
@@ -154,7 +165,8 @@ def install(engine_id: str, with_models: bool) -> None:
         run(str(opentoonz), "--version", timeout=120)
         evidence(engine_id, "https://github.com/opentoonz/opentoonz", ROOT / engine_id, [], [
             "Built OpenToonz's bundled thirdparty/tiff-4.0.3 with its own configure/make path.",
-            "CMake is explicitly bound to the resulting bundled libtiff library and headers; the system libtiff is not used.",
+            "CMake is explicitly bound to the resulting bundled libtiff library and public headers; the system libtiff is not used.",
+            "OpenToonz also consumes libtiff's private tiffiop.h header, so the bundled libtiff source include directory is explicitly added to the C and C++ compiler include paths.",
             "Translation generation is disabled for the CI software build because upstream documents WITH_TRANSLATION=OFF as the workaround for duplicate Qt translation build rules.",
             "The installed OpenToonz executable is required to exist and be executable before installation evidence is written.",
         ])
