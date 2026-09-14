@@ -6,6 +6,7 @@ from dataclasses import dataclass, field
 from typing import Any, Protocol
 
 from .adapters import AdapterInfo, ProductionAdapter, require_verified
+from .cost_policy import require_local_zero_cost
 
 PRODUCTION_CAPABILITIES = (
     "story_interpretation", "story_planning", "storyboard", "asset_resolution",
@@ -41,7 +42,7 @@ class StageAdapter(ProductionAdapter, Protocol):
         ...
 
 class ProductionRouter:
-    """Route production stages only to explicitly verified adapters."""
+    """Route production stages only to verified, local adapters."""
 
     def __init__(self, adapters: list[StageAdapter]):
         self.adapters = adapters
@@ -50,8 +51,9 @@ class ProductionRouter:
         for adapter in self.adapters:
             if capability in adapter.info.capabilities and adapter.info.verified:
                 require_verified(adapter)
+                require_local_zero_cost(is_local=True)
                 return adapter
-        raise RuntimeError(f"No verified production adapter is available for capability: {capability}")
+        raise RuntimeError(f"No verified local production adapter is available for capability: {capability}")
 
     def execute(self, request: ProductionRequest) -> ProductionResponse:
         capability = STAGE_CAPABILITY.get(request.stage, request.stage)
@@ -59,4 +61,5 @@ class ProductionRouter:
         response = adapter.execute(request)
         if not response.provenance:
             raise RuntimeError("production adapter returned no provenance")
+        response.provenance.setdefault("cost_policy", "zero_recurring_cost_local_only")
         return response
