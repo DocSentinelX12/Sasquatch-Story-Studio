@@ -1,0 +1,35 @@
+name: Real Blender Runtime Verification
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "scripts/verify_blender_runtime.py"
+      - "studio/**"
+      - ".github/workflows/real-blender-runtime.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  blender-runtime:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install real Blender engine
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y blender
+      - name: Verify Blender by rendering a real frame
+        run: python3 scripts/verify_blender_runtime.py
+      - name: Publish real runtime evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: blender-runtime-evidence
+          path: |
+            blender-runtime-evidence.json
+            blender-runtime-render.png
+            blender-runtime-source.blend
+          if-no-files-found: error
