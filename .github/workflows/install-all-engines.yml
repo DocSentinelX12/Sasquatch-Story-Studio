@@ -40,4 +40,21 @@ jobs:
           path: engine-installations/${{ matrix.engine }}/installation-evidence.json
           if-no-files-found: error
 
+  huggingface:
+    name: Install Hugging Face Hub
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install and verify official Hugging Face Hub client
+        run: python scripts/install_huggingface.py
+      - name: Publish Hugging Face installation evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: huggingface-hub-installation
+          path: engine-installations/huggingface/installation-evidence.json
+          if-no-files-found: error
+
 # Keep the full engine verification workflow runnable from every main-branch update.
