@@ -3,10 +3,10 @@ import pytest
 from studio.ace_step import AceStepServiceAdapter
 
 
-def test_ace_step_adapter_has_verified_local_identity():
+def test_ace_step_adapter_exposes_catalog_identity_without_false_verification():
     adapter = AceStepServiceAdapter("http://127.0.0.1:8001")
     assert adapter.info.id == "ace-step-1.5"
-    assert adapter.info.verified
+    assert adapter.info.verified is False
     assert "music" in adapter.info.capabilities
 
 
