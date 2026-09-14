@@ -31,9 +31,6 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-      - name: Configure OpenToonz libtiff compatibility
-        if: matrix.engine == 'opentoonz'
-        run: echo "CXXFLAGS=-include $GITHUB_WORKSPACE/scripts/opentoonz_libtiff_compat.h ${CXXFLAGS:-}" >> "$GITHUB_ENV"
       - name: Install engine from official source and record evidence
         run: python scripts/install_engine.py "${{ matrix.engine }}"
       - name: Publish installation evidence
