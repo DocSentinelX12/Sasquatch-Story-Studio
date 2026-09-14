@@ -4,6 +4,7 @@ LLMs are production assistants, never the creative source of truth. Providers ar
 adapters so local/open models can be swapped without changing canonical story data.
 """
 
+import hashlib
 from dataclasses import dataclass, field
 from typing import Any, Protocol
 
@@ -116,7 +117,7 @@ class LLMRouter:
             "provider_id": response.provider_id,
             "model_id": response.model_id,
             "model_version": response.model_version,
-            "canonical_source_hash": __import__("hashlib").sha256(request.canonical_source.encode("utf-8")).hexdigest(),
+            "canonical_source_hash": hashlib.sha256(request.canonical_source.encode("utf-8")).hexdigest(),
         }
         for key, expected in required_provenance.items():
             if response.provenance.get(key) != expected:
