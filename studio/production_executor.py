@@ -25,6 +25,9 @@ class ProductionWorkerExecutor:
             payload = json.loads(task.payload_json)
             if not isinstance(payload, dict):
                 raise ValueError("production payload must decode to an object")
+            requested_engine = payload.get("engine_id")
+            if requested_engine and requested_engine != self.adapter.info.id:
+                raise RuntimeError(f"worker adapter {self.adapter.info.id} does not match requested engine {requested_engine}")
             request = ProductionRequest(
                 stage=task.stage,
                 payload=payload,
