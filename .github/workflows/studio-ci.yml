@@ -35,4 +35,5 @@ jobs:
             blender-runtime-evidence.json
             blender-runtime-render.png
             blender-runtime-source.blend
+            blender-runtime-artifacts/**
           if-no-files-found: error
