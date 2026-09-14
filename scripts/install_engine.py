@@ -133,10 +133,10 @@ def install(engine_id: str, with_models: bool) -> None:
         source_dir = ROOT / engine_id / "source"
         clone("https://github.com/opentoonz/opentoonz.git", source_dir)
         tiff_dir = source_dir / "thirdparty" / "tiff-4.0.3"
-        run("./configure", "--with-pic", "--disable-jbig", cwd=tiff_dir, timeout=1800)
-        run("make", "-j", str(max(2, os.cpu_count() or 2)), cwd=tiff_dir, timeout=3600)
         tiff_prefix = (tiff_dir / "ci-install").resolve()
-        run("make", "install", f"prefix={tiff_prefix}", cwd=tiff_dir, timeout=1800)
+        run("./configure", "--with-pic", "--disable-jbig", f"--prefix={tiff_prefix}", cwd=tiff_dir, timeout=1800)
+        run("make", "-j", str(max(2, os.cpu_count() or 2)), cwd=tiff_dir, timeout=3600)
+        run("make", "install", cwd=tiff_dir, timeout=1800)
         build = source_dir / "toonz" / "build"
         build.mkdir(parents=True, exist_ok=True)
         tiff_lib = tiff_prefix / "lib" / "libtiff.so"
@@ -164,9 +164,9 @@ def install(engine_id: str, with_models: bool) -> None:
             raise RuntimeError(f"OpenToonz install completed without an executable at {opentoonz}")
         run(str(opentoonz), "--version", timeout=120)
         evidence(engine_id, "https://github.com/opentoonz/opentoonz", ROOT / engine_id, [], [
-            "Built OpenToonz's bundled thirdparty/tiff-4.0.3 with its own configure/make path.",
-            "CMake is explicitly bound to the resulting bundled libtiff library and public headers; the system libtiff is not used.",
-            "OpenToonz also consumes libtiff's private tiffiop.h header, so the bundled libtiff source include directory is explicitly added to the C and C++ compiler include paths.",
+            "Built OpenToonz's bundled thirdparty/tiff-4.0.3 with its own configure/make path and an explicit CI installation prefix at configure time.",
+            "CMake is explicitly bound to the resulting bundled libtiff library and headers; the system libtiff is not used.",
+            "OpenToonz's bundled TIFF private header directory is explicitly exposed because tiio_tzp.cpp requires tiffiop.h.",
             "Translation generation is disabled for the CI software build because upstream documents WITH_TRANSLATION=OFF as the workaround for duplicate Qt translation build rules.",
             "The installed OpenToonz executable is required to exist and be executable before installation evidence is written.",
         ])
