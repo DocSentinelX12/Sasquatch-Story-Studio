@@ -19,7 +19,7 @@ def test_catalog_lookup_does_not_imply_production_verification():
     try:
         get_engine("wan2.2")
     except KeyError as exc:
-        assert "not runtime verified" in str(exc.value)
+        assert "not runtime verified" in str(exc)
     else:
         raise AssertionError("unverified catalog engine accepted as production engine")
 
