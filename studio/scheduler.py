@@ -72,8 +72,9 @@ class Scheduler:
         if not worker_id.strip() or lease_seconds < 1:
             raise ValueError("worker_id and positive lease duration are required")
         candidates = sorted((j for j in self._jobs.values() if j.state == JobState.QUEUED), key=lambda j: (-j.priority, j.id))
+        reserved = tuple(job.requirements for job in self._jobs.values() if job.state == JobState.LEASED)
         for job in candidates:
-            if not _fits(job.requirements, resources):
+            if not _fits(job.requirements, resources, reserved):
                 continue
             leased = Job(job.id, job.requirements, job.priority, JobState.LEASED, worker_id, now + lease_seconds)
             self._jobs[job.id] = leased
@@ -84,23 +85,29 @@ class Scheduler:
         job = self._jobs[job_id]
         if job.state != JobState.LEASED or job.lease_owner != worker_id:
             raise RuntimeError("only the current lease owner can complete a job")
-        self._jobs[job_id] = Job(job.id, job.requirements, job.priority, JobState.COMPLETED)
+        self._jobs[job.id] = Job(job.id, job.requirements, job.priority, JobState.COMPLETED)
 
     def snapshot(self) -> tuple[Job, ...]:
         return tuple(self._jobs[key] for key in sorted(self._jobs))
 
 
-def _fits(req: JobRequirements, resources: ResourceSnapshot) -> bool:
+def _fits(req: JobRequirements, resources: ResourceSnapshot, reserved: Iterable[JobRequirements] = ()) -> bool:
     healthy = [r for r in resources.compute if r.healthy]
-    if sum(r.logical_slots for r in healthy) < req.slots:
+    reserved_requirements = tuple(reserved)
+    reserved_slots = sum(item.slots for item in reserved_requirements)
+    reserved_memory = sum(item.memory_bytes for item in reserved_requirements)
+    reserved_vram = sum(item.vram_bytes for item in reserved_requirements)
+    reserved_scratch = sum(item.scratch_bytes for item in reserved_requirements)
+    reserved_power = sum(item.power_watts for item in reserved_requirements)
+    if sum(r.logical_slots for r in healthy) - reserved_slots < req.slots:
         return False
-    if req.memory_bytes and max((r.memory_bytes for r in healthy), default=0) < req.memory_bytes:
+    if req.memory_bytes and (sum(r.memory_bytes for r in healthy) - reserved_memory < req.memory_bytes or max((r.memory_bytes for r in healthy), default=0) < req.memory_bytes):
         return False
-    if req.vram_bytes and max((r.vram_bytes for r in healthy), default=0) < req.vram_bytes:
+    if req.vram_bytes and (sum(r.vram_bytes for r in healthy) - reserved_vram < req.vram_bytes or max((r.vram_bytes for r in healthy), default=0) < req.vram_bytes):
         return False
-    if req.scratch_bytes and max((r.scratch_bytes for r in healthy), default=0) < req.scratch_bytes:
+    if req.scratch_bytes and (sum(r.scratch_bytes for r in healthy) - reserved_scratch < req.scratch_bytes or max((r.scratch_bytes for r in healthy), default=0) < req.scratch_bytes):
         return False
-    if req.power_watts and resources.healthy_power_watts < req.power_watts:
+    if req.power_watts and resources.healthy_power_watts - reserved_power < req.power_watts:
         return False
     available_caps = {cap for resource in healthy for cap in resource.capabilities}
     available_engines = {engine for resource in healthy for engine in resource.installed_engines}

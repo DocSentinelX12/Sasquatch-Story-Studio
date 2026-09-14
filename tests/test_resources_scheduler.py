@@ -35,6 +35,15 @@ def test_scheduler_rejects_missing_real_capacity():
     assert scheduler.choose("worker-a", snapshot(), now=100) is None
 
 
+def test_scheduler_does_not_overbook_shared_slots_or_power():
+    scheduler = Scheduler([
+        Job("video-a", JobRequirements(slots=30, power_watts=1600), priority=10),
+        Job("video-b", JobRequirements(slots=20, power_watts=1000), priority=9),
+    ])
+    assert scheduler.choose("worker-a", snapshot(), now=100) is not None
+    assert scheduler.choose("worker-b", snapshot(), now=100) is None
+
+
 def test_scheduler_persists_and_restores_leases(tmp_path: Path):
     db = tmp_path / "scheduler.sqlite3"
     store = SQLiteSchedulerStore(db)
