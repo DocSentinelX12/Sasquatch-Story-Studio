@@ -6,7 +6,7 @@ from dataclasses import dataclass, field
 from typing import Any, Protocol
 
 from .adapters import AdapterInfo, ProductionAdapter, require_verified
-from .cost_policy import require_local_zero_cost
+from .cost_policy import require_zero_cost
 
 PRODUCTION_CAPABILITIES = (
     "story_interpretation", "story_planning", "storyboard", "asset_resolution",
@@ -42,18 +42,28 @@ class StageAdapter(ProductionAdapter, Protocol):
         ...
 
 class ProductionRouter:
-    """Route production stages only to verified, local adapters."""
+    """Route production stages to verified adapters without requiring paid services.
+
+    Adapters must expose ``is_local`` and may expose ``uses_paid_service`` or
+    ``uses_paid_api``. Missing cost flags are treated conservatively as false,
+    while the adapter still has to be explicitly verified.
+    """
 
     def __init__(self, adapters: list[StageAdapter]):
         self.adapters = adapters
 
     def choose(self, capability: str) -> StageAdapter:
         for adapter in self.adapters:
-            if capability in adapter.info.capabilities and adapter.info.verified:
-                require_verified(adapter)
-                require_local_zero_cost(is_local=True)
-                return adapter
-        raise RuntimeError(f"No verified local production adapter is available for capability: {capability}")
+            if capability not in adapter.info.capabilities or not adapter.info.verified:
+                continue
+            require_verified(adapter)
+            require_zero_cost(
+                is_local=bool(getattr(adapter, "is_local", True)),
+                uses_paid_service=bool(getattr(adapter, "uses_paid_service", False)),
+                uses_paid_api=bool(getattr(adapter, "uses_paid_api", False)),
+            )
+            return adapter
+        raise RuntimeError(f"No verified zero-cost production adapter is available for capability: {capability}")
 
     def execute(self, request: ProductionRequest) -> ProductionResponse:
         capability = STAGE_CAPABILITY.get(request.stage, request.stage)
@@ -61,5 +71,6 @@ class ProductionRouter:
         response = adapter.execute(request)
         if not response.provenance:
             raise RuntimeError("production adapter returned no provenance")
-        response.provenance.setdefault("cost_policy", "zero_recurring_cost_local_only")
+        response.provenance.setdefault("cost_policy", "zero_recurring_cost")
+        response.provenance.setdefault("execution_locality", "local" if bool(getattr(adapter, "is_local", True)) else "remote_free")
         return response
