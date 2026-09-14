@@ -98,6 +98,11 @@ class SQLiteWorkerRegistryStore:
         records: list[WorkerRecord] = []
         for (payload_json,) in rows:
             payload = json.loads(payload_json)
-            resource = ComputeResource(**payload.pop("resource"))
+            resource_payload = payload.pop("resource")
+            resource_payload["gpu_models"] = tuple(resource_payload["gpu_models"])
+            resource_payload["capabilities"] = tuple(resource_payload["capabilities"])
+            resource_payload["installed_engines"] = tuple(resource_payload["installed_engines"])
+            resource = ComputeResource(**resource_payload)
+            payload["state"] = WorkerState(payload["state"])
             records.append(WorkerRecord(resource=resource, **payload))
         return WorkerRegistry(tuple(records))
