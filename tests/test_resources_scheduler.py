@@ -2,6 +2,7 @@ from pathlib import Path
 
 from studio.resources import ComputeResource, PowerResource, PowerSourceKind, ResourceSnapshot, StorageResource
 from studio.scheduler import Job, JobRequirements, JobState, Scheduler, SQLiteSchedulerStore
+from studio.workers import SQLiteWorkerStore, Worker, WorkerHeartbeat, WorkerRegistry
 
 
 def snapshot():
@@ -59,3 +60,30 @@ def test_scheduler_persistence_survives_expired_lease_recovery(tmp_path: Path):
     assert restored.recover_expired(110) == ("video-4",)
     store.save(restored)
     assert store.load().snapshot()[0].state == JobState.QUEUED
+
+
+def test_worker_registry_persists_resources_and_heartbeat(tmp_path: Path):
+    store = SQLiteWorkerStore(tmp_path / "workers.sqlite3")
+    worker = Worker(
+        "worker-a",
+        snapshot().compute[0],
+        WorkerHeartbeat("worker-a", observed_at=123, active_job_ids=("video-1",), thermal_celsius=62.5, utilization_percent=91.0),
+    )
+    registry = WorkerRegistry([worker])
+    store.save(registry)
+
+    restored = store.load()
+    assert restored.snapshot() == registry.snapshot()
+    assert restored.healthy_resources() == (worker.resource,)
+
+
+def test_worker_heartbeat_persists_health_state(tmp_path: Path):
+    store = SQLiteWorkerStore(tmp_path / "workers.sqlite3")
+    worker = Worker("worker-a", snapshot().compute[0], WorkerHeartbeat("worker-a", 10))
+    registry = WorkerRegistry([worker])
+    registry.heartbeat(WorkerHeartbeat("worker-a", 20, healthy=False, utilization_percent=100))
+    store.save(registry)
+
+    restored = store.load()
+    assert restored.snapshot()[0].heartbeat.healthy is False
+    assert restored.healthy_resources() == ()
