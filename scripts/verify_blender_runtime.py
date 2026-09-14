@@ -10,6 +10,10 @@ import sys
 import tempfile
 from pathlib import Path
 
+from studio.artifact_bridge import ArtifactCommitter, ArtifactLineageStore
+from studio.artifacts import ContentAddressedStore
+from studio.production import ProductionResponse
+
 
 def sha256_file(path: Path) -> str:
     digest = hashlib.sha256()
@@ -88,6 +92,30 @@ bpy.ops.render.render(write_still=True)
         if not blend_file.is_file() or blend_file.stat().st_size == 0:
             raise RuntimeError("Blender did not produce the source .blend artifact")
 
+        source_hash = sha256_file(scene_script)
+        output_hash = sha256_file(output)
+        response = ProductionResponse(
+            "blender",
+            (str(output),),
+            {
+                "execution": "subprocess",
+                "engine_id": "blender",
+                "engine_version": version.splitlines()[0],
+                "license": "GPL-3.0-or-later",
+                "quality_tier": "professional_3d",
+                "canonical_source_hash": source_hash,
+                "output_sha256": output_hash,
+                "exit_code": completed.returncode,
+            },
+        )
+        cas = ContentAddressedStore("runtime-artifacts")
+        lineage = ArtifactLineageStore("runtime-artifacts/lineage.sqlite3")
+        committed = ArtifactCommitter(cas, lineage).commit(
+            response, stage="animate", source_hash=source_hash
+        )
+        if len(committed) != 1 or not committed[0].startswith("sha256:"):
+            raise RuntimeError("real Blender output was not committed to the content-addressed store")
+
         evidence = {
             "engine_id": "blender",
             "engine_version": version.splitlines()[0],
@@ -99,8 +127,11 @@ bpy.ops.render.render(write_still=True)
             ).hexdigest(),
             "license_source": "https://github.com/blender/blender",
             "license_evidence": "Blender source repository declares GPL-3.0-or-later",
-            "runtime_output_sha256": sha256_file(output),
+            "runtime_output_sha256": output_hash,
             "source_blend_sha256": sha256_file(blend_file),
+            "canonical_source_sha256": source_hash,
+            "artifact_address": committed[0],
+            "artifact_lineage_stage": "animate",
             "output_bytes": output.stat().st_size,
         }
         Path("blender-runtime-evidence.json").write_text(
@@ -108,6 +139,7 @@ bpy.ops.render.render(write_still=True)
         )
         Path("blender-runtime-render.png").write_bytes(output.read_bytes())
         Path("blender-runtime-source.blend").write_bytes(blend_file.read_bytes())
+        shutil.copytree("runtime-artifacts", "blender-runtime-artifacts", dirs_exist_ok=True)
         print(json.dumps(evidence, indent=2, sort_keys=True))
     return 0
 
