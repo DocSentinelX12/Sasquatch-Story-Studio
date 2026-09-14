@@ -51,7 +51,14 @@ class ProductionCoordinator:
         now: int,
         lease_seconds: int = 900,
     ) -> Job:
-        job = self.scheduler.choose(worker_id, resources, now, lease_seconds)
+        """Lease work against this worker's observed compute capacity and pool power."""
+        job = self.scheduler.choose_on_worker(
+            worker_id,
+            worker_resource,
+            resources.healthy_power_watts,
+            now,
+            lease_seconds,
+        )
         if job is None:
             raise RuntimeError("no schedulable production stage is available for this worker")
         return job
