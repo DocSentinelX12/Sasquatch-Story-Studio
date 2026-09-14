@@ -21,9 +21,10 @@ class WorkerHeartbeat:
             raise ValueError("worker id is required")
         if self.observed_at < 0:
             raise ValueError("heartbeat timestamp cannot be negative")
-        for name, value in (("thermal_celsius", self.thermal_celsius), ("utilization_percent", self.utilization_percent)):
-            if value is not None and not 0 <= value <= 100 if name == "utilization_percent" else value is not None and value < -50:
-                raise ValueError(f"invalid {name}")
+        if self.thermal_celsius is not None and self.thermal_celsius < -50:
+            raise ValueError("invalid thermal_celsius")
+        if self.utilization_percent is not None and not 0 <= self.utilization_percent <= 100:
+            raise ValueError("invalid utilization_percent")
 
 
 @dataclass(frozen=True)
@@ -33,10 +34,8 @@ class Worker:
     heartbeat: WorkerHeartbeat
 
     def __post_init__(self) -> None:
-        if self.id.strip() == "" or self.id != self.heartbeat.worker_id:
+        if not self.id.strip() or self.id != self.heartbeat.worker_id:
             raise ValueError("worker id must match heartbeat")
-        if self.resource.id.strip() == "":
-            raise ValueError("worker resource id is required")
 
 
 class WorkerRegistry:
