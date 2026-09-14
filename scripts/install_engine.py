@@ -50,7 +50,7 @@ def verify_opentoonz_version(executable: Path) -> str:
         raise RuntimeError(
             f"OpenToonz version probe failed with exit code {result.returncode}"
         )
-    match = re.search(r"OpenToonz\\s+v?(\\d+\\.\\d+(?:\\.\\d+)?)", result.stdout)
+    match = re.search(r"OpenToonz\s+v?(\d+\.\d+(?:\.\d+)?)", result.stdout)
     if not match:
         raise RuntimeError(
             "OpenToonz version probe did not report a parseable OpenToonz version"
@@ -173,7 +173,7 @@ def install(engine_id: str, with_models: bool) -> None:
         run(sys.executable, "-m", "pip", "install", "piper-tts==1.8.0", timeout=1800); data_dir = ROOT / engine_id / "voices"; data_dir.mkdir(parents=True, exist_ok=True); run(sys.executable, "-m", "piper.download_voices", "en_US-lessac-medium", "--data-dir", str(data_dir), timeout=1800); model = data_dir / "en_US-lessac-medium.onnx"; run(sys.executable, "-m", "piper", "--help", timeout=120); evidence(engine_id, "https://github.com/OHF-Voice/piper1-gpl", ROOT / engine_id, [model], []); return
 
     if engine_id == "rhubarb-lip-sync":
-        run("sudo", "apt-get", "update", timeout=1800); run("sudo", "apt-get", "install", "-y", "build-essential", "cmake", "libboost-all-dev", "openjdk-17-jdk", timeout=1800); source_dir = ROOT / engine_id / "source"; clone("https://github.com/DanielSWolf/rhubarb-lip-sync.git", source_dir); build = source_dir / "build"; build.mkdir(parents=True, exist_ok=True); run("cmake", "..", "-DCMAKE_BUILD_TYPE=Release", cwd=build, timeout=1800); run("cmake", "--build", ".", "--target", "rhubarb", "--config", "Release", "--parallel", str(max(2, os.cpu_count() or 2)), cwd=build, timeout=3600); binary = next((p for p in build.rglob("rhubarb") if p.is_file()), None); 
+        run("sudo", "apt-get", "update", timeout=1800); run("sudo", "apt-get", "install", "-y", "build-essential", "cmake", "libboost-all-dev", "openjdk-17-jdk", timeout=1800); source_dir = ROOT / engine_id / "source"; clone("https://github.com/DanielSWolf/rhubarb-lip-sync.git", source_dir); build = source_dir / "build"; build.mkdir(parents=True, exist_ok=True); run("cmake", "..", "-DCMAKE_BUILD_TYPE=Release", cwd=build, timeout=1800); run("cmake", "--build", ".", "--target", "rhubarb", "--config", "Release", "--parallel", str(max(2, os.cpu_count() or 2)), cwd=build, timeout=3600); binary = next((p for p in build.rglob("rhubarb") if p.is_file()), None)
         if binary is None: raise RuntimeError("Rhubarb build completed but no executable was found")
         run("sudo", "cp", str(binary), "/usr/local/bin/rhubarb"); run("rhubarb", "--version", timeout=120); evidence(engine_id, "https://github.com/DanielSWolf/rhubarb-lip-sync", ROOT / engine_id, [], []); return
 
