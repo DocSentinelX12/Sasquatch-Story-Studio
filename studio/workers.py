@@ -58,6 +58,12 @@ class WorkerRegistry:
             raise ValueError("worker heartbeat timestamp moved backwards")
         self._workers[worker.id] = Worker(worker.id, worker.resource, heartbeat)
 
+    def get(self, worker_id: str) -> Worker:
+        try:
+            return self._workers[worker_id]
+        except KeyError as exc:
+            raise KeyError(f"unknown worker: {worker_id}") from exc
+
     def remove(self, worker_id: str) -> None:
         self._workers.pop(worker_id, None)
 
