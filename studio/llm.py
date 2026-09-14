@@ -35,6 +35,8 @@ class LLMRequest:
             raise ValueError(f"temperature must be between 0 and {max_temperature}")
         if self.canonical_source != self.user_input:
             raise ValueError("canonical_source must exactly match user_input for protected story tasks")
+        if self.output_schema is not None and self.output_schema.get("type") not in (None, "object"):
+            raise ValueError("production LLM structured output schemas must have an object root")
 
 
 @dataclass(frozen=True)
@@ -62,6 +64,12 @@ class LLMPolicy:
     allow_unknown_license: bool = False
     allow_paid_api: bool = False
     max_temperature: float = 0.7
+
+    def __post_init__(self) -> None:
+        if self.allow_paid_api:
+            raise ValueError("paid LLM APIs are prohibited by the studio zero-recurring-cost policy")
+        if self.allow_remote:
+            raise ValueError("remote LLM execution is prohibited by the studio local-only production policy")
 
 
 class LLMRouter:
@@ -92,7 +100,7 @@ class LLMRouter:
         if self.policy.prefer_local:
             local = [a for a in candidates if "local" in a.info.capabilities]
             if local:
-                require_local_zero_cost(is_local=True, uses_paid_api=self.policy.allow_paid_api)
+                require_local_zero_cost(is_local=True, uses_paid_api=False)
                 return local[0]
         raise RuntimeError("Zero-cost policy requires a local LLM adapter")
 
