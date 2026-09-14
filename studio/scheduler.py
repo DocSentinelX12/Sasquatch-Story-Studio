@@ -89,12 +89,7 @@ class Scheduler:
         now: int,
         lease_seconds: int = 900,
     ) -> Job | None:
-        """Lease work only when that specific worker has the compute capacity.
-
-        Power is checked against the observed shared pool because power can feed
-        multiple workers. A job's slots, memory, VRAM, scratch, capabilities, and
-        engines must all fit on the selected worker itself.
-        """
+        """Lease work only when that specific worker has the compute capacity."""
         if not worker_id.strip() or lease_seconds < 1 or pool_power_watts < 0:
             raise ValueError("worker_id, lease duration, and power must be valid")
         if not worker_resource.healthy:
@@ -102,11 +97,11 @@ class Scheduler:
         candidates = sorted((j for j in self._jobs.values() if j.state == JobState.QUEUED), key=lambda j: (-j.priority, j.id))
         reserved = tuple(job.requirements for job in self._jobs.values() if job.state == JobState.LEASED)
         worker_snapshot = ResourceSnapshot(compute=(worker_resource,), power=())
+        reserved_power = sum(item.power_watts for item in reserved)
         for job in candidates:
-            reserved_power = sum(item.power_watts for item in reserved)
             if pool_power_watts - reserved_power < job.requirements.power_watts:
                 continue
-            if not _fits(job.requirements, worker_snapshot, reserved=()):
+            if not _fits(job.requirements, worker_snapshot, reserved=(), check_power=False):
                 continue
             leased = Job(job.id, job.requirements, job.priority, JobState.LEASED, worker_id, now + lease_seconds)
             self._jobs[job.id] = leased
@@ -123,7 +118,12 @@ class Scheduler:
         return tuple(self._jobs[key] for key in sorted(self._jobs))
 
 
-def _fits(req: JobRequirements, resources: ResourceSnapshot, reserved: Iterable[JobRequirements] = ()) -> bool:
+def _fits(
+    req: JobRequirements,
+    resources: ResourceSnapshot,
+    reserved: Iterable[JobRequirements] = (),
+    check_power: bool = True,
+) -> bool:
     healthy = [r for r in resources.compute if r.healthy]
     reserved_requirements = tuple(reserved)
     reserved_slots = sum(item.slots for item in reserved_requirements)
@@ -139,7 +139,7 @@ def _fits(req: JobRequirements, resources: ResourceSnapshot, reserved: Iterable[
         return False
     if req.scratch_bytes and (sum(r.scratch_bytes for r in healthy) - reserved_scratch < req.scratch_bytes or max((r.scratch_bytes for r in healthy), default=0) < req.scratch_bytes):
         return False
-    if req.power_watts and resources.healthy_power_watts - reserved_power < req.power_watts:
+    if check_power and req.power_watts and resources.healthy_power_watts - reserved_power < req.power_watts:
         return False
     available_caps = {cap for resource in healthy for cap in resource.capabilities}
     available_engines = {engine for resource in healthy for engine in resource.installed_engines}
