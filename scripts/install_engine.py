@@ -90,24 +90,12 @@ def install_wan_dependencies(root: Path) -> None:
 
 
 def verify_wan_software(root: Path) -> str:
-    """Verify Wan source without falsely treating a CPU worker as a GPU runtime.
-
-    Wan's upstream generator initializes CUDA while importing the module. A
-    standard GitHub CPU runner therefore cannot truthfully execute --help.
-    We still compile every Python source file, and only perform the import-level
-    smoke check when CUDA is actually available.
-    """
+    """Verify Wan source without falsely treating a CPU worker as a GPU runtime."""
     run(sys.executable, "-m", "compileall", "-q", ".", cwd=root, timeout=600)
-    cuda = run(
-        sys.executable,
-        "-c",
-        "import torch; print('1' if torch.cuda.is_available() else '0')",
-        cwd=root,
-        timeout=120,
-    ).stdout.strip()
+    cuda = run(sys.executable, "-c", "import torch; print('1' if torch.cuda.is_available() else '0')", cwd=root, timeout=120).stdout.strip()
     if cuda == "1":
         run(sys.executable, "generate.py", "--help", cwd=root, timeout=180)
-        return "CUDA is available; the real Wan generator entrypoint was import/execution smoke-checked."
+        return "CUDA is available; the real Wan generator entrypoint was smoke-checked."
     return "CUDA is unavailable; all Wan Python sources were compiled, and generator import was not attempted because upstream initializes CUDA at import time."
 
 
@@ -124,9 +112,7 @@ def install_comfyui_dependencies(root: Path) -> None:
 def install_ltx_dependencies(root: Path) -> None:
     """Install LTX's Python dependencies with the CPU torch already selected."""
     run(sys.executable, "-m", "pip", "install", "torch", "torchvision", "--index-url", "https://download.pytorch.org/whl/cpu", timeout=3600)
-    run(sys.executable, "-m", "pip", "install",
-        "diffusers>=0.28.2", "transformers>=4.47.2,<4.52.0", "sentencepiece>=0.1.96",
-        "huggingface-hub~=0.30", "einops", "timm", "imageio[ffmpeg]", "av", timeout=3600)
+    run(sys.executable, "-m", "pip", "install", "diffusers>=0.28.2", "transformers>=4.47.2,<4.52.0", "sentencepiece>=0.1.96", "huggingface-hub~=0.30", "einops", "timm", "imageio[ffmpeg]", "av", timeout=3600)
     run(sys.executable, "-m", "pip", "install", "-e", ".", "--no-deps", cwd=root, timeout=1200)
     run(sys.executable, "-c", "import ltx_video; print('ltx_video', ltx_video.__file__)", cwd=root, timeout=120)
 
@@ -146,15 +132,11 @@ def install(engine_id: str, with_models: bool) -> None:
         run("sudo", "apt-get", "install", "-y", *packages.split(), timeout=1800)
         source_dir = ROOT / engine_id / "source"
         clone("https://github.com/opentoonz/opentoonz.git", source_dir)
-
-        # OpenToonz explicitly requires its modified bundled libtiff. Do not
-        # substitute the runner's system libtiff.
         tiff_dir = source_dir / "thirdparty" / "tiff-4.0.3"
         run("./configure", "--with-pic", "--disable-jbig", cwd=tiff_dir, timeout=1800)
         run("make", "-j", str(max(2, os.cpu_count() or 2)), cwd=tiff_dir, timeout=3600)
         tiff_prefix = (tiff_dir / "ci-install").resolve()
         run("make", "install", f"prefix={tiff_prefix}", cwd=tiff_dir, timeout=1800)
-
         build = source_dir / "toonz" / "build"
         build.mkdir(parents=True, exist_ok=True)
         tiff_lib = tiff_prefix / "lib" / "libtiff.so"
@@ -163,11 +145,7 @@ def install(engine_id: str, with_models: bool) -> None:
             raise RuntimeError(f"bundled OpenToonz libtiff build produced no shared library: {tiff_lib}")
         if not tiff_include.is_dir():
             raise RuntimeError(f"bundled OpenToonz libtiff build produced no include directory: {tiff_include}")
-        run("cmake", "../sources",
-            f"-DTIFF_LIBRARY={tiff_lib}",
-            f"-DTIFF_INCLUDE_DIR={tiff_include}",
-            "-DWITH_TRANSLATION=OFF",
-            cwd=build, timeout=1800)
+        run("cmake", "../sources", f"-DTIFF_LIBRARY={tiff_lib}", f"-DTIFF_INCLUDE_DIR={tiff_include}", "-DWITH_TRANSLATION=OFF", cwd=build, timeout=1800)
         run("cmake", "--build", ".", "--parallel", str(max(2, os.cpu_count() or 2)), cwd=build, timeout=3600)
         run("sudo", "cmake", "--install", ".", cwd=build, timeout=1800)
         opentoonz = Path("/opt/opentoonz/bin/opentoonz")
@@ -273,3 +251,19 @@ def install(engine_id: str, with_models: bool) -> None:
         return
 
     raise ValueError(f"unsupported engine: {engine_id}")
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description="Install one Studio engine and record installation evidence.")
+    parser.add_argument("engine_id", choices=[
+        "blender", "opentoonz", "rhubarb-lip-sync", "piper", "comfyui",
+        "wan2.1", "wan2.2", "ltx-video", "ace-step-1.5",
+    ])
+    parser.add_argument("--with-models", action="store_true", help="Download the engine's declared model/checkpoint assets.")
+    args = parser.parse_args()
+    install(args.engine_id, args.with_models)
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
