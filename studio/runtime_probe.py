@@ -1,10 +1,15 @@
-"""Host capability and verified-engine availability probing."""
+"""Host capability and engine availability probing.
+
+A probe observes whether a cataloged engine entrypoint is present. It never
+promotes an engine to production verification. Production eligibility still
+requires explicit runtime, checkpoint, and license evidence.
+"""
 from __future__ import annotations
 
 import shutil
 from dataclasses import dataclass
 
-from .engine_registry import VERIFIED_ENGINES
+from .engine_registry import ENGINE_CATALOG
 
 
 @dataclass(frozen=True)
@@ -17,16 +22,19 @@ class RuntimeStatus:
 
 def probe_engines() -> tuple[RuntimeStatus, ...]:
     statuses = []
-    for engine in VERIFIED_ENGINES:
+    for engine in ENGINE_CATALOG:
         if engine.execution_mode == "service":
             statuses.append(
                 RuntimeStatus(
                     engine.id,
                     False,
                     None,
-                    "verified engine requires its dedicated service adapter; process probing is not valid",
+                    "cataloged service requires its dedicated configured adapter; process probing is not valid",
                 )
             )
+            continue
+        if not engine.runtime_command:
+            statuses.append(RuntimeStatus(engine.id, False, None, "no runtime command recorded"))
             continue
         executable = shutil.which(engine.runtime_command[0])
         statuses.append(
@@ -34,7 +42,9 @@ def probe_engines() -> tuple[RuntimeStatus, ...]:
                 engine.id,
                 executable is not None,
                 executable,
-                "available" if executable else f"missing executable: {engine.runtime_command[0]}",
+                "entrypoint executable available; production verification still required"
+                if executable
+                else f"missing executable: {engine.runtime_command[0]}",
             )
         )
     return tuple(statuses)
@@ -45,5 +55,5 @@ def require_engine(engine_id: str) -> RuntimeStatus:
     if status is None:
         raise KeyError(engine_id)
     if not status.available:
-        raise RuntimeError(f"Required verified engine unavailable: {engine_id}; {status.reason}")
+        raise RuntimeError(f"Required engine unavailable: {engine_id}; {status.reason}")
     return status
