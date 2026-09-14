@@ -42,6 +42,7 @@ def main() -> int:
         scene_script.write_text(
             """
 import bpy
+import os
 
 bpy.ops.wm.read_factory_settings(use_empty=True)
 scene = bpy.context.scene
@@ -51,6 +52,7 @@ scene.render.resolution_x = 320
 scene.render.resolution_y = 180
 scene.render.resolution_percentage = 100
 scene.render.image_settings.file_format = 'PNG'
+scene.render.filepath = 'OUTPUT'
 
 bpy.ops.mesh.primitive_uv_sphere_add(location=(0, 0, 0))
 sphere = bpy.context.object
@@ -64,12 +66,16 @@ light.data.size = 4
 
 bpy.ops.object.camera_add(location=(0, -7, 1.5))
 camera = bpy.context.object
-camera.rotation_euler = (1.45, 0, 0)
+camera.rotation_euler = (sphere.location - camera.location).to_track_quat('-Z', 'Y').to_euler()
 scene.camera = camera
 
 bpy.ops.wm.save_as_mainfile(filepath='BLEND')
-bpy.ops.render.render()
-bpy.data.images['Render Result'].save_render(filepath='OUTPUT')
+result = bpy.ops.render.render(write_still=True)
+if 'FINISHED' not in result:
+    raise RuntimeError(f'Blender render operator did not finish: {result!r}')
+if not os.path.isfile('OUTPUT') or os.path.getsize('OUTPUT') == 0:
+    raise RuntimeError('Blender render completed but the configured output file was not written')
+print('BLENDER_RENDER_OK:OUTPUT')
 """
             .replace("OUTPUT", str(output))
             .replace("BLEND", str(blend_file))
@@ -82,17 +88,21 @@ bpy.data.images['Render Result'].save_render(filepath='OUTPUT')
             text=True,
             timeout=600,
         )
-        if completed.returncode != 0:
+        stdout = completed.stdout or ""
+        stderr = completed.stderr or ""
+        sentinel = f"BLENDER_RENDER_OK:{output}"
+        if completed.returncode != 0 or sentinel not in stdout:
+            diagnostics = (stderr + "\n" + stdout)[-8000:]
             raise RuntimeError(
-                "Blender render failed with exit code "
-                f"{completed.returncode}: {(completed.stderr or completed.stdout).strip()}"
+                "Blender runtime verification did not complete the required render contract. "
+                f"exit_code={completed.returncode}; expected_sentinel={sentinel!r}; "
+                f"output_exists={output.is_file()}; diagnostics:\n{diagnostics}"
             )
 
         if not output.is_file() or output.stat().st_size == 0:
-            diagnostics = (completed.stdout or "")[-4000:]
             raise RuntimeError(
-                "Blender exited successfully but produced no PNG render. "
-                f"Output directory: {root}. Blender output: {diagnostics}"
+                "Blender reported a completed render, but the required PNG artifact is missing or empty. "
+                f"Output directory: {root}"
             )
         if not blend_file.is_file() or blend_file.stat().st_size == 0:
             raise RuntimeError("Blender did not produce the source .blend artifact")
