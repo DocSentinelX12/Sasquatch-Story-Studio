@@ -39,3 +39,5 @@ jobs:
           name: engine-install-${{ matrix.engine }}
           path: engine-installations/${{ matrix.engine }}/installation-evidence.json
           if-no-files-found: error
+
+# Keep the full engine verification workflow runnable from every main-branch update.
