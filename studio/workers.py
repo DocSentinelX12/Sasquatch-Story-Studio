@@ -54,6 +54,8 @@ class WorkerRegistry:
         worker = self._workers.get(heartbeat.worker_id)
         if worker is None:
             raise KeyError(f"unknown worker: {heartbeat.worker_id}")
+        if heartbeat.observed_at < worker.heartbeat.observed_at:
+            raise ValueError("worker heartbeat timestamp moved backwards")
         self._workers[worker.id] = Worker(worker.id, worker.resource, heartbeat)
 
     def remove(self, worker_id: str) -> None:
@@ -62,8 +64,28 @@ class WorkerRegistry:
     def snapshot(self) -> tuple[Worker, ...]:
         return tuple(self._workers[key] for key in sorted(self._workers))
 
-    def healthy_resources(self) -> tuple[ComputeResource, ...]:
-        return tuple(worker.resource for worker in self._workers.values() if worker.heartbeat.healthy and worker.resource.healthy)
+    def stale_worker_ids(self, now: int, max_age_seconds: int) -> tuple[str, ...]:
+        if now < 0 or max_age_seconds < 1:
+            raise ValueError("now must be nonnegative and max_age_seconds must be positive")
+        return tuple(
+            worker.id
+            for worker in self.snapshot()
+            if now - worker.heartbeat.observed_at > max_age_seconds
+        )
+
+    def healthy_resources(self, now: int | None = None, max_age_seconds: int | None = None) -> tuple[ComputeResource, ...]:
+        if (now is None) != (max_age_seconds is None):
+            raise ValueError("now and max_age_seconds must be supplied together")
+        if now is not None and max_age_seconds is not None:
+            if now < 0 or max_age_seconds < 1:
+                raise ValueError("now must be nonnegative and max_age_seconds must be positive")
+        return tuple(
+            worker.resource
+            for worker in self._workers.values()
+            if worker.heartbeat.healthy
+            and worker.resource.healthy
+            and (now is None or now - worker.heartbeat.observed_at <= max_age_seconds)
+        )
 
 
 class SQLiteWorkerStore:

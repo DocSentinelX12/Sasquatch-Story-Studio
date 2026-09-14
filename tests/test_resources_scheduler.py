@@ -71,6 +71,26 @@ def test_scheduler_persistence_survives_expired_lease_recovery(tmp_path: Path):
     assert store.load().snapshot()[0].state == JobState.QUEUED
 
 
+def test_worker_heartbeat_is_monotonic_and_stale_workers_are_excluded():
+    worker = Worker("worker-a", snapshot().compute[0], WorkerHeartbeat("worker-a", 100))
+    registry = WorkerRegistry([worker])
+    registry.heartbeat(WorkerHeartbeat("worker-a", 120, utilization_percent=50))
+    assert registry.stale_worker_ids(125, 10) == ()
+    assert registry.stale_worker_ids(131, 10) == ("worker-a",)
+    assert registry.healthy_resources(now=131, max_age_seconds=10) == ()
+
+
+def test_worker_rejects_older_heartbeat():
+    worker = Worker("worker-a", snapshot().compute[0], WorkerHeartbeat("worker-a", 100))
+    registry = WorkerRegistry([worker])
+    try:
+        registry.heartbeat(WorkerHeartbeat("worker-a", 99))
+    except ValueError as exc:
+        assert "backwards" in str(exc)
+    else:
+        raise AssertionError("older heartbeat must be rejected")
+
+
 def test_worker_registry_persists_resources_and_heartbeat(tmp_path: Path):
     store = SQLiteWorkerStore(tmp_path / "workers.sqlite3")
     worker = Worker(
