@@ -2,6 +2,8 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from collections.abc import Iterable
+
 from .scheduler import Job, JobRequirements, Scheduler
 from .worker_registry import WorkerRecord, WorkerRegistry, WorkerState
 
@@ -27,16 +29,17 @@ class BrokerDecision:
 
 
 class ComputeBroker:
-    """Deterministic routing over only observed, eligible worker records."""
+    """Deterministic routing over observed workers and an explicit verified-engine set."""
 
     _ACTIVE = {WorkerState.VERIFIED_AVAILABLE, WorkerState.VERIFIED_LIMITED}
 
-    def __init__(self, scheduler: Scheduler, registry: WorkerRegistry):
+    def __init__(self, scheduler: Scheduler, registry: WorkerRegistry, verified_engines: Iterable[str] = ()):
         self.scheduler = scheduler
         self.registry = registry
+        self.verified_engines = frozenset(verified_engines)
 
     @staticmethod
-    def _fits(task: ProductionTask, worker: WorkerRecord) -> tuple[bool, str]:
+    def _fits(task: ProductionTask, worker: WorkerRecord, verified_engines: frozenset[str]) -> tuple[bool, str]:
         req = task.requirements
         resource = worker.resource
         if worker.state not in ComputeBroker._ACTIVE:
@@ -56,14 +59,16 @@ class ComputeBroker:
         if not set(req.capabilities).issubset(resource.capabilities):
             return False, "required capability not observed"
         if not set(req.engines).issubset(resource.installed_engines):
-            return False, "required engine not observed"
+            return False, "required engine not observed on worker"
+        if not set(req.engines).issubset(verified_engines):
+            return False, "required engine is not runtime verified"
         return True, "eligible"
 
     def select_worker(self, task: ProductionTask) -> BrokerDecision:
         eligible: list[str] = []
         rejected: list[tuple[str, str]] = []
         for worker in self.registry.snapshot():
-            ok, reason = self._fits(task, worker)
+            ok, reason = self._fits(task, worker, self.verified_engines)
             if ok:
                 eligible.append(worker.id)
             else:
@@ -88,5 +93,4 @@ class ComputeBroker:
         return decision, job
 
     def release_or_requeue(self, job_id: str, now: int) -> bool:
-        """Recover an expired lease; return whether the job is queued afterward."""
         return job_id in self.scheduler.recover_expired(now)
