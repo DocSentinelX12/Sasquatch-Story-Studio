@@ -1,19 +1,21 @@
 #pragma once
 
 #include <cstdint>
-#include <tiffio.h>
 
 /*
- * OpenToonz currently uses libtiff's pre-4.3 typedef spellings in
- * tiio_tif.cpp. Modern libtiff documents those spellings as deprecated and
- * current Linux headers used by the CI worker no longer expose them.
- * Translate only the legacy source spellings to their C99 equivalents.
+ * OpenToonz bundles libtiff 4.0.3 headers that use libtiff's legacy
+ * fixed-width typedef spellings. On the current Ubuntu/GCC toolchain those
+ * spellings are not provided by the bundled header's generated configuration
+ * path, so the header fails before the aliases can be introduced later.
+ * Define the compatibility names before tiffio.h is parsed.
  */
-#define uint32 uint32_t
+#define int8 int8_t
+#define uint8 uint8_t
+#define int16 int16_t
 #define uint16 uint16_t
+#define int32 int32_t
+#define uint32 uint32_t
+#define int64 int64_t
+#define uint64 uint64_t
 
-/* Current libtiff documentation defines this public API with these types.
- * The declaration keeps older OpenToonz code buildable when the installed
- * header hides the declaration through its deprecation configuration.
- */
-extern "C" uint32_t TIFFDefaultStripSize(TIFF *tif, uint32_t estimate);
+#include <tiffio.h>
