@@ -70,6 +70,8 @@ A worker may accept a job only when its declared capabilities satisfy the typed 
 
 The scheduler uses a shared capacity pool. The baseline logical design supports at least 40 concurrent execution slots and is intentionally extensible beyond that. Slots are not permanently tied to a character or pipeline role. Specialized roles consume capacity only while executing work.
 
+Worker-specific scheduling is also available for dispatchers that know the exact target worker. In that mode, slots, memory, VRAM, scratch space, capabilities, and installed engines must fit on that worker itself. Shared power is checked independently against observed sustained power and existing leases.
+
 ## Job durability
 
 Every job has:
@@ -133,6 +135,8 @@ When power becomes constrained, the scheduler can:
 5. preserve storage and coordinator services,
 6. resume queued work automatically when capacity returns.
 
+The current shutdown coordinator implements the checkpoint-safe drain state machine. It deliberately does not claim physical power-control capability. A real controller can be added only after its hardware interface is verified.
+
 ## Scaling model
 
 The target is **practically unbounded horizontal scaling** rather than a fixed machine size.
@@ -163,13 +167,13 @@ Infrastructure scaling is subordinate to story fidelity. No scheduler optimizati
 
 ## Implementation sequence
 
-1. Define typed compute, storage, and power resource models.
-2. Implement durable worker registration and heartbeat.
-3. Implement shared-capacity scheduler and leases.
-4. Implement content-addressed artifact store and replication metadata.
-5. Implement power telemetry interfaces and power-aware admission control.
-6. Add worker discovery for verified local engines.
-7. Add checkpoint-aware graceful shutdown and recovery.
+1. Define typed compute, storage, and power resource models. **Implemented.**
+2. Implement durable worker registration and heartbeat. **Implemented.**
+3. Implement shared-capacity scheduler and leases. **Implemented.**
+4. Implement content-addressed artifact store and replication metadata. **Implemented.**
+5. Implement power telemetry interfaces and power-aware admission control. **Implemented.**
+6. Add worker discovery for verified local engines. **Next.**
+7. Add checkpoint-aware graceful shutdown and recovery. **Implemented.**
 8. Add resource dashboard and mobile control surfaces.
 9. Load-test queue, storage, and scheduling behavior with deterministic tests.
 10. Validate real engine execution only when the corresponding local runtime is actually installed.
