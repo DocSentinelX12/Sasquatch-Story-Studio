@@ -42,6 +42,11 @@ def build_verified_engine_adapter(
 ) -> ProcessAdapter:
     """Turn one persisted verification record into one executable adapter."""
     engine = registry.get(config.engine_id)
+    if engine.execution_mode != "process":
+        raise ValueError(
+            f"engine {engine.id} uses execution mode {engine.execution_mode!r}; "
+            "a process adapter cannot represent it"
+        )
     return _adapter_from_verified_engine(engine, config)
 
 
@@ -58,6 +63,16 @@ def build_verified_engine_adapters(
         seen.add(config.engine_id)
         adapters.append(build_verified_engine_adapter(registry, config))
     return tuple(adapters)
+
+
+def build_production_router(
+    registry: RuntimeEngineRegistry,
+    configs: Sequence[VerifiedEngineRuntimeConfig],
+):
+    """Connect verified worker engines to the studio's capability router."""
+    from .production import ProductionRouter
+
+    return ProductionRouter(list(build_verified_engine_adapters(registry, configs)))
 
 
 def _adapter_from_verified_engine(
