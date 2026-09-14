@@ -1,17 +1,11 @@
 #!/usr/bin/env python3
-"""Install one catalog engine on a Linux worker using its official source.
-
-This script records installation evidence only. It never promotes an engine to
-runtime-verified status. Production verification still requires a real output,
-license evidence, and checkpoint evidence through the runtime verifier.
-"""
+"""Install one catalog engine on a Linux worker using its official source."""
 from __future__ import annotations
 
 import argparse
 import hashlib
 import json
 import os
-import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -40,30 +34,27 @@ def sha256(path: Path) -> str:
 
 
 def clone(url: str, destination: Path) -> None:
-    if destination.exists():
-        run("git", "-C", str(destination), "fetch", "--tags", "origin")
-        run("git", "-C", str(destination), "reset", "--hard", "origin/main")
-    else:
-        run("git", "clone", "--depth", "1", url, str(destination), timeout=1800)
+    run("git", "clone", "--depth", "1", url, str(destination), timeout=1800)
 
 
 def evidence(engine_id: str, source: str, root: Path, model_paths: list[Path]) -> None:
     executable_candidates = {
         "blender": ["blender"],
-        "opentoonz": ["/opt/opentoonz/bin/opentoonz", "OpenToonz"],
+        "opentoonz": ["/opt/opentoonz/bin/opentoonz"],
         "rhubarb-lip-sync": ["rhubarb"],
         "piper": [sys.executable, "-m", "piper"],
         "comfyui": [sys.executable, "ComfyUI/main.py"],
         "wan2.1": [sys.executable, "Wan2.1/generate.py"],
         "wan2.2": [sys.executable, "Wan2.2/generate.py"],
         "ltx-video": [sys.executable, "LTX-Video/inference.py"],
-        "ace-step-1.5": [sys.executable, "-m", "acestep.api_server"],
+        "ace-step-1.5": ["uv", "run", "acestep-api"],
     }
     files = []
     for path in model_paths:
         if not path.is_file() or path.stat().st_size == 0:
             raise RuntimeError(f"declared model/checkpoint is not a real non-empty file: {path}")
         files.append({"path": str(path), "bytes": path.stat().st_size, "sha256": sha256(path)})
+    root.mkdir(parents=True, exist_ok=True)
     record = {
         "engine_id": engine_id,
         "source": source,
@@ -73,8 +64,13 @@ def evidence(engine_id: str, source: str, root: Path, model_paths: list[Path]) -
         "runtime_verified": False,
         "note": "Installation evidence only. A successful installation is not a runtime-generation verification.",
     }
-    root.mkdir(parents=True, exist_ok=True)
     (root / "installation-evidence.json").write_text(json.dumps(record, indent=2, sort_keys=True) + "\n")
+
+
+def hf_download(repo: str, destination: Path, *patterns: str) -> None:
+    run(sys.executable, "-m", "pip", "install", "huggingface_hub[cli]", timeout=1200)
+    command = ["hf", "download", repo, *patterns, "--local-dir", str(destination)]
+    run(*command, timeout=3600)
 
 
 def install(engine_id: str) -> None:
@@ -113,8 +109,7 @@ def install(engine_id: str) -> None:
         binary = next(build.rglob("rhubarb"), None)
         if binary is None:
             raise RuntimeError("Rhubarb build completed but no rhubarb executable was found")
-        install_path = Path("/usr/local/bin/rhubarb")
-        run("sudo", "cp", str(binary), str(install_path))
+        run("sudo", "cp", str(binary), "/usr/local/bin/rhubarb")
         run("rhubarb", "--version", timeout=120)
         evidence(engine_id, "https://github.com/DanielSWolf/rhubarb-lip-sync", ROOT / engine_id, [])
         return
@@ -142,9 +137,8 @@ def install(engine_id: str) -> None:
         root = ROOT / engine_id
         clone("https://github.com/Wan-Video/Wan2.1.git", root / "Wan2.1")
         run(sys.executable, "-m", "pip", "install", "-r", "requirements.txt", cwd=root / "Wan2.1", timeout=3600)
-        run(sys.executable, "-m", "pip", "install", "huggingface_hub[cli]", timeout=1200)
         model_dir = root / "Wan2.1-T2V-1.3B"
-        run(sys.executable, "-m", "huggingface_hub.commands.huggingface_cli", "download", "Wan-AI/Wan2.1-T2V-1.3B", "--local-dir", str(model_dir), timeout=3600)
+        hf_download("Wan-AI/Wan2.1-T2V-1.3B", model_dir)
         models = [p for p in model_dir.rglob("*") if p.is_file()]
         if not models:
             raise RuntimeError("Wan2.1 model download produced no files")
@@ -156,9 +150,8 @@ def install(engine_id: str) -> None:
         root = ROOT / engine_id
         clone("https://github.com/Wan-Video/Wan2.2.git", root / "Wan2.2")
         run(sys.executable, "-m", "pip", "install", ".", cwd=root / "Wan2.2", timeout=3600)
-        run(sys.executable, "-m", "pip", "install", "huggingface_hub[cli]", timeout=1200)
         model_dir = root / "Wan2.2-TI2V-5B"
-        run(sys.executable, "-m", "huggingface_hub.commands.huggingface_cli", "download", "Wan-AI/Wan2.2-TI2V-5B", "--local-dir", str(model_dir), timeout=3600)
+        hf_download("Wan-AI/Wan2.2-TI2V-5B", model_dir)
         models = [p for p in model_dir.rglob("*") if p.is_file()]
         if not models:
             raise RuntimeError("Wan2.2 model download produced no files")
@@ -170,9 +163,9 @@ def install(engine_id: str) -> None:
         root = ROOT / engine_id
         clone("https://github.com/Lightricks/LTX-Video.git", root / "LTX-Video")
         run(sys.executable, "-m", "pip", "install", "-e", ".[inference-script]", cwd=root / "LTX-Video", timeout=3600)
-        run(sys.executable, "-m", "pip", "install", "huggingface_hub[cli]", timeout=1200)
-        model = root / "LTX-Video" / "ltxv-2b-0.9.8-distilled.safetensors"
-        run(sys.executable, "-m", "huggingface_hub.commands.huggingface_cli", "download", "Lightricks/LTX-Video", "ltxv-2b-0.9.8-distilled.safetensors", "--local-dir", str(model.parent), timeout=3600)
+        model_dir = root / "LTX-Video"
+        hf_download("Lightricks/LTX-Video", model_dir, "ltxv-2b-0.9.8-distilled.safetensors")
+        model = model_dir / "ltxv-2b-0.9.8-distilled.safetensors"
         if not model.is_file() or model.stat().st_size == 0:
             raise RuntimeError("LTX-Video checkpoint was not downloaded")
         run(sys.executable, "inference.py", "--help", cwd=root / "LTX-Video", timeout=180)
@@ -182,7 +175,7 @@ def install(engine_id: str) -> None:
     if engine_id == "ace-step-1.5":
         root = ROOT / engine_id / "ACE-Step-1.5"
         clone("https://github.com/ace-step/ACE-Step-1.5.git", root)
-        run("python", "-m", "pip", "install", "uv", timeout=600)
+        run(sys.executable, "-m", "pip", "install", "uv", timeout=600)
         run("uv", "sync", cwd=root, timeout=3600)
         run("uv", "run", "acestep-download", cwd=root, timeout=3600)
         checkpoints = root / "checkpoints"
