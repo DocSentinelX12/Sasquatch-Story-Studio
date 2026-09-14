@@ -6,7 +6,7 @@ import platform
 import shutil
 from pathlib import Path
 
-from .engine_registry import EngineSpec, VERIFIED_ENGINES
+from .engine_registry import EngineSpec, ENGINE_CATALOG
 from .resources import ComputeResource
 
 
@@ -74,9 +74,15 @@ def discover_compute_resource(
     worker_id: str,
     *,
     engine_roots: dict[str, str | Path] | None = None,
-    engines: tuple[EngineSpec, ...] = VERIFIED_ENGINES,
+    engines: tuple[EngineSpec, ...] = ENGINE_CATALOG,
 ) -> ComputeResource:
-    """Discover only capacity and engines actually observable on this machine."""
+    """Discover observable capacity and installed engine entrypoints.
+
+    Discovery is deliberately independent from production verification. Seeing
+    an executable or entrypoint means only that it exists on the worker. The
+    engine must separately pass runtime, checkpoint, and licensing verification
+    before production routing can use it.
+    """
     if not worker_id.strip():
         raise ValueError("worker id is required")
     gpu_models, gpu_count, vram_bytes = _gpu_info()
