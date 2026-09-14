@@ -15,12 +15,12 @@ def record(worker_id, *, vram, capabilities=(), engines=(), state=WorkerState.VE
     )
 
 
-def test_routes_only_to_observed_capabilities():
+def test_routes_only_to_observed_capabilities_and_runtime_verified_engine():
     registry = WorkerRegistry((
         record("small", vram=8 * 1024**3, capabilities=("video",), engines=("wan",)),
         record("strong", vram=24 * 1024**3, capabilities=("video", "cuda"), engines=("wan",)),
     ))
-    broker = ComputeBroker(Scheduler(), registry)
+    broker = ComputeBroker(Scheduler(), registry, verified_engines=("wan",))
     task = ProductionTask("shot-1", JobRequirements(vram_bytes=16 * 1024**3, capabilities=("cuda",), engines=("wan",)))
     decision = broker.select_worker(task)
     assert decision.selected_worker == "strong"
@@ -32,6 +32,13 @@ def test_unavailable_worker_is_never_selected():
     decision = ComputeBroker(Scheduler(), registry).select_worker(ProductionTask("t", JobRequirements()))
     assert decision.selected_worker is None
     assert decision.rejected_workers == (("offline", "worker state is offline"),)
+
+
+def test_unverified_engine_is_never_selected_even_when_installed():
+    registry = WorkerRegistry((record("gpu", vram=24 * 1024**3, capabilities=("video",), engines=("wan",)),))
+    decision = ComputeBroker(Scheduler(), registry).select_worker(ProductionTask("t", JobRequirements(engines=("wan",))))
+    assert decision.selected_worker is None
+    assert dict(decision.rejected_workers)["gpu"] == "required engine is not runtime verified"
 
 
 def test_no_route_is_truthful():
