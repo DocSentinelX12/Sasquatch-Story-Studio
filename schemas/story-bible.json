@@ -1,0 +1,67 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://sasquatch-story-studio.local/schemas/story-bible.json",
+  "title": "Canonical Story Bible",
+  "type": "object",
+  "required": ["id", "title", "version", "characters", "locations", "rules"],
+  "properties": {
+    "id": {"type": "string", "minLength": 1},
+    "title": {"type": "string", "minLength": 1},
+    "version": {"type": "string", "minLength": 1},
+    "characters": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/character"},
+      "uniqueItems": true
+    },
+    "locations": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/location"},
+      "uniqueItems": true
+    },
+    "rules": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/rule"},
+      "uniqueItems": true
+    },
+    "style": {"type": "object", "additionalProperties": true},
+    "provenance": {"type": "object", "additionalProperties": true}
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "character": {
+      "type": "object",
+      "required": ["id", "name"],
+      "properties": {
+        "id": {"type": "string", "minLength": 1},
+        "name": {"type": "string", "minLength": 1},
+        "role": {"type": "string"},
+        "description": {"type": "string"},
+        "traits": {"type": "array", "items": {"type": "string"}},
+        "constraints": {"type": "array", "items": {"type": "string"}}
+      },
+      "additionalProperties": false
+    },
+    "location": {
+      "type": "object",
+      "required": ["id", "name"],
+      "properties": {
+        "id": {"type": "string", "minLength": 1},
+        "name": {"type": "string", "minLength": 1},
+        "description": {"type": "string"},
+        "constraints": {"type": "array", "items": {"type": "string"}}
+      },
+      "additionalProperties": false
+    },
+    "rule": {
+      "type": "object",
+      "required": ["id", "statement", "severity"],
+      "properties": {
+        "id": {"type": "string", "minLength": 1},
+        "statement": {"type": "string", "minLength": 1},
+        "severity": {"enum": ["canonical", "high", "medium", "low"]},
+        "source_excerpt": {"type": "string"}
+      },
+      "additionalProperties": false
+    }
+  }
+}
