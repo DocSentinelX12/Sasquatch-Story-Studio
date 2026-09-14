@@ -55,8 +55,11 @@ class LocalEngineAdapter:
         return ProductionResponse(self.engine.id, tuple(output_refs), provenance)
 
 def _supported_stages(capabilities: Sequence[str]) -> set[str]:
-    mapping = {"video_generation": {"animate"}, "image_generation": {"resolve_assets", "animate"}, "animation": {"animate"}, "compositing": {"composite"}}
-    return set().union(*(mapping.get(capability, set()) for capability in capabilities))
+    mapping = {"video_generation": {"animate"}, "image_generation": {"resolve_assets", "animate"}, "animation": {"animate"}, "compositing": {"composite"}, "rendering": {"master"}, "editing": {"edit"}, "voice": {"dialogue"}, "lip_sync": {"lip_sync"}}
+    stages: set[str] = set()
+    for capability in capabilities:
+        stages.update(mapping.get(capability, set()))
+    return stages
 
 def _validated_outputs(outputs: Any, workdir: Path) -> list[str]:
     if not isinstance(outputs, list):
