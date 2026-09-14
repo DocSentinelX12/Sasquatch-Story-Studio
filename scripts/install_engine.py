@@ -168,7 +168,7 @@ def install(engine_id: str, with_models: bool) -> None:
         models = []
         if with_models:
             model = root / "ltxv-2b-0.9.8-distilled.safetensors"; hf_download("Lightricks/LTX-Video", root, "ltxv-2b-0.9.8-distilled.safetensors"); models = [model]
-        run(sys.executable, "inference.py", "--help", cwd=root, timeout=180); evidence(engine_id, "https://github.com/Lightricks/LTX-Video", root, models, []); return
+        run(sys.executable, "inference.py", "--help", cwd=root, timeout=180); evidence(engine_id, "https://github.com/Lightricks/LTX-Video", ROOT / engine_id, models, []); return
 
     if engine_id == "piper":
         run(sys.executable, "-m", "pip", "install", "piper-tts==1.8.0", timeout=1800); data_dir = ROOT / engine_id / "voices"; data_dir.mkdir(parents=True, exist_ok=True); run(sys.executable, "-m", "piper.download_voices", "en_US-lessac-medium", "--data-dir", str(data_dir), timeout=1800); model = data_dir / "en_US-lessac-medium.onnx"; run(sys.executable, "-m", "piper", "--help", timeout=120); evidence(engine_id, "https://github.com/OHF-Voice/piper1-gpl", ROOT / engine_id, [model], []); return
