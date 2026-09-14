@@ -1,7 +1,9 @@
-"""Verified local ACE-Step 1.5 service adapter.
+"""ACE-Step 1.5 service adapter.
 
-The adapter talks only to a locally running ACE-Step REST service. It does not
-start a server, download models, or silently substitute another provider.
+The adapter talks only to an explicitly configured ACE-Step REST service. It
+does not start a server, download models, or silently substitute another
+provider. Runtime production verification is supplied separately by the
+engine registry after real execution and license/checkpoint evidence exists.
 """
 from __future__ import annotations
 
@@ -15,7 +17,7 @@ from urllib.parse import urljoin, urlparse
 from urllib.request import Request, urlopen
 
 from .adapters import AdapterInfo
-from .engine_registry import get_engine
+from .engine_registry import get_catalog_engine
 from .production import ProductionRequest, ProductionResponse
 
 
@@ -28,8 +30,21 @@ class AceStepServiceAdapter:
 
     @property
     def info(self) -> AdapterInfo:
-        engine = get_engine("ace-step-1.5")
-        return AdapterInfo(engine.id, engine.version_family, engine.license, engine.capabilities, True)
+        engine = get_catalog_engine("ace-step-1.5")
+        return AdapterInfo(engine.id, engine.version_family, engine.license, engine.capabilities, False)
+
+    @property
+    def is_local(self) -> bool:
+        parsed = urlparse(self.base_url)
+        return parsed.hostname in {"127.0.0.1", "localhost", "::1"}
+
+    @property
+    def uses_paid_service(self) -> bool:
+        return False
+
+    @property
+    def uses_paid_api(self) -> bool:
+        return False
 
     def _url(self, path: str) -> str:
         parsed = urlparse(self.base_url)
@@ -63,7 +78,7 @@ class AceStepServiceAdapter:
         return data.get("code") == 200 or data.get("status") in {"ok", "healthy"}
 
     def execute(self, request: ProductionRequest) -> ProductionResponse:
-        if request.stage != "sound_music":
+        if not request.stage == "sound_music":
             raise RuntimeError("ACE-Step 1.5 adapter only executes the sound_music stage")
         payload = request.payload
         output_dir = Path(str(payload.get("output_dir", ""))).expanduser().resolve()
@@ -118,11 +133,12 @@ class AceStepServiceAdapter:
                     {
                         "engine_id": self.info.id,
                         "engine_version_family": self.info.version,
-                        "official_source": get_engine(self.info.id).official_source,
+                        "official_source": get_catalog_engine(self.info.id).official_source,
                         "license": self.info.license,
                         "canonical_source_hash": request.canonical_source_hash,
                         "task_ids": task_ids,
                         "endpoint": "/release_task",
+                        "runtime_verification": "adapter execution evidence must be recorded separately before production promotion",
                     },
                 )
             time.sleep(self.poll_interval_seconds)
@@ -134,7 +150,7 @@ class AceStepServiceAdapter:
             target = urlparse(self._url(file_url))
             base = urlparse(self.base_url)
             if target.scheme != base.scheme or target.netloc != base.netloc:
-                raise RuntimeError("ACE-Step audio URL leaves the configured local service")
+                raise RuntimeError("ACE-Step audio URL leaves the configured service")
             url = target.geturl()
         else:
             url = self._url(file_url)
