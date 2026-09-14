@@ -7,7 +7,7 @@
  * fixed-width typedef spellings. On the current Ubuntu/GCC toolchain those
  * spellings are not provided by the bundled header's generated configuration
  * path, so the header fails before the aliases can be introduced later.
- * Define the compatibility names before tiffio.h is parsed.
+ * Define the compatibility names only while tiffio.h is being parsed.
  */
 #define int8 int8_t
 #define uint8 uint8_t
@@ -19,3 +19,12 @@
 #define uint64 uint64_t
 
 #include <tiffio.h>
+
+#undef int8
+#undef uint8
+#undef int16
+#undef uint16
+#undef int32
+#undef uint32
+#undef int64
+#undef uint64
