@@ -6,7 +6,6 @@ import os
 import subprocess
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Sequence
 
 from .adapters import AdapterInfo, require_verified
 from .production import ProductionRequest, ProductionResponse
@@ -14,10 +13,11 @@ from .production import ProductionRequest, ProductionResponse
 
 @dataclass(frozen=True)
 class ProcessAdapter:
-    """Execute a configured local engine command and require a real output artifact.
+    """Execute an explicitly configured engine command and require real output.
 
-    The command is supplied by the worker configuration. This class never invents
-    an executable, downloads an engine, or substitutes another provider.
+    The command may contain the literal ``{output}`` token. If present, that token
+    is replaced with the requested output path. If absent, the output path is
+    appended for backwards compatibility with the original adapter contract.
     """
 
     adapter_id: str
@@ -29,6 +29,11 @@ class ProcessAdapter:
     working_directory: str | None = None
     verified: bool = False
     timeout_seconds: int = 3600
+    quality_tier: str = "generic"
+    commercial_use_review_required: bool = False
+    is_local: bool = True
+    uses_paid_service: bool = False
+    uses_paid_api: bool = False
 
     @property
     def info(self) -> AdapterInfo:
@@ -53,7 +58,11 @@ class ProcessAdapter:
             raise RuntimeError(f"engine working directory does not exist: {workdir}")
         output.parent.mkdir(parents=True, exist_ok=True)
 
-        command = tuple(self.command) + (str(output),)
+        if "{output}" in self.command:
+            command = tuple(str(output) if item == "{output}" else item for item in self.command)
+        else:
+            command = tuple(self.command) + (str(output),)
+
         try:
             completed = subprocess.run(
                 command,
@@ -85,6 +94,8 @@ class ProcessAdapter:
                 "engine_id": self.adapter_id,
                 "engine_version": self.version,
                 "license": self.license_name,
+                "quality_tier": self.quality_tier,
+                "commercial_use_review_required": self.commercial_use_review_required,
                 "canonical_source_hash": request.canonical_source_hash,
                 "output_sha256": digest,
                 "exit_code": completed.returncode,
