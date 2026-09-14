@@ -1,8 +1,9 @@
 """Evidence-backed runtime verification for production engines.
 
-Catalog metadata never promotes an engine. Promotion requires an actual configured
-runtime, an exact version observation, a real checkpoint/model file with a hash,
-and explicit license evidence supplied by the operator or verifier.
+Verification is an observation procedure, not a flag. It records the exact
+runtime version, hashes the real checkpoint/model, executes the configured
+runtime command, and hashes the real output. Nothing in this module downloads
+or invents an engine, model, endpoint, or credential.
 """
 from __future__ import annotations
 
@@ -11,6 +12,8 @@ import subprocess
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Sequence
+
+from .engine_registry import EngineSpec, EngineVerificationRecord
 
 
 @dataclass(frozen=True)
@@ -23,7 +26,8 @@ class RuntimeEvidence:
     checkpoint_sha256: str
     license_source: str
     license_evidence: str
-    execution_verified: bool
+    runtime_output_sha256: str
+    recorded_at: int
 
     def __post_init__(self) -> None:
         required = {
@@ -35,14 +39,31 @@ class RuntimeEvidence:
             "checkpoint_sha256": self.checkpoint_sha256,
             "license_source": self.license_source,
             "license_evidence": self.license_evidence,
+            "runtime_output_sha256": self.runtime_output_sha256,
         }
         for name, value in required.items():
             if not value or not value.strip():
                 raise ValueError(f"{name} is required")
-        if len(self.checkpoint_sha256) != 64 or any(c not in "0123456789abcdef" for c in self.checkpoint_sha256.lower()):
-            raise ValueError("checkpoint_sha256 must be a SHA-256 hex digest")
-        if not self.execution_verified:
-            raise ValueError("execution_verified must be true for production evidence")
+        for name in ("checkpoint_sha256", "runtime_output_sha256"):
+            value = getattr(self, name)
+            if len(value) != 64 or any(c not in "0123456789abcdef" for c in value.lower()):
+                raise ValueError(f"{name} must be a SHA-256 hex digest")
+        if self.recorded_at < 0:
+            raise ValueError("recorded_at cannot be negative")
+
+    def to_record(self) -> EngineVerificationRecord:
+        return EngineVerificationRecord(
+            engine_id=self.engine_id,
+            engine_version=self.engine_version,
+            executable=self.executable,
+            version_observation=self.version_observation,
+            checkpoint_path=self.checkpoint_path,
+            checkpoint_sha256=self.checkpoint_sha256,
+            license_source=self.license_source,
+            license_evidence=self.license_evidence,
+            runtime_output_sha256=self.runtime_output_sha256,
+            recorded_at=self.recorded_at,
+        )
 
 
 def sha256_file(path: str | Path) -> str:
@@ -56,51 +77,83 @@ def sha256_file(path: str | Path) -> str:
     return digest.hexdigest()
 
 
-def probe_version(command: Sequence[str], *, timeout_seconds: int = 30) -> str:
-    """Run the configured version command. No executable or fallback is invented."""
+def _run(command: Sequence[str], *, cwd: Path | None, timeout_seconds: int) -> subprocess.CompletedProcess[str]:
     if not command or any(not item for item in command):
-        raise ValueError("version command is required")
+        raise ValueError("command is required")
     if timeout_seconds < 1:
         raise ValueError("timeout_seconds must be positive")
     try:
         completed = subprocess.run(
-            tuple(command),
-            check=False,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            text=True,
-            timeout=timeout_seconds,
+            tuple(command), cwd=cwd, check=False, stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE, text=True, timeout=timeout_seconds,
         )
     except FileNotFoundError as exc:
         raise RuntimeError(f"configured runtime executable is unavailable: {command[0]}") from exc
     except subprocess.TimeoutExpired as exc:
-        raise TimeoutError("configured runtime version probe timed out") from exc
+        raise TimeoutError(f"configured runtime command timed out: {command[0]}") from exc
+    if completed.returncode != 0:
+        detail = (completed.stderr or completed.stdout).strip()
+        raise RuntimeError(f"configured runtime command failed with exit code {completed.returncode}: {detail}")
+    return completed
+
+
+def probe_version(command: Sequence[str], *, timeout_seconds: int = 30) -> str:
+    """Run the configured version command and return its observed output."""
+    completed = _run(command, cwd=None, timeout_seconds=timeout_seconds)
     output = (completed.stdout or completed.stderr).strip()
-    if completed.returncode != 0 or not output:
-        raise RuntimeError(f"runtime version probe failed with exit code {completed.returncode}: {output}")
+    if not output:
+        raise RuntimeError("runtime version probe produced no output")
     return output
 
 
-def build_runtime_evidence(
+def verify_engine_runtime(
     *,
-    engine_id: str,
-    engine_version: str,
-    executable: str,
-    version_observation: str,
-    checkpoint_path: str,
+    engine: EngineSpec,
+    version_command: Sequence[str],
+    execution_command: Sequence[str],
+    checkpoint_path: str | Path,
+    output_path: str | Path,
     license_source: str,
     license_evidence: str,
-    execution_verified: bool,
+    recorded_at: int,
+    working_directory: str | Path | None = None,
+    timeout_seconds: int = 3600,
 ) -> RuntimeEvidence:
-    """Create immutable evidence only after hashing the real checkpoint/model file."""
+    """Perform a real configured verification run and return immutable evidence.
+
+    ``execution_command`` must explicitly contain the literal ``{output}``
+    placeholder. The verifier substitutes only that declared output path. The
+    command is otherwise untouched.
+    """
+    if not engine.id.strip():
+        raise ValueError("engine identity is required")
+    if not engine.runtime_command:
+        raise ValueError(f"engine {engine.id} has no runtime command")
+    if "{output}" not in tuple(execution_command):
+        raise ValueError("execution_command must contain the explicit {output} placeholder")
+    output = Path(output_path).expanduser().resolve()
+    output.parent.mkdir(parents=True, exist_ok=True)
+    workdir = Path(working_directory).expanduser().resolve() if working_directory else None
+    if workdir is not None and not workdir.is_dir():
+        raise RuntimeError(f"runtime working directory does not exist: {workdir}")
+
+    version_observation = probe_version(version_command, timeout_seconds=min(timeout_seconds, 60))
+    checkpoint = Path(checkpoint_path).expanduser().resolve()
+    checkpoint_digest = sha256_file(checkpoint)
+    command = tuple(str(item) for item in execution_command)
+    command = tuple(str(output) if item == "{output}" else item for item in command)
+    _run(command, cwd=workdir, timeout_seconds=timeout_seconds)
+    output_digest = sha256_file(output)
+
     return RuntimeEvidence(
-        engine_id=engine_id,
-        engine_version=engine_version,
-        executable=executable,
+        engine_id=engine.id,
+        engine_version=engine.version_family,
+        executable=command[0],
         version_observation=version_observation,
-        checkpoint_path=str(Path(checkpoint_path).expanduser().resolve()),
-        checkpoint_sha256=sha256_file(checkpoint_path),
+        checkpoint_path=str(checkpoint),
+        checkpoint_sha256=checkpoint_digest,
         license_source=license_source,
         license_evidence=license_evidence,
-        execution_verified=execution_verified,
+        runtime_output_sha256=output_digest,
+        recorded_at=recorded_at,
     )
