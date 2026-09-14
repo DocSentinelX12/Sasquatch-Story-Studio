@@ -1,8 +1,4 @@
-"""Verified production-engine registry.
-
-Only engines with independently verified official sources, licenses, and useful
-production capabilities are admitted. This is metadata, not an install claim.
-"""
+"""Verified production-engine registry. Generic engines are prohibited."""
 from __future__ import annotations
 from dataclasses import dataclass
 from typing import Iterable
@@ -25,6 +21,8 @@ VERIFIED_ENGINES: tuple[EngineSpec, ...] = (
     EngineSpec("opentoonz", "current", "https://github.com/opentoonz/opentoonz", "BSD-3-Clause", ("animation", "compositing"), ("OpenToonz",), "professional_2d"),
     EngineSpec("blender", "current", "https://github.com/blender/blender", "GPL-3.0-or-later", ("animation", "rendering", "compositing", "editing"), ("blender", "-b"), "professional_3d"),
     EngineSpec("comfyui", "current", "https://github.com/Comfy-Org/ComfyUI", "GPL-3.0", ("image_generation", "video_generation"), ("python", "main.py"), "high"),
+    EngineSpec("piper", "current", "https://github.com/OHF-Voice/piper1-gpl", "GPL-3.0-or-later", ("voice",), ("piper",), "production_tts", True),
+    EngineSpec("rhubarb-lip-sync", "1.14.x", "https://github.com/DanielSWolf/rhubarb-lip-sync", "MIT", ("lip_sync",), ("rhubarb",), "professional_2d"),
 )
 
 def get_engine(engine_id: str) -> EngineSpec:
@@ -37,10 +35,8 @@ def engines_for(capability: str) -> tuple[EngineSpec, ...]:
     return tuple(e for e in VERIFIED_ENGINES if capability in e.capabilities)
 
 def assert_verified_engine(engine: EngineSpec) -> None:
-    if not engine.official_source or not engine.license:
-        raise RuntimeError(f"Engine {engine.id} lacks verified provenance metadata")
-    if engine.quality_tier == "generic":
-        raise RuntimeError(f"Generic engine is prohibited: {engine.id}")
+    if not engine.official_source or not engine.license or engine.quality_tier == "generic":
+        raise RuntimeError(f"Unacceptable production engine: {engine.id}")
 
 def ids(engines: Iterable[EngineSpec] = VERIFIED_ENGINES) -> tuple[str, ...]:
     return tuple(e.id for e in engines)
