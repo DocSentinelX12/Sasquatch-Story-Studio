@@ -52,6 +52,17 @@ def test_scheduler_worker_specific_capacity_is_enforced():
     assert scheduler.choose_on_worker("gpu-2", gpu_worker, pool_power_watts=2000, now=100) is not None
 
 
+def test_scheduler_worker_specific_capacity_accounts_for_existing_leases():
+    scheduler = Scheduler([
+        Job("video-a", JobRequirements(slots=6, memory_bytes=8 * 1024**3), priority=10),
+        Job("video-b", JobRequirements(slots=6, memory_bytes=8 * 1024**3), priority=9),
+    ])
+    worker = ComputeResource("gpu-1", 16, 16 * 1024**3, gpu_count=1, vram_bytes=24 * 1024**3, logical_slots=8, scratch_bytes=20 * 1024**3)
+    assert scheduler.choose_on_worker("worker-a", worker, pool_power_watts=2000, now=100) is not None
+    assert scheduler.choose_on_worker("worker-a", worker, pool_power_watts=2000, now=100) is None
+    assert scheduler.choose_on_worker("worker-b", worker, pool_power_watts=2000, now=100) is not None
+
+
 def test_scheduler_worker_specific_power_is_checked_against_existing_leases():
     scheduler = Scheduler([
         Job("video-a", JobRequirements(power_watts=1200), priority=10),
