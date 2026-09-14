@@ -14,7 +14,7 @@ def test_opentoonz_uses_supported_version_qualifier():
     assert 'run(str(opentoonz), "-version", timeout=120)' not in script
     assert 'subprocess.run(\n        [str(executable), "-version"]' in script
     assert 'result.returncode not in (0, 1)' in script
-    assert 'OpenToonz\\s+v?(\\d+\\.\d+(?:\\.\d+)?)' in script
+    assert 'OpenToonz\\s+v?(\\d+\\.\\d+(?:\\.\\d+)?)' in script
 
 
 def test_opentoonz_version_probe_parses_observed_stdout_or_stderr():
@@ -28,3 +28,8 @@ def test_opentoonz_version_probe_does_not_mask_other_failures():
     assert 'if result.returncode not in (0, 1):' in script
     assert 'OpenToonz version probe failed with exit code' in script
     assert 'OpenToonz version probe did not report a parseable OpenToonz version' in script
+
+
+def test_ltx_evidence_is_written_to_workflow_upload_path():
+    script = Path("scripts/install_engine.py").read_text()
+    assert 'evidence(engine_id, "https://github.com/Lightricks/LTX-Video", ROOT / engine_id, models, [])' in script
