@@ -40,6 +40,7 @@ def test_director_preserves_event_and_dialogue_identity():
     assert isinstance(plan, EpisodePlan)
     assert [event.id for event in plan.scenes[0].events] == ["e1", "e2"]
     assert plan.scenes[0].shots[0].dialogue_ids == ("d1",)
+    assert any("dialogue mapping" in item for item in plan.review_items)
 
 
 def test_qc_and_release_gate():
@@ -47,7 +48,7 @@ def test_qc_and_release_gate():
     plan = build_episode_plan("story-2", "Test", interpretation)
     qc = validate_episode_plan(plan)
     assert qc.passed
-    outputs = {stage: "ok" for stage in ("interpret", "plan_episode", "build_scenes", "build_shots", "resolve_assets", "animate", "dialogue", "lip_sync", "sound_music", "composite", "edit")}
+    outputs = {stage: "ok" for stage in ("interpret", "plan_episode", "build_scenes", "build_shots", "resolve_assets", "animate", "dialogue", "lip_sync", "sound_music", "composite", "edit", "master", "archive")}
     assert validate_stage_outputs(outputs).passed
     assert release_ready(qc=qc, fidelity_passed=True, human_approved=True)
     assert not release_ready(qc=qc, fidelity_passed=True, human_approved=False)
