@@ -1,3 +1,5 @@
+import hashlib
+
 from studio.ingest import ingest_story
 from studio.interpreter import interpret_story, source_hash
 from studio.llm import LLMResponse, LLMRouter, LLMPolicy
@@ -5,6 +7,8 @@ from studio.adapters import AdapterInfo
 
 
 class FakeInterpreter:
+    """Test-only adapter. Never used by production runtime."""
+
     info = AdapterInfo(
         id="test-interpreter",
         version="1",
@@ -25,7 +29,13 @@ class FakeInterpreter:
                 "dialogue": [],
                 "review_items": [],
             },
-            provenance={"request_task": request.task},
+            provenance={
+                "request_task": request.task,
+                "provider_id": "test",
+                "model_id": "test-model",
+                "model_version": "1",
+                "canonical_source_hash": hashlib.sha256(request.canonical_source.encode("utf-8")).hexdigest(),
+            },
         )
 
     def execute(self, request):
