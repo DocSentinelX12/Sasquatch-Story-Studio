@@ -89,6 +89,28 @@ def install_wan_dependencies(root: Path) -> None:
     run(sys.executable, "-c", "import torch; print('torch', torch.__version__, 'cuda', torch.cuda.is_available())", timeout=120)
 
 
+def verify_wan_software(root: Path) -> str:
+    """Verify Wan source without falsely treating a CPU worker as a GPU runtime.
+
+    Wan's upstream generator initializes CUDA while importing the module. A
+    standard GitHub CPU runner therefore cannot truthfully execute --help.
+    We still compile every Python source file, and only perform the import-level
+    smoke check when CUDA is actually available.
+    """
+    run(sys.executable, "-m", "compileall", "-q", ".", cwd=root, timeout=600)
+    cuda = run(
+        sys.executable,
+        "-c",
+        "import torch; print('1' if torch.cuda.is_available() else '0')",
+        cwd=root,
+        timeout=120,
+    ).stdout.strip()
+    if cuda == "1":
+        run(sys.executable, "generate.py", "--help", cwd=root, timeout=180)
+        return "CUDA is available; the real Wan generator entrypoint was import/execution smoke-checked."
+    return "CUDA is unavailable; all Wan Python sources were compiled, and generator import was not attempted because upstream initializes CUDA at import time."
+
+
 def install_comfyui_dependencies(root: Path) -> None:
     """Install ComfyUI on a CPU CI worker without pulling CUDA wheels."""
     run(sys.executable, "-m", "pip", "install", "torch", "torchvision", "torchaudio", "--index-url", "https://download.pytorch.org/whl/cpu", timeout=3600)
@@ -148,11 +170,15 @@ def install(engine_id: str, with_models: bool) -> None:
             cwd=build, timeout=1800)
         run("cmake", "--build", ".", "--parallel", str(max(2, os.cpu_count() or 2)), cwd=build, timeout=3600)
         run("sudo", "cmake", "--install", ".", cwd=build, timeout=1800)
-        run("/opt/opentoonz/bin/opentoonz", "--version", timeout=120)
+        opentoonz = Path("/opt/opentoonz/bin/opentoonz")
+        if not opentoonz.is_file() or not os.access(opentoonz, os.X_OK):
+            raise RuntimeError(f"OpenToonz install completed without an executable at {opentoonz}")
+        run(str(opentoonz), "--version", timeout=120)
         evidence(engine_id, "https://github.com/opentoonz/opentoonz", ROOT / engine_id, [], [
             "Built OpenToonz's bundled thirdparty/tiff-4.0.3 with its own configure/make path.",
             "CMake is explicitly bound to the resulting bundled libtiff library and headers; the system libtiff is not used.",
             "Translation generation is disabled for the CI software build because upstream documents WITH_TRANSLATION=OFF as the workaround for duplicate Qt translation build rules.",
+            "The installed OpenToonz executable is required to exist and be executable before installation evidence is written.",
         ])
         return
 
@@ -206,8 +232,8 @@ def install(engine_id: str, with_models: bool) -> None:
                 raise RuntimeError(f"{engine_id} model download produced no files")
         else:
             models = []
-        run(sys.executable, "-m", "py_compile", "generate.py", cwd=root / repo, timeout=180)
-        evidence(engine_id, f"https://github.com/Wan-Video/{repo}", root, models, ["Model download is opt-in because standard GitHub-hosted workers have limited disk. flash_attn is omitted on CPU-only installation workers.", "The CI software check compiles the real entrypoint without importing it, because the upstream entrypoint initializes CUDA at module import and a standard CPU worker cannot honestly be treated as a Wan runtime worker."])
+        wan_note = verify_wan_software(root / repo)
+        evidence(engine_id, f"https://github.com/Wan-Video/{repo}", root, models, ["Model download is opt-in because standard GitHub-hosted workers have limited disk. flash_attn is omitted on CPU-only installation workers.", wan_note])
         return
 
     if engine_id == "ltx-video":
@@ -247,17 +273,3 @@ def install(engine_id: str, with_models: bool) -> None:
         return
 
     raise ValueError(f"unsupported engine: {engine_id}")
-
-
-def main() -> int:
-    parser = argparse.ArgumentParser()
-    parser.add_argument("engine", choices=("blender", "opentoonz", "rhubarb-lip-sync", "piper", "comfyui", "wan2.1", "wan2.2", "ltx-video", "ace-step-1.5"))
-    parser.add_argument("--with-models", action="store_true", help="Download engine checkpoints/models on a worker with sufficient storage.")
-    args = parser.parse_args()
-    install(args.engine, args.with_models)
-    print(json.dumps({"engine_id": args.engine, "status": "installed", "runtime_verified": False, "models_requested": args.with_models}, indent=2))
-    return 0
-
-
-if __name__ == "__main__":
-    raise SystemExit(main())
