@@ -31,7 +31,7 @@ class EngineSpec:
 ENGINE_CATALOG: tuple[EngineSpec, ...] = (
     EngineSpec("wan2.2", "2.2", "https://github.com/Wan-Video/Wan2.2", "Apache-2.0", ("video_generation", "image_generation"), ("python", "generate.py"), "very_high"),
     EngineSpec("wan2.1", "2.1", "https://github.com/Wan-Video/Wan2.1", "Apache-2.0", ("video_generation", "image_generation"), ("python", "generate.py"), "high"),
-    EngineSpec("ltx-video", "0.9.x", "https://github.com/Runware/LTX-Video", "Apache-2.0 repository; OpenRail-M for v0.9.5 checkpoint", ("video_generation",), ("python", "inference.py"), "high", True),
+    EngineSpec("ltx-video", "0.9.8", "https://github.com/Lightricks/LTX-Video", "Apache-2.0 repository; checkpoint license must be verified for the selected model", ("video_generation",), ("python", "inference.py"), "high", True),
     EngineSpec("opentoonz", "current", "https://github.com/opentoonz/opentoonz", "BSD-3-Clause", ("animation", "compositing"), ("OpenToonz",), "professional_2d"),
     EngineSpec("blender", "current", "https://github.com/blender/blender", "GPL-3.0-or-later", ("animation", "rendering", "compositing", "editing"), ("blender", "-b"), "professional_3d"),
     EngineSpec("comfyui", "current", "https://github.com/Comfy-Org/ComfyUI", "GPL-3.0", ("image_generation", "video_generation"), ("python", "main.py"), "high"),
@@ -41,8 +41,6 @@ ENGINE_CATALOG: tuple[EngineSpec, ...] = (
 )
 
 CATALOG_ENGINES = ENGINE_CATALOG
-# Static production verification is intentionally empty. Runtime evidence is
-# promoted through RuntimeEngineRegistry after a real verification procedure.
 VERIFIED_ENGINES: tuple[EngineSpec, ...] = ()
 
 
