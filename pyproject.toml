@@ -3,7 +3,9 @@ name = "sasquatch-story-studio"
 version = "0.1.0"
 description = "Local-first, story-faithful animation production pipeline"
 requires-python = ">=3.11"
-dependencies = []
+dependencies = [
+  "huggingface_hub>=1.0,<2",
+]
 
 [project.scripts]
 sasquatch-studio = "studio.cli:main"
