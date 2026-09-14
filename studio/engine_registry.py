@@ -1,8 +1,7 @@
 """Verified production-engine registry.
 
-Only engines whose official source, declared license, and required capability
-have been independently verified belong here. This registry does not claim an
-engine is installed on the host.
+Only engines with independently verified official sources, licenses, and useful
+production capabilities are admitted. This is metadata, not an install claim.
 """
 from __future__ import annotations
 from dataclasses import dataclass
@@ -21,25 +20,11 @@ class EngineSpec:
     territory_restriction: str | None = None
 
 VERIFIED_ENGINES: tuple[EngineSpec, ...] = (
-    EngineSpec(
-        id="wan2.1", version_family="2.1",
-        official_source="https://github.com/Wan-Video/Wan2.1",
-        license="Apache-2.0",
-        capabilities=("video_generation", "image_generation"),
-        runtime_command=("python", "generate.py"), quality_tier="high",
-    ),
-    EngineSpec(
-        id="ltx-video", version_family="0.9.x",
-        official_source="https://github.com/Lightricks/LTX-Video",
-        license="Apache-2.0", capabilities=("video_generation",),
-        runtime_command=("python", "inference.py"), quality_tier="high",
-    ),
-    EngineSpec(
-        id="opentoonz", version_family="current",
-        official_source="https://github.com/opentoonz/opentoonz",
-        license="BSD-3-Clause", capabilities=("animation", "compositing"),
-        runtime_command=("OpenToonz",), quality_tier="professional_2d",
-    ),
+    EngineSpec("wan2.1", "2.1", "https://github.com/Wan-Video/Wan2.1", "Apache-2.0", ("video_generation", "image_generation"), ("python", "generate.py"), "high"),
+    EngineSpec("ltx-video", "0.9.x", "https://github.com/Runware/LTX-Video", "Apache-2.0", ("video_generation",), ("python", "inference.py"), "high"),
+    EngineSpec("opentoonz", "current", "https://github.com/opentoonz/opentoonz", "BSD-3-Clause", ("animation", "compositing"), ("OpenToonz",), "professional_2d"),
+    EngineSpec("blender", "current", "https://github.com/blender/blender", "GPL-3.0-or-later", ("animation", "rendering", "compositing", "editing"), ("blender", "-b"), "professional_3d"),
+    EngineSpec("comfyui", "current", "https://github.com/Comfy-Org/ComfyUI", "GPL-3.0", ("image_generation", "video_generation"), ("python", "main.py"), "high"),
 )
 
 def get_engine(engine_id: str) -> EngineSpec:
