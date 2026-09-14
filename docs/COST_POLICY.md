@@ -4,17 +4,18 @@ Sasquatch Story Studio is designed so production does not depend on paid subscri
 
 ## Required architecture
 
-- Production inference runs locally.
-- LLMs are local and license-verified.
-- Image, video, animation, voice, lip-sync, music, compositing, editing, and rendering use locally installed verified engines.
-- Remote model execution is disabled by policy.
+- Production work may run on locally controlled machines or on explicitly configured, genuinely free remote compute resources.
+- Remote resources are optional and may have quotas, session limits, queues, storage limits, bandwidth limits, or availability restrictions.
+- LLMs remain local and license-verified under the separate LLM policy.
+- Image, video, animation, voice, lip-sync, music, compositing, editing, and rendering use verified engines and explicit runtime evidence.
 - Paid APIs and paid hosted services are disabled by policy.
 - Unknown or unverified licenses are rejected.
-- Missing local runtimes fail loudly. The studio never substitutes a paid service or simulates success.
+- Missing runtimes fail loudly. The studio never substitutes a paid service or simulates success.
+- Free remote access is never assumed merely because a provider offers a free tier. The resource must be explicitly configured, reachable, and observed as available before work is routed there.
 
-## What this does not promise
+## Zero-dollar boundary
 
-Software can be free while the computer running it still has ordinary costs such as electricity, storage, internet access, and hardware. The policy means the studio itself does not require recurring vendor fees or generation credits.
+The studio itself does not require recurring vendor fees, generation credits, paid GPU rental, paid hosted storage, or metered inference. This does not make hardware, electricity, storage media, internet access, or third-party free-tier availability unlimited.
 
 ## Licensing rule
 
