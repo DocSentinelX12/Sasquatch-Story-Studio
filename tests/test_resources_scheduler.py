@@ -44,6 +44,24 @@ def test_scheduler_does_not_overbook_shared_slots_or_power():
     assert scheduler.choose("worker-b", snapshot(), now=100) is None
 
 
+def test_scheduler_worker_specific_capacity_is_enforced():
+    scheduler = Scheduler([Job("video-gpu", JobRequirements(slots=2, vram_bytes=16 * 1024**3, capabilities=("video_generation",), engines=("wan2.2",)))])
+    cpu_worker = ComputeResource("cpu-1", 16, 32 * 1024**3, capabilities=("animation",), logical_slots=8)
+    gpu_worker = ComputeResource("gpu-2", 16, 32 * 1024**3, gpu_count=1, vram_bytes=24 * 1024**3, capabilities=("video_generation",), installed_engines=("wan2.2",), logical_slots=8)
+    assert scheduler.choose_on_worker("cpu-1", cpu_worker, pool_power_watts=2000, now=100) is None
+    assert scheduler.choose_on_worker("gpu-2", gpu_worker, pool_power_watts=2000, now=100) is not None
+
+
+def test_scheduler_worker_specific_power_is_checked_against_existing_leases():
+    scheduler = Scheduler([
+        Job("video-a", JobRequirements(power_watts=1200), priority=10),
+        Job("video-b", JobRequirements(power_watts=1000), priority=9),
+    ])
+    worker = snapshot().compute[0]
+    assert scheduler.choose_on_worker("worker-a", worker, pool_power_watts=1500, now=100) is not None
+    assert scheduler.choose_on_worker("worker-b", worker, pool_power_watts=1500, now=100) is None
+
+
 def test_scheduler_persists_and_restores_leases(tmp_path: Path):
     db = tmp_path / "scheduler.sqlite3"
     store = SQLiteSchedulerStore(db)
@@ -116,3 +134,9 @@ def test_worker_heartbeat_persists_health_state(tmp_path: Path):
     restored = store.load()
     assert restored.snapshot()[0].heartbeat.healthy is False
     assert restored.healthy_resources() == ()
+
+
+def test_worker_lookup_returns_observed_worker():
+    worker = Worker("worker-a", snapshot().compute[0], WorkerHeartbeat("worker-a", 10))
+    registry = WorkerRegistry([worker])
+    assert registry.get("worker-a") == worker
