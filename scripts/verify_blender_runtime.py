@@ -10,6 +10,12 @@ import sys
 import tempfile
 from pathlib import Path
 
+# Make this repository script directly runnable from any working directory.
+# The production package lives at the repository root, not inside scripts/.
+REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
+if str(REPOSITORY_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPOSITORY_ROOT))
+
 from studio.artifact_bridge import ArtifactCommitter, ArtifactLineageStore
 from studio.artifacts import ContentAddressedStore
 from studio.production import ProductionResponse
