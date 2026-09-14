@@ -12,7 +12,6 @@ from .worker_registry import WorkerState
 
 
 class DispatchState(StrEnum):
-    LEASED = "leased"
     COMPLETED = "completed"
     FAILED = "failed"
     REQUEUED = "requeued"
@@ -56,7 +55,7 @@ class WorkerFabric:
             return DispatchRecord(task.id, job.id, worker_id, DispatchState.COMPLETED, result.output_refs)
         if result.state in (WorkerResultState.UNAVAILABLE, WorkerResultState.REJECTED):
             if result.state == WorkerResultState.UNAVAILABLE:
-                self.broker.registry.mark_unavailable(worker_id, WorkerState.TEMPORARILY_UNAVAILABLE, result.error or "worker unavailable")
+                self.broker.registry.mark_unavailable(worker_id, WorkerState.TEMPORARILY_UNAVAILABLE, quota_note=result.error or "worker unavailable")
             self.broker.scheduler.requeue(job.id, worker_id)
             return DispatchRecord(task.id, job.id, worker_id, DispatchState.REQUEUED, error=result.error)
         self.broker.scheduler.fail(job.id, worker_id)
