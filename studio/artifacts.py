@@ -4,6 +4,7 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import uuid
 from dataclasses import dataclass
 from pathlib import Path
 from typing import BinaryIO
@@ -37,6 +38,10 @@ class ContentAddressedStore:
             raise ValueError("invalid artifact digest")
         return self.objects / digest[:2] / digest[2:]
 
+    @staticmethod
+    def _temporary_path(destination: Path) -> Path:
+        return destination.with_name(f".{destination.name}.{uuid.uuid4().hex}.tmp")
+
     def put_bytes(self, data: bytes) -> ArtifactRef:
         digest = hashlib.sha256(data).hexdigest()
         destination = self._path(digest)
@@ -45,12 +50,18 @@ class ContentAddressedStore:
             if destination.stat().st_size != len(data) or not self.verify(ArtifactRef(digest, len(data), str(destination))):
                 raise IOError("content-addressed object exists but failed integrity verification")
             return ArtifactRef(digest, len(data), str(destination))
-        temporary = destination.with_name(f".{destination.name}.{os.getpid()}.tmp")
+        temporary = self._temporary_path(destination)
         try:
             temporary.write_bytes(data)
             if hashlib.sha256(temporary.read_bytes()).hexdigest() != digest:
                 raise IOError("artifact verification failed before commit")
-            os.replace(temporary, destination)
+            try:
+                os.link(temporary, destination)
+            except FileExistsError:
+                if destination.stat().st_size != len(data) or not self.verify(ArtifactRef(digest, len(data), str(destination))):
+                    raise IOError("concurrent artifact write failed integrity verification")
+            finally:
+                temporary.unlink(missing_ok=True)
         finally:
             temporary.unlink(missing_ok=True)
         ref = ArtifactRef(digest, len(data), str(destination))
@@ -74,14 +85,20 @@ class ContentAddressedStore:
             if not self.verify(ref):
                 raise IOError("content-addressed object exists but failed integrity verification")
             return ref
-        temporary = destination.with_name(f".{destination.name}.{os.getpid()}.tmp")
+        temporary = self._temporary_path(destination)
         try:
             with source_path.open("rb") as source_stream, temporary.open("wb") as target:
                 while chunk := source_stream.read(chunk_size):
                     target.write(chunk)
             if not self.verify(ArtifactRef(artifact_digest, size, str(temporary))):
                 raise IOError("artifact verification failed before commit")
-            os.replace(temporary, destination)
+            try:
+                os.link(temporary, destination)
+            except FileExistsError:
+                if not self.verify(ref):
+                    raise IOError("concurrent artifact write failed integrity verification")
+            finally:
+                temporary.unlink(missing_ok=True)
         finally:
             temporary.unlink(missing_ok=True)
         if not self.verify(ref):
@@ -138,6 +155,6 @@ class ReplicaManifest:
             {"digest": item.digest, "replica_id": item.replica_id, "verified": item.verified}
             for item in sorted(records.values(), key=lambda item: (item.digest, item.replica_id))
         ]
-        temporary = self.path.with_name(f".{self.path.name}.tmp")
+        temporary = self.path.with_name(f".{self.path.name}.{uuid.uuid4().hex}.tmp")
         temporary.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
         os.replace(temporary, self.path)
