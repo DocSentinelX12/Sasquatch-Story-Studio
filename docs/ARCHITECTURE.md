@@ -39,6 +39,12 @@ AI engines are adapters, not the source of truth. An adapter receives a typed sh
 
 Future adapters should cover text interpretation, image generation, video generation, character animation, voice, lip sync, music, sound effects, upscaling, and quality analysis. Each adapter must declare license, model version, runtime requirements, input/output contract, and deterministic controls where available.
 
+## Licensing and provenance gate
+
+An engine or model is not commercially usable merely because its repository is public. The studio records the official source, version family, declared license, commercial-use status, attribution obligations, and territory restrictions. Engine registry entries that require commercial review cannot pass the commercial license gate automatically. Checkpoint licenses are treated separately from repository licenses when the verified source documents distinguish them.
+
+Production responses must carry provider or engine identity, version, official source, license information, and the canonical source hash. Missing or mismatched provenance is a hard production failure.
+
 ## Elastic local production fabric
 
 Compute, storage, and power are observed resources, not invented capacity. Workers advertise their actual CPU, memory, GPU, VRAM, installed engines, logical slots, scratch space, health, and telemetry. Worker observations are durably persisted locally. Scheduler leases are durable and recoverable, and work may only be assigned to a specific worker when that worker itself satisfies the job's compute requirements. Shared power is admitted from observed sustained capacity, never from assumed capacity.
