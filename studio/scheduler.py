@@ -8,7 +8,7 @@ from enum import StrEnum
 from pathlib import Path
 from typing import Iterable
 
-from .resources import ResourceSnapshot
+from .resources import ComputeResource, ResourceSnapshot
 
 
 class JobState(StrEnum):
@@ -75,6 +75,38 @@ class Scheduler:
         reserved = tuple(job.requirements for job in self._jobs.values() if job.state == JobState.LEASED)
         for job in candidates:
             if not _fits(job.requirements, resources, reserved):
+                continue
+            leased = Job(job.id, job.requirements, job.priority, JobState.LEASED, worker_id, now + lease_seconds)
+            self._jobs[job.id] = leased
+            return leased
+        return None
+
+    def choose_on_worker(
+        self,
+        worker_id: str,
+        worker_resource: ComputeResource,
+        pool_power_watts: int,
+        now: int,
+        lease_seconds: int = 900,
+    ) -> Job | None:
+        """Lease work only when that specific worker has the compute capacity.
+
+        Power is checked against the observed shared pool because power can feed
+        multiple workers. A job's slots, memory, VRAM, scratch, capabilities, and
+        engines must all fit on the selected worker itself.
+        """
+        if not worker_id.strip() or lease_seconds < 1 or pool_power_watts < 0:
+            raise ValueError("worker_id, lease duration, and power must be valid")
+        if not worker_resource.healthy:
+            return None
+        candidates = sorted((j for j in self._jobs.values() if j.state == JobState.QUEUED), key=lambda j: (-j.priority, j.id))
+        reserved = tuple(job.requirements for job in self._jobs.values() if job.state == JobState.LEASED)
+        worker_snapshot = ResourceSnapshot(compute=(worker_resource,), power=())
+        for job in candidates:
+            reserved_power = sum(item.power_watts for item in reserved)
+            if pool_power_watts - reserved_power < job.requirements.power_watts:
+                continue
+            if not _fits(job.requirements, worker_snapshot, reserved=()):
                 continue
             leased = Job(job.id, job.requirements, job.priority, JobState.LEASED, worker_id, now + lease_seconds)
             self._jobs[job.id] = leased
