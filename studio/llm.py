@@ -8,6 +8,7 @@ from dataclasses import dataclass, field
 from typing import Any, Protocol
 
 from .adapters import AdapterInfo, ProductionAdapter, require_verified
+from .cost_policy import require_local_zero_cost
 
 
 @dataclass(frozen=True)
@@ -59,11 +60,12 @@ class LLMPolicy:
     prefer_local: bool = True
     allow_remote: bool = False
     allow_unknown_license: bool = False
+    allow_paid_api: bool = False
     max_temperature: float = 0.7
 
 
 class LLMRouter:
-    """Select only verified, policy-eligible LLM adapters."""
+    """Select only verified, local, policy-eligible LLM adapters."""
 
     def __init__(self, adapters: list[LLMAdapter], policy: LLMPolicy | None = None):
         self.adapters = adapters
@@ -86,12 +88,13 @@ class LLMRouter:
     def choose(self, task: str) -> LLMAdapter:
         candidates = self.eligible(task)
         if not candidates:
-            raise RuntimeError(f"No policy-eligible verified LLM adapter is available for task: {task}")
+            raise RuntimeError(f"No policy-eligible verified local LLM adapter is available for task: {task}")
         if self.policy.prefer_local:
             local = [a for a in candidates if "local" in a.info.capabilities]
             if local:
+                require_local_zero_cost(is_local=True, uses_paid_api=self.policy.allow_paid_api)
                 return local[0]
-        return candidates[0]
+        raise RuntimeError("Zero-cost policy requires a local LLM adapter")
 
     def generate(self, request: LLMRequest) -> LLMResponse:
         request.validate(self.policy.max_temperature)
@@ -99,6 +102,7 @@ class LLMRouter:
         response = adapter.generate(request)
         if not response.provenance:
             raise RuntimeError("LLM adapter returned no provenance")
+        response.provenance.setdefault("cost_policy", "zero_recurring_cost_local_only")
         return response
 
 
