@@ -14,7 +14,13 @@ def test_opentoonz_uses_supported_version_qualifier():
     assert 'run(str(opentoonz), "-version", timeout=120)' not in script
     assert 'subprocess.run(\n        [str(executable), "-version"]' in script
     assert 'result.returncode not in (0, 1)' in script
-    assert 'OpenToonz\\s+v?(\\d+\\.\\d+(?:\\.\\d+)?)' in script
+    assert 'OpenToonz\\s+v?(\\d+\\.\d+(?:\\.\d+)?)' in script
+
+
+def test_opentoonz_version_probe_parses_observed_stdout_or_stderr():
+    script = Path("scripts/install_engine.py").read_text()
+    assert 'observed_output = "\\n".join(part for part in (result.stdout, result.stderr) if part)' in script
+    assert 're.search(r"OpenToonz\\s+v?(\\d+\\.\\d+(?:\\.\\d+)?)", observed_output)' in script
 
 
 def test_opentoonz_version_probe_does_not_mask_other_failures():
