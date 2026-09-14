@@ -27,13 +27,18 @@ jobs:
           sudo apt-get install -y blender
       - name: Verify Blender by rendering a real frame
         run: python3 scripts/verify_blender_runtime.py
-      - name: Publish real Blender evidence
+      - name: Verify real Piper voice runtime
+        run: python3 scripts/verify_piper_runtime.py
+      - name: Publish real runtime evidence
         uses: actions/upload-artifact@v4
         with:
-          name: blender-runtime-evidence
+          name: real-engine-runtime-evidence
           path: |
             blender-runtime-evidence.json
             blender-runtime-render.png
             blender-runtime-source.blend
             blender-runtime-artifacts/**
+            piper-runtime-evidence.json
+            piper-runtime.wav
+            piper-runtime-artifacts-evidence/**
           if-no-files-found: error
