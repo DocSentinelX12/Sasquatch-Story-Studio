@@ -8,12 +8,15 @@ import shutil
 import subprocess
 import sys
 from pathlib import Path
+from urllib.request import urlopen
 
 from studio.artifact_bridge import ArtifactCommitter, ArtifactLineageStore
 from studio.artifacts import ContentAddressedStore
 from studio.production import ProductionResponse
 
 VOICE = "en_US-lessac-medium"
+MODEL_SHA256 = "5efe09e69902187827af646e1a6e9d269dee769f9877d17b16b1b46eeaaf019f"
+MODEL_CARD_URL = "https://huggingface.co/rhasspy/piper-voices/resolve/main/en/en_US/lessac/medium/MODEL_CARD"
 
 
 def sha256_file(path: Path) -> str:
@@ -48,13 +51,21 @@ def main() -> int:
 
     model = data_dir / f"{VOICE}.onnx"
     config = data_dir / f"{VOICE}.onnx.json"
-    model_card = data_dir / "en_US" / "lessac" / "medium" / "MODEL_CARD"
+    model_card = data_dir / "MODEL_CARD"
     if not model.is_file() or model.stat().st_size == 0:
         raise RuntimeError("Piper voice model was not downloaded as a real non-empty file")
     if not config.is_file() or config.stat().st_size == 0:
         raise RuntimeError("Piper voice configuration was not downloaded")
-    if not model_card.is_file() or model_card.stat().st_size == 0:
-        raise RuntimeError("Piper voice MODEL_CARD was not downloaded")
+
+    actual_model_hash = sha256_file(model)
+    if actual_model_hash != MODEL_SHA256:
+        raise RuntimeError(
+            f"Piper voice checksum mismatch: expected {MODEL_SHA256}, got {actual_model_hash}"
+        )
+
+    model_card.write_bytes(urlopen(MODEL_CARD_URL, timeout=30).read())
+    if model_card.stat().st_size == 0:
+        raise RuntimeError("Piper voice MODEL_CARD download was empty")
 
     output = Path("piper-runtime.wav")
     synthesis = run(
@@ -77,7 +88,6 @@ def main() -> int:
 
     source_hash = sha256_file(Path(__file__))
     output_hash = sha256_file(output)
-    model_hash = sha256_file(model)
     model_card_text = model_card.read_text(errors="replace")
     response = ProductionResponse(
         "piper",
@@ -91,7 +101,7 @@ def main() -> int:
             "commercial_use_review_required": True,
             "canonical_source_hash": source_hash,
             "output_sha256": output_hash,
-            "model_sha256": model_hash,
+            "model_sha256": actual_model_hash,
             "model_card": model_card_text,
             "exit_code": synthesis.returncode,
         },
@@ -110,7 +120,7 @@ def main() -> int:
         "executable": f"{sys.executable} -m piper",
         "version_observation": install.stdout.strip() or install.stderr.strip(),
         "checkpoint_path": str(model),
-        "checkpoint_sha256": model_hash,
+        "checkpoint_sha256": actual_model_hash,
         "license_source": "https://github.com/OHF-Voice/piper1-gpl",
         "license_evidence": "Piper is GPL-3.0-or-later; this voice's MODEL_CARD is preserved and commercial use remains review-required.",
         "runtime_output_sha256": output_hash,
@@ -119,6 +129,7 @@ def main() -> int:
         "artifact_lineage_stage": "dialogue",
         "voice": VOICE,
         "voice_model_card_sha256": sha256_file(model_card),
+        "voice_model_card_source": MODEL_CARD_URL,
         "commercial_use_review_required": True,
         "output_bytes": output.stat().st_size,
     }
