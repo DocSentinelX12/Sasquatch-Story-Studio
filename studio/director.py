@@ -119,7 +119,7 @@ def build_episode_plan(story_id: str, title: str, interpretation: dict[str, Any]
             )
             assigned_dialogue.update(scene_level)
             review_items.append(
-                f"CREATIVE REVIEW REQUIRED: scene {scene_id} dialogue has no explicit event or shot binding; "
+                f"CREATIVE REVIEW REQUIRED: scene {scene_id} dialogue mapping is not explicit; "
                 f"preserved as a scene-level dialogue anchor on {first.id}: {scene_level}."
             )
 
