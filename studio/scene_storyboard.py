@@ -11,7 +11,7 @@ from dataclasses import asdict, dataclass, field
 from typing import Any
 
 from .contracts import content_hash, require_nonempty_string
-from .models import EpisodePlan
+from .models import EpisodePlan, Scene, Shot
 from .story_bible import StoryBible, StoryBibleIntegrityError
 
 
@@ -188,6 +188,64 @@ def build_storyboard(plan: EpisodePlan, bible: StoryBible) -> Storyboard:
         episode_plan_hash=content_hash(plan.to_dict()),
         scenes=scenes,
         shots=shots,
+    )
+
+
+def reorder_shots(plan: EpisodePlan, scene_id: str, ordered_shot_ids: tuple[str, ...]) -> EpisodePlan:
+    """Reorder storyboard cards without allowing a drag to rewrite story chronology.
+
+    The proposed order must contain exactly the existing shot ids. Because the
+    current episode-plan contract maps shots to canonical events, the resulting
+    event sequence must remain identical to the existing sequence. This makes
+    drag-reorder real while preventing a UI operation from silently rewriting canon.
+    """
+    scene_index = next((index for index, scene in enumerate(plan.scenes) if scene.id == scene_id), None)
+    if scene_index is None:
+        raise StoryboardIntegrityError(f"unknown scene: {scene_id}")
+    scene = plan.scenes[scene_index]
+    existing_ids = tuple(shot.id for shot in scene.shots)
+    if len(ordered_shot_ids) != len(existing_ids) or set(ordered_shot_ids) != set(existing_ids):
+        raise StoryboardIntegrityError("reorder must contain every existing shot exactly once")
+    by_id = {shot.id: shot for shot in scene.shots}
+    original_events = tuple(event_id for shot in scene.shots for event_id in shot.required_events)
+    proposed_events = tuple(event_id for shot_id in ordered_shot_ids for event_id in by_id[shot_id].required_events)
+    if proposed_events != original_events:
+        raise StoryboardIntegrityError("shot reorder would change canonical story event order")
+    reordered = tuple(
+        Shot(
+            id=by_id[shot_id].id,
+            scene_id=by_id[shot_id].scene_id,
+            order=index,
+            purpose=by_id[shot_id].purpose,
+            duration_seconds=by_id[shot_id].duration_seconds,
+            characters=by_id[shot_id].characters,
+            location_id=by_id[shot_id].location_id,
+            required_events=by_id[shot_id].required_events,
+            dialogue_ids=by_id[shot_id].dialogue_ids,
+            camera=by_id[shot_id].camera,
+            animation=by_id[shot_id].animation,
+            sound=by_id[shot_id].sound,
+        )
+        for index, shot_id in enumerate(ordered_shot_ids, start=1)
+    )
+    scenes = list(plan.scenes)
+    scenes[scene_index] = Scene(
+        id=scene.id,
+        order=scene.order,
+        description=scene.description,
+        location_id=scene.location_id,
+        time_of_day=scene.time_of_day,
+        characters=scene.characters,
+        events=scene.events,
+        shots=reordered,
+    )
+    return EpisodePlan(
+        id=plan.id,
+        story_id=plan.story_id,
+        title=plan.title,
+        scenes=tuple(scenes),
+        fidelity_notes=plan.fidelity_notes,
+        review_items=plan.review_items,
     )
 
 
