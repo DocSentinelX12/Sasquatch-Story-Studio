@@ -4,8 +4,8 @@
   "title": "Storyboard Shot Package",
   "type": "object",
   "required": [
-    "id", "scene_id", "order", "version", "purpose", "story_event_ids", "dialogue_ids",
-    "character_ids", "location_id", "prop_ids", "action", "performance", "camera", "composition",
+    "id", "scene_id", "order", "version", "shot_type", "purpose", "story_event_ids", "dialogue_ids",
+    "dialogue_narration_ids", "character_ids", "location_id", "prop_ids", "action", "performance", "camera", "composition",
     "visual_style", "lighting_weather", "continuity", "negative_constraints", "sound_music",
     "duration_seconds", "references", "validation", "approval_state", "overrides", "provenance"
   ],
@@ -14,9 +14,11 @@
     "scene_id": {"type": "string", "minLength": 1},
     "order": {"type": "integer", "minimum": 1},
     "version": {"type": "integer", "minimum": 1},
+    "shot_type": {"type": "string", "minLength": 1},
     "purpose": {"type": "string", "minLength": 1},
     "story_event_ids": {"type": "array", "items": {"type": "string"}},
     "dialogue_ids": {"type": "array", "items": {"type": "string"}},
+    "dialogue_narration_ids": {"type": "array", "items": {"type": "string"}},
     "character_ids": {"type": "array", "items": {"type": "string"}},
     "location_id": {"type": ["string", "null"]},
     "prop_ids": {"type": "array", "items": {"type": "string"}},
