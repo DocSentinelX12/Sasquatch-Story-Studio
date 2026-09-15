@@ -66,12 +66,13 @@ def build_episode_plan(story_id: str, title: str, interpretation: dict[str, Any]
                 character_values.setdefault(character_id, reference)
                 event_characters.append(character_values[character_id])
 
-            # Dialogue belongs to a shot only when the interpretation explicitly binds it
-            # to this event. Order-only fallback mapping was removed because it can silently
-            # put dialogue on the wrong action.
+            # Explicit event or shot bindings are authoritative. A dialogue item that
+            # is only scene-bound is preserved on the first shot as a scene-level
+            # dialogue anchor, and the required review item makes the unresolved
+            # timing decision auditable instead of silently inventing event ownership.
             event_dialogue = tuple(
                 item["id"] for item in scene_dialogue
-                if item.get("event_id") == event["id"]
+                if item.get("event_id") == event["id"] or item.get("shot_id") == f"{scene_id}-shot-{canonical_order:03d}"
             )
             assigned_dialogue.update(event_dialogue)
             duration = max(0.1, float(event.get("duration_seconds", 2.0)))
@@ -82,7 +83,6 @@ def build_episode_plan(story_id: str, title: str, interpretation: dict[str, Any]
                     order=canonical_order,
                     purpose=f"Depict canonical event {event['id']} without changing its meaning.",
                     duration_seconds=duration,
-                    # Only characters explicitly attached to this event belong in this shot.
                     characters=tuple(event_characters),
                     location_id=event.get("location_id"),
                     required_events=(event["id"],),
@@ -93,9 +93,38 @@ def build_episode_plan(story_id: str, title: str, interpretation: dict[str, Any]
                 )
             )
 
+        # Scene-level dialogue has no canonical event ownership. Preserve its identity
+        # deterministically on the first shot while requiring an explicit production
+        # review before timing can be considered final.
+        scene_level = tuple(
+            item["id"]
+            for item in scene_dialogue
+            if "event_id" not in item and "shot_id" not in item
+        )
+        if scene_level and shots:
+            first = shots[0]
+            shots[0] = Shot(
+                id=first.id,
+                scene_id=first.scene_id,
+                order=first.order,
+                purpose=first.purpose,
+                duration_seconds=first.duration_seconds,
+                characters=first.characters,
+                location_id=first.location_id,
+                required_events=first.required_events,
+                dialogue_ids=tuple((*first.dialogue_ids, *scene_level)),
+                camera=first.camera,
+                animation=first.animation,
+                sound=first.sound,
+            )
+            assigned_dialogue.update(scene_level)
+            review_items.append(
+                f"CREATIVE REVIEW REQUIRED: scene {scene_id} dialogue has no explicit event or shot binding; "
+                f"preserved as a scene-level dialogue anchor on {first.id}: {scene_level}."
+            )
+
         unassigned = tuple(item["id"] for item in scene_dialogue if item["id"] not in assigned_dialogue)
         if unassigned:
-            # Preserve unmapped dialogue as a review item. Never attach it to an arbitrary shot.
             review_items.append(
                 f"CREATIVE REVIEW REQUIRED: scene {scene_id} dialogue mapping is not explicit; "
                 f"dialogue remains unassigned: {unassigned}."
