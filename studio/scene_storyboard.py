@@ -192,13 +192,7 @@ def build_storyboard(plan: EpisodePlan, bible: StoryBible) -> Storyboard:
 
 
 def reorder_shots(plan: EpisodePlan, scene_id: str, ordered_shot_ids: tuple[str, ...]) -> EpisodePlan:
-    """Reorder storyboard cards without allowing a drag to rewrite story chronology.
-
-    The proposed order must contain exactly the existing shot ids. Because the
-    current episode-plan contract maps shots to canonical events, the resulting
-    event sequence must remain identical to the existing sequence. This makes
-    drag-reorder real while preventing a UI operation from silently rewriting canon.
-    """
+    """Reorder storyboard cards without allowing a drag to rewrite story chronology."""
     scene_index = next((index for index, scene in enumerate(plan.scenes) if scene.id == scene_id), None)
     if scene_index is None:
         raise StoryboardIntegrityError(f"unknown scene: {scene_id}")
@@ -310,11 +304,11 @@ def make_shot_package(
     bible: StoryBible,
     shot_id: str,
     version: int,
-    shot_type: str,
+    shot_type: str = "action",
     purpose: str,
     story_event_ids: tuple[str, ...],
     dialogue_ids: tuple[str, ...],
-    dialogue_narration_ids: tuple[str, ...],
+    dialogue_narration_ids: tuple[str, ...] = (),
     character_ids: tuple[str, ...],
     location_id: str | None,
     prop_ids: tuple[str, ...],
@@ -334,7 +328,11 @@ def make_shot_package(
     overrides: tuple[dict[str, Any], ...] = (),
     provenance: dict[str, Any] | None = None,
 ) -> ShotPackage:
-    """Materialize a shot package only from supplied production decisions."""
+    """Materialize a shot package only from supplied production decisions.
+
+    The advanced shot_type and dialogue_narration_ids fields remain first-class,
+    while defaults preserve compatibility with earlier Stage 4 callers.
+    """
     scene_id = plan_scene_id(plan, shot_id)
     scene = next(scene for scene in plan.scenes if scene.id == scene_id)
     shot = next(shot for shot in scene.shots if shot.id == shot_id)
