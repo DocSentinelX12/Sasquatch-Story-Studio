@@ -24,7 +24,7 @@ jobs:
       - name: Install real Blender engine
         run: |
           sudo apt-get update
-          sudo apt-get install -y blender
+          sudo apt-get install -y blender libegl1
       - name: Verify Blender by rendering a real frame
         run: python3 scripts/verify_blender_runtime.py
       - name: Publish real runtime evidence
