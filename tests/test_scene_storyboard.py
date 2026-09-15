@@ -4,6 +4,7 @@ from studio.scene_storyboard import (
     StoryboardIntegrityError,
     build_storyboard,
     make_shot_package,
+    reorder_shots,
     validate_episode_plan_for_storyboard,
 )
 from studio.story_system import build_episode_draft
@@ -42,6 +43,16 @@ def test_storyboard_rejects_missing_scene_description():
     )
     with pytest.raises(StoryboardIntegrityError, match="description"):
         validate_episode_plan_for_storyboard(broken, bible)
+
+
+def test_safe_shot_reorder_preserves_canonical_event_sequence():
+    story, bible = _story_and_bible()
+    draft = build_episode_draft(story, bible, _interpretation(story))
+    original = draft.plan.scenes[0].shots
+    same_order = reorder_shots(draft.plan, "s1", tuple(shot.id for shot in original))
+    assert [shot.id for shot in same_order.scenes[0].shots] == [shot.id for shot in original]
+    with pytest.raises(StoryboardIntegrityError, match="canonical story event order"):
+        reorder_shots(draft.plan, "s1", tuple(shot.id for shot in reversed(original)))
 
 
 def test_shot_package_requires_real_production_sections_and_references():
