@@ -1,0 +1,40 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://sasquatch-story-studio.local/schemas/storyboard-shot-package.json",
+  "title": "Storyboard Shot Package",
+  "type": "object",
+  "required": [
+    "id", "scene_id", "order", "version", "purpose", "story_event_ids", "dialogue_ids",
+    "character_ids", "location_id", "prop_ids", "action", "performance", "camera", "composition",
+    "visual_style", "lighting_weather", "continuity", "negative_constraints", "sound_music",
+    "duration_seconds", "references", "validation", "approval_state", "overrides", "provenance"
+  ],
+  "properties": {
+    "id": {"type": "string", "minLength": 1},
+    "scene_id": {"type": "string", "minLength": 1},
+    "order": {"type": "integer", "minimum": 1},
+    "version": {"type": "integer", "minimum": 1},
+    "purpose": {"type": "string", "minLength": 1},
+    "story_event_ids": {"type": "array", "items": {"type": "string"}},
+    "dialogue_ids": {"type": "array", "items": {"type": "string"}},
+    "character_ids": {"type": "array", "items": {"type": "string"}},
+    "location_id": {"type": ["string", "null"]},
+    "prop_ids": {"type": "array", "items": {"type": "string"}},
+    "action": {"type": "string", "minLength": 1},
+    "performance": {"type": "string", "minLength": 1},
+    "camera": {"type": "object"},
+    "composition": {"type": "string", "minLength": 1},
+    "visual_style": {"type": "object"},
+    "lighting_weather": {"type": "object"},
+    "continuity": {"type": "array", "items": {"type": "string"}},
+    "negative_constraints": {"type": "array", "items": {"type": "string"}},
+    "sound_music": {"type": "object"},
+    "duration_seconds": {"type": "number", "exclusiveMinimum": 0},
+    "references": {"type": "array", "minItems": 1, "items": {"type": "string", "minLength": 1}},
+    "validation": {"type": "object", "minProperties": 1},
+    "approval_state": {"enum": ["draft", "review", "approved", "rejected", "remake_required"]},
+    "overrides": {"type": "array", "items": {"type": "object"}},
+    "provenance": {"type": "object"}
+  },
+  "additionalProperties": false
+}
