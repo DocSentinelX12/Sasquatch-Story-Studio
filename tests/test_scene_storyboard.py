@@ -6,7 +6,6 @@ from studio.scene_storyboard import (
     make_shot_package,
     validate_episode_plan_for_storyboard,
 )
-from studio.story_bible import build_story_bible
 from studio.story_system import build_episode_draft
 from tests.test_story_system import _interpretation, _story_and_bible
 
@@ -54,9 +53,11 @@ def test_shot_package_requires_real_production_sections_and_references():
         bible=bible,
         shot_id=shot.id,
         version=1,
+        shot_type="establishing",
         purpose="Establish Yeti entering the forest.",
         story_event_ids=("e1",),
         dialogue_ids=(),
+        dialogue_narration_ids=(),
         character_ids=("yeti",),
         location_id="forest",
         prop_ids=(),
@@ -74,6 +75,7 @@ def test_shot_package_requires_real_production_sections_and_references():
         validation={"story_event_bound": True, "references_resolved": True},
     )
     assert package.version == 1
+    assert package.shot_type == "establishing"
     assert package.content_hash()
 
 
@@ -87,9 +89,11 @@ def test_shot_package_rejects_unknown_canon_reference():
             bible=bible,
             shot_id=shot.id,
             version=1,
+            shot_type="wide",
             purpose="Test",
             story_event_ids=("e1",),
             dialogue_ids=(),
+            dialogue_narration_ids=(),
             character_ids=("invented",),
             location_id="forest",
             prop_ids=(),
