@@ -21,19 +21,17 @@ class StoryboardIntegrityError(ValueError):
 
 @dataclass(frozen=True)
 class ShotPackage:
-    """The complete creator/director-facing contract for one production shot.
-
-    The fields are intentionally explicit. The studio may propose values, but
-    absent values are not silently fabricated here.
-    """
+    """Complete creator/director-facing contract for one production shot."""
 
     id: str
     scene_id: str
     order: int
     version: int
+    shot_type: str
     purpose: str
     story_event_ids: tuple[str, ...]
     dialogue_ids: tuple[str, ...]
+    dialogue_narration_ids: tuple[str, ...]
     character_ids: tuple[str, ...]
     location_id: str | None
     prop_ids: tuple[str, ...]
@@ -195,12 +193,16 @@ def build_storyboard(plan: EpisodePlan, bible: StoryBible) -> Storyboard:
 
 def validate_shot_package(package: ShotPackage, plan: EpisodePlan, bible: StoryBible) -> None:
     """Fail closed unless the package is completely bound to canonical data."""
-    require_nonempty_string(package.id, "id", "shot_package")
-    require_nonempty_string(package.scene_id, "scene_id", "shot_package")
-    require_nonempty_string(package.purpose, "purpose", "shot_package")
-    require_nonempty_string(package.action, "action", "shot_package")
-    require_nonempty_string(package.performance, "performance", "shot_package")
-    require_nonempty_string(package.composition, "composition", "shot_package")
+    for value, field_name in (
+        (package.id, "id"),
+        (package.scene_id, "scene_id"),
+        (package.shot_type, "shot_type"),
+        (package.purpose, "purpose"),
+        (package.action, "action"),
+        (package.performance, "performance"),
+        (package.composition, "composition"),
+    ):
+        require_nonempty_string(value, field_name, "shot_package")
     if package.order < 1 or package.version < 1:
         raise StoryboardIntegrityError("shot package order and version must be positive integers")
     if package.duration_seconds <= 0:
@@ -217,6 +219,11 @@ def validate_shot_package(package: ShotPackage, plan: EpisodePlan, bible: StoryB
     scene = next((scene for scene in plan.scenes if scene.id == package.scene_id), None)
     if scene is None:
         raise StoryboardIntegrityError(f"shot package references unknown scene: {package.scene_id}")
+    shot = next((shot for shot in scene.shots if shot.id == package.id), None)
+    if shot is None:
+        raise StoryboardIntegrityError(f"shot package references unknown shot: {package.id}")
+    if package.order != shot.order:
+        raise StoryboardIntegrityError(f"shot package order does not match canonical shot order: {package.id}")
     scene_event_ids = {event.id for event in scene.events}
     unknown_events = set(package.story_event_ids) - scene_event_ids
     if unknown_events:
@@ -227,9 +234,9 @@ def validate_shot_package(package: ShotPackage, plan: EpisodePlan, bible: StoryB
         for candidate_shot in candidate_scene.shots
         for dialogue_id in candidate_shot.dialogue_ids
     }
-    unknown_dialogue = set(package.dialogue_ids) - plan_dialogue_ids
+    unknown_dialogue = (set(package.dialogue_ids) | set(package.dialogue_narration_ids)) - plan_dialogue_ids
     if unknown_dialogue:
-        raise StoryboardIntegrityError(f"shot package references unknown dialogue ids: {sorted(unknown_dialogue)}")
+        raise StoryboardIntegrityError(f"shot package references unknown dialogue/narration ids: {sorted(unknown_dialogue)}")
     unknown_characters = set(package.character_ids) - bible.character_ids()
     if unknown_characters:
         raise StoryboardIntegrityError(f"shot package references unknown characters: {sorted(unknown_characters)}")
@@ -245,9 +252,11 @@ def make_shot_package(
     bible: StoryBible,
     shot_id: str,
     version: int,
+    shot_type: str,
     purpose: str,
     story_event_ids: tuple[str, ...],
     dialogue_ids: tuple[str, ...],
+    dialogue_narration_ids: tuple[str, ...],
     character_ids: tuple[str, ...],
     location_id: str | None,
     prop_ids: tuple[str, ...],
@@ -268,18 +277,19 @@ def make_shot_package(
     provenance: dict[str, Any] | None = None,
 ) -> ShotPackage:
     """Materialize a shot package only from supplied production decisions."""
-    scene = next((scene for scene in plan.scenes if scene.id == plan_scene_id(plan, shot_id)), None)
-    if scene is None:
-        raise StoryboardIntegrityError(f"unknown shot id: {shot_id}")
+    scene_id = plan_scene_id(plan, shot_id)
+    scene = next(scene for scene in plan.scenes if scene.id == scene_id)
     shot = next(shot for shot in scene.shots if shot.id == shot_id)
     package = ShotPackage(
         id=shot.id,
         scene_id=shot.scene_id,
         order=shot.order,
         version=version,
+        shot_type=shot_type,
         purpose=purpose,
         story_event_ids=story_event_ids,
         dialogue_ids=dialogue_ids,
+        dialogue_narration_ids=dialogue_narration_ids,
         character_ids=character_ids,
         location_id=location_id,
         prop_ids=prop_ids,
