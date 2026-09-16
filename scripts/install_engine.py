@@ -7,8 +7,10 @@ import hashlib
 import json
 import os
 import re
+import shutil
 import subprocess
 import sys
+import wave
 from pathlib import Path
 
 ROOT = Path("engine-installations")
@@ -96,6 +98,112 @@ def hf_download(repo: str, destination: Path, *patterns: str) -> None:
     run("hf", "download", repo, *patterns, "--local-dir", str(destination), timeout=3600)
 
 
+def install_piper_voice(data_dir: Path) -> list[Path]:
+    """Acquire and verify a Piper voice through the official Hugging Face client.
+
+    Piper 1.8.0's bundled downloader uses urllib against a Hugging Face resolve
+    URL. The CI failure was an HTTP 499 from that path. The Hugging Face Hub
+    client is already independently verified in this workflow, and supports the
+    same official voice repository with commit-aware downloads. We therefore use
+    the supported Hub client directly, then validate the voice manifest before
+    allowing Piper to run.
+    """
+    from huggingface_hub import HfApi, hf_hub_download
+
+    repo = "rhasspy/piper-voices"
+    voice = "en_US-lessac-medium"
+    voice_dir = data_dir / voice
+    voice_dir.mkdir(parents=True, exist_ok=True)
+    files = [
+        "en/en_US/lessac/medium/en_US-lessac-medium.onnx",
+        "en/en_US/lessac/medium/en_US-lessac-medium.onnx.json",
+        "en/en_US/lessac/medium/MODEL_CARD",
+        "voices.json",
+    ]
+
+    api = HfApi()
+    revision = api.model_info(repo, revision="main").sha
+    print(f"Piper voice repository revision: {revision}", flush=True)
+
+    staging = data_dir / ".piper-hf-download"
+    if staging.exists():
+        shutil.rmtree(staging)
+    staging.mkdir(parents=True, exist_ok=True)
+    try:
+        for filename in files:
+            cached = hf_hub_download(repo_id=repo, filename=filename, revision=revision, local_dir=staging)
+            print(f"Downloaded {filename} from {cached}", flush=True)
+
+        manifest_path = staging / "voices.json"
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+        entry = manifest.get(voice)
+        if not isinstance(entry, dict) or not isinstance(entry.get("files"), dict):
+            raise RuntimeError(f"Piper voice {voice} is missing from the official voices.json manifest")
+
+        expected = entry["files"]
+        selected = {
+            "en_US-lessac-medium.onnx": "en/en_US/lessac/medium/en_US-lessac-medium.onnx",
+            "en_US-lessac-medium.onnx.json": "en/en_US/lessac/medium/en_US-lessac-medium.onnx.json",
+            "MODEL_CARD": "en/en_US/lessac/medium/MODEL_CARD",
+        }
+        installed: list[Path] = []
+        for basename, relative in selected.items():
+            source = staging / relative
+            target = voice_dir / basename
+            if not source.is_file() or source.stat().st_size == 0:
+                raise RuntimeError(f"official Piper voice file was not downloaded: {relative}")
+            shutil.copyfile(source, target)
+            manifest_entry = expected.get(relative)
+            if not isinstance(manifest_entry, dict):
+                raise RuntimeError(f"official Piper manifest has no file record for {relative}")
+            expected_size = manifest_entry.get("size_bytes")
+            expected_md5 = manifest_entry.get("md5_digest")
+            actual_md5 = hashlib.md5(target.read_bytes()).hexdigest()
+            if expected_size != target.stat().st_size or expected_md5 != actual_md5:
+                raise RuntimeError(
+                    f"Piper voice integrity mismatch for {basename}: "
+                    f"expected size/md5 {expected_size}/{expected_md5}, "
+                    f"got {target.stat().st_size}/{actual_md5}"
+                )
+            installed.append(target)
+
+        revision_record = voice_dir / "source-revision.txt"
+        revision_record.write_text(revision + "\n", encoding="utf-8")
+        installed.append(revision_record)
+        return installed
+    finally:
+        shutil.rmtree(staging, ignore_errors=True)
+
+
+def verify_piper_runtime(data_dir: Path, model: Path) -> str:
+    """Perform real local Piper synthesis and validate the resulting WAV."""
+    output = data_dir / "piper-runtime-smoke.wav"
+    if output.exists():
+        output.unlink()
+    run(
+        sys.executable,
+        "-m",
+        "piper",
+        "-m",
+        str(model),
+        "-f",
+        str(output),
+        "--",
+        "This is a local Piper runtime verification for the Sasquatch Story Studio.",
+        timeout=300,
+    )
+    if not output.is_file() or output.stat().st_size == 0:
+        raise RuntimeError("Piper runtime completed without a non-empty WAV output")
+    with wave.open(str(output), "rb") as wav_file:
+        channels = wav_file.getnchannels()
+        sample_width = wav_file.getsampwidth()
+        sample_rate = wav_file.getframerate()
+        frames = wav_file.getnframes()
+        if channels <= 0 or sample_width <= 0 or sample_rate <= 0 or frames <= 0:
+            raise RuntimeError("Piper runtime produced an invalid or empty WAV")
+    return f"Local Piper synthesis succeeded: {output.name}, {sample_rate} Hz, {channels} channel(s), {frames} frames."
+
+
 def install_wan_dependencies(root: Path) -> None:
     run(sys.executable, "-m", "pip", "install", "torch", "torchvision", "--index-url", "https://download.pytorch.org/whl/cpu", timeout=3600)
     lines = [line.strip() for line in (root / "requirements.txt").read_text().splitlines() if line.strip() and not line.lstrip().startswith("#")]
@@ -171,7 +279,21 @@ def install(engine_id: str, with_models: bool) -> None:
         run(sys.executable, "inference.py", "--help", cwd=root, timeout=180); evidence(engine_id, "https://github.com/Lightricks/LTX-Video", ROOT / engine_id, models, []); return
 
     if engine_id == "piper":
-        run(sys.executable, "-m", "pip", "install", "piper-tts==1.8.0", timeout=1800); data_dir = ROOT / engine_id / "voices"; data_dir.mkdir(parents=True, exist_ok=True); run(sys.executable, "-m", "piper.download_voices", "en_US-lessac-medium", "--data-dir", str(data_dir), timeout=1800); model = data_dir / "en_US-lessac-medium.onnx"; run(sys.executable, "-m", "piper", "--help", timeout=120); evidence(engine_id, "https://github.com/OHF-Voice/piper1-gpl", ROOT / engine_id, [model], []); return
+        run(sys.executable, "-m", "pip", "install", "piper-tts==1.8.0", timeout=1800)
+        data_dir = ROOT / engine_id / "voices"
+        data_dir.mkdir(parents=True, exist_ok=True)
+        voice_files = install_piper_voice(data_dir)
+        model = data_dir / "en_US-lessac-medium" / "en_US-lessac-medium.onnx"
+        runtime_note = verify_piper_runtime(data_dir, model)
+        notes = [
+            "Piper 1.8.0 installed successfully.",
+            "Voice acquisition uses the official Hugging Face Hub client instead of Piper 1.8.0's urllib downloader, which failed in CI with HTTP 499.",
+            "The official voices.json manifest was used to validate file size and MD5 for the ONNX model, config, and MODEL_CARD.",
+            f"Voice repository revision recorded at {data_dir / 'en_US-lessac-medium' / 'source-revision.txt'}.",
+            runtime_note,
+        ]
+        evidence(engine_id, "https://github.com/OHF-Voice/piper1-gpl", ROOT / engine_id, voice_files, notes)
+        return
 
     if engine_id == "rhubarb-lip-sync":
         run("sudo", "apt-get", "update", timeout=1800); run("sudo", "apt-get", "install", "-y", "build-essential", "cmake", "libboost-all-dev", "openjdk-17-jdk", timeout=1800); source_dir = ROOT / engine_id / "source"; clone("https://github.com/DanielSWolf/rhubarb-lip-sync.git", source_dir); build = source_dir / "build"; build.mkdir(parents=True, exist_ok=True); run("cmake", "..", "-DCMAKE_BUILD_TYPE=Release", cwd=build, timeout=1800); run("cmake", "--build", ".", "--target", "rhubarb", "--config", "Release", "--parallel", str(max(2, os.cpu_count() or 2)), cwd=build, timeout=3600); binary = next((p for p in build.rglob("rhubarb") if p.is_file()), None)
