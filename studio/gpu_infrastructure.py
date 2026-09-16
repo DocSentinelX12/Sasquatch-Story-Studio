@@ -15,6 +15,8 @@ import subprocess
 from dataclasses import asdict, dataclass
 from typing import Callable, Sequence
 
+from .nccl_evidence import NCCLTestEvidence
+
 
 @dataclass(frozen=True)
 class GpuDeviceObservation:
@@ -48,6 +50,7 @@ class GpuHostObservation:
     dcgm_available: bool
     dcgm_version: str | None
     health_json: str | None
+    nccl_evidence: NCCLTestEvidence | None = None
 
     def __post_init__(self) -> None:
         if not self.worker_id.strip():
@@ -66,6 +69,9 @@ class GpuHostObservation:
     def canonical_json(self) -> str:
         payload = asdict(self)
         payload["gpus"] = [asdict(gpu) for gpu in self.gpus]
+        if self.nccl_evidence is not None:
+            payload["nccl_evidence"]["command"] = list(self.nccl_evidence.command)
+            payload["nccl_evidence"]["gpu_uuids"] = list(self.nccl_evidence.gpu_uuids)
         return json.dumps(payload, sort_keys=True, separators=(",", ":"))
 
     def digest(self) -> str:
