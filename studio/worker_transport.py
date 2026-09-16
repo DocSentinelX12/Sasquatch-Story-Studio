@@ -1,4 +1,4 @@
-"""Authenticated TLS transport contracts for remote GPU workers.
+"""Authenticated TLS transport for remote GPU workers and artifacts.
 
 The transport does not generate certificates or secrets. Credentials must be
 provisioned outside source control and referenced by filesystem paths or the
@@ -6,6 +6,7 @@ runtime environment.
 """
 from __future__ import annotations
 
+import hashlib
 import json
 import ssl
 import urllib.error
@@ -61,6 +62,12 @@ class SecureWorkerClient:
         self.security = security
         self._opener = opener or urllib.request.build_opener(urllib.request.HTTPSHandler(context=security.ssl_context()))
 
+    def _open(self, request: urllib.request.Request):
+        try:
+            return self._opener.open(request, timeout=30)
+        except urllib.error.URLError as exc:
+            raise RuntimeError(f"worker transport failed: {exc}") from exc
+
     def post_json(self, path: str, payload: Mapping[str, Any], *, bearer_token: str) -> dict[str, Any]:
         if not bearer_token.strip():
             raise ValueError("bearer_token is required")
@@ -77,11 +84,8 @@ class SecureWorkerClient:
                 "Authorization": f"Bearer {bearer_token}",
             },
         )
-        try:
-            with self._opener.open(request, timeout=30) as response:
-                raw = response.read()
-        except urllib.error.URLError as exc:
-            raise RuntimeError(f"worker transport failed: {exc}") from exc
+        with self._open(request) as response:
+            raw = response.read()
         try:
             decoded = json.loads(raw.decode("utf-8"))
         except (UnicodeDecodeError, json.JSONDecodeError) as exc:
@@ -89,3 +93,37 @@ class SecureWorkerClient:
         if not isinstance(decoded, dict):
             raise RuntimeError("worker transport response must be a JSON object")
         return decoded
+
+    def get_bytes(
+        self,
+        path: str,
+        *,
+        bearer_token: str,
+        expected_digest: str,
+        offset: int,
+        size_bytes: int,
+    ) -> bytes:
+        if not bearer_token.strip():
+            raise ValueError("bearer_token is required")
+        if not path.startswith("/"):
+            raise ValueError("worker endpoint path must start with /")
+        if offset < 0 or size_bytes < 0:
+            raise ValueError("artifact offset and size must be non-negative")
+        if len(expected_digest) != 64 or any(c not in "0123456789abcdef" for c in expected_digest):
+            raise ValueError("expected artifact digest must be a lowercase SHA-256 digest")
+        request = urllib.request.Request(
+            self.security.base_url.rstrip("/") + path,
+            method="GET",
+            headers={
+                "Accept": "application/octet-stream",
+                "Authorization": f"Bearer {bearer_token}",
+                "Range": f"bytes={offset}-{offset + size_bytes - 1}" if size_bytes else f"bytes={offset}-{offset}",
+            },
+        )
+        with self._open(request) as response:
+            data = response.read()
+        if len(data) != size_bytes:
+            raise IOError("remote artifact chunk size does not match the requested range")
+        if hashlib.sha256(data).hexdigest() != expected_digest:
+            raise IOError("remote artifact chunk failed SHA-256 verification")
+        return data
