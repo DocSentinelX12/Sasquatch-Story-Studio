@@ -111,6 +111,23 @@ def parse_nvidia_smi_header(output: str) -> tuple[str, str]:
     return match.group(1), match.group(2)
 
 
+def classify_dcgm_health(output: str | None) -> str:
+    """Classify only the explicit overall DCGM health result."""
+    if not output:
+        return "unknown"
+    for line in output.splitlines():
+        normalized = " ".join(line.strip().split()).lower()
+        if "overall health" not in normalized:
+            continue
+        if "failure" in normalized:
+            return "failure"
+        if "warning" in normalized:
+            return "warning"
+        if "healthy" in normalized:
+            return "healthy"
+    return "unknown"
+
+
 Runner = Callable[[Sequence[str]], subprocess.CompletedProcess[str]]
 
 
