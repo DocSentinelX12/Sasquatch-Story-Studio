@@ -2,7 +2,7 @@ from studio.compute_broker import ComputeBroker, ProductionTask
 from studio.gpu_infrastructure import GpuDeviceObservation, GpuHostObservation
 from studio.hardware_requirements import GpuPlacement, HardwareRequirements
 from studio.resources import ComputeResource
-from studio.scheduler import JobRequirements, JobState, Scheduler
+from studio.scheduler import Job, JobRequirements, JobState, Scheduler
 from studio.worker_registry import WorkerRecord, WorkerRegistry, WorkerState
 
 
@@ -149,9 +149,8 @@ def test_lease_binds_the_requested_task_and_exact_gpu_allocation():
 def test_overlapping_gpu_allocation_is_rejected_by_scheduler():
     scheduler = Scheduler()
     resource = ComputeResource("gpu-resource", 16, 32 * 1024**3, gpu_count=1, vram_bytes=96 * 1024**3, logical_slots=4)
-    first = ProductionTask("first", JobRequirements())
-    second = ProductionTask("second", JobRequirements())
-    scheduler.submit(scheduler_job := __import__("studio.scheduler", fromlist=["Job"]).Job("first", first.requirements))
-    scheduler.submit(__import__("studio.scheduler", fromlist=["Job"]).Job("second", second.requirements))
+    scheduler.submit(Job("first", JobRequirements()))
+    scheduler.submit(Job("second", JobRequirements()))
+
     assert scheduler.choose_on_worker("gpu", resource, 0, now=1, gpu_uuids=("GPU-0",), job_id="first") is not None
     assert scheduler.choose_on_worker("gpu", resource, 0, now=1, gpu_uuids=("GPU-0",), job_id="second") is None
