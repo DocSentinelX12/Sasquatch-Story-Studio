@@ -103,9 +103,16 @@ class ComputeBroker:
             return decision, None
         worker = self.registry.get(decision.selected_worker)
         power_budget = worker.resource.power_budget_watts or 0
-        job = self.scheduler.choose_on_worker(worker.id, worker.resource, power_budget, now, lease_seconds)
+        job = self.scheduler.choose_on_worker(
+            worker.id,
+            worker.resource,
+            power_budget,
+            now,
+            lease_seconds,
+            job_id=task.id,
+        )
         if job is None:
-            return BrokerDecision(task.id, decision.eligible_workers, decision.rejected_workers, None, "eligible capacity is currently reserved"), None
+            return BrokerDecision(task.id, decision.eligible_workers, decision.rejected_workers, None, "requested task is not currently leaseable", decision.selected_gpu_uuids), None
         return decision, job
 
     def release_or_requeue(self, job_id: str, now: int) -> bool:
