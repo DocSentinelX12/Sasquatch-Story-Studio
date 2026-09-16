@@ -3,7 +3,7 @@ import sys
 
 import pytest
 
-from scripts.verify_hunyuanvideo15_runtime import build_execution_command
+from scripts.verify_hunyuanvideo15_runtime import build_execution_command, require_cuda
 
 
 def test_hunyuan_execution_command_is_explicit_and_real():
@@ -37,9 +37,7 @@ def test_hunyuan_command_never_uses_a_remote_paid_api():
     assert "https://" not in joined
 
 
-def test_hunyuan_runtime_script_requires_cuda_before_claiming_runtime_verification(monkeypatch, tmp_path: Path):
-    import scripts.verify_hunyuanvideo15_runtime as verifier
-
+def test_hunyuan_runtime_guard_rejects_non_cuda_runtime(monkeypatch):
     class FakeCuda:
         @staticmethod
         def is_available() -> bool:
@@ -48,14 +46,6 @@ def test_hunyuan_runtime_script_requires_cuda_before_claiming_runtime_verificati
     class FakeTorch:
         cuda = FakeCuda()
 
-    monkeypatch.setitem(__import__("sys").modules, "torch", FakeTorch())
-    repo = tmp_path / "repo"
-    repo.mkdir()
-    (repo / "generate.py").write_text("", encoding="utf-8")
-    model = tmp_path / "model"
-    model.mkdir()
-    (model / "weights.bin").write_bytes(b"real test fixture")
-
-    monkeypatch.setattr(verifier, "_git_revision", lambda _: "test-revision")
+    monkeypatch.setitem(sys.modules, "torch", FakeTorch())
     with pytest.raises(RuntimeError, match="CUDA GPU"):
-        verifier.main.__wrapped__ if False else verifier._git_revision
+        require_cuda()
