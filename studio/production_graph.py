@@ -34,8 +34,11 @@ def _scene_data(plan: EpisodePlan, scene: Scene) -> dict[str, object]:
 
 
 def _shot_data(plan: EpisodePlan, scene: Scene, shot: Shot) -> dict[str, object]:
-    """Return the complete canonical state owned by the shot itself."""
+    """Return complete JSON-compatible canonical state owned by the shot."""
     data = asdict(shot)
+    data["characters"] = [asdict(character) for character in shot.characters]
+    data["required_events"] = list(shot.required_events)
+    data["dialogue_ids"] = list(shot.dialogue_ids)
     data["episode_id"] = plan.id
     data["scene_id"] = scene.id
     return data
