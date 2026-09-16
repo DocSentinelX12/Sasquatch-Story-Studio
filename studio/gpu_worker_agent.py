@@ -28,6 +28,13 @@ class GpuWorkerAgent:
             raise RuntimeError("hardware observation identity does not match worker identity")
         return observation
 
+    @staticmethod
+    def _topology_digest(observation: GpuHostObservation) -> str | None:
+        if not observation.topology_text:
+            return None
+        import hashlib
+        return hashlib.sha256(observation.topology_text.encode("utf-8")).hexdigest()
+
     def registration_payload(self) -> dict[str, Any]:
         observation = self.observe()
         return {
@@ -38,7 +45,10 @@ class GpuWorkerAgent:
             "gpu_count": observation.gpu_count,
             "gpu_uuids": tuple(gpu.uuid for gpu in observation.gpus),
             "gpu_models": tuple(gpu.name for gpu in observation.gpus),
+            "topology_digest": self._topology_digest(observation),
             "dcgm_available": observation.dcgm_available,
+            "dcgm_version": observation.dcgm_version,
+            "health_evidence_present": observation.health_json is not None,
         }
 
     def heartbeat_payload(self) -> dict[str, Any]:
@@ -47,8 +57,11 @@ class GpuWorkerAgent:
             "worker_id": self.worker_id,
             "hardware_observation_digest": observation.digest(),
             "gpu_count": observation.gpu_count,
+            "gpu_uuids": tuple(gpu.uuid for gpu in observation.gpus),
+            "topology_digest": self._topology_digest(observation),
             "health_evidence": "dcgm_health_check" if observation.health_json else "nvidia_smi_inventory_only",
             "dcgm_available": observation.dcgm_available,
+            "dcgm_version": observation.dcgm_version,
         }
 
     def register_remote(self, transport: WorkerControlTransport, enrollment_token: str) -> WorkerAccess:
