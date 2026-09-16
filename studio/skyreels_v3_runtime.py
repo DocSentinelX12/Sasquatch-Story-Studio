@@ -50,7 +50,11 @@ def build_skyreels_r2v_command(
     if low_vram and offload:
         raise ValueError("SkyReels low_vram and offload are mutually exclusive in the studio bridge")
 
-    refs = ",".join(str(Path(path).expanduser().resolve()) for path in reference_images)
+    if len(reference_images) == 1 and str(reference_images[0]) == "{reference_images}":
+        refs = "{reference_images}"
+    else:
+        refs = ",".join(str(Path(path).expanduser().resolve()) for path in reference_images)
+
     command = [
         python_executable,
         "scripts/run_skyreels_v3_r2v.py",
