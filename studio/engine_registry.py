@@ -37,6 +37,7 @@ ENGINE_CATALOG: tuple[EngineSpec, ...] = (
     EngineSpec("wan2.1", "2.1", "https://github.com/Wan-Video/Wan2.1", "Apache-2.0", ("video_generation", "image_generation"), ("python", "generate.py"), "high"),
     EngineSpec("hunyuanvideo-1.5", "1.5", "https://github.com/Tencent-Hunyuan/HunyuanVideo-1.5", "Tencent Hunyuan Community License Agreement", ("video_generation",), ("torchrun", "generate.py"), "very_high", True, "Worldwide territory excluding the European Union, United Kingdom, and South Korea"),
     EngineSpec("skyreels-v3-r2v-14b", "3-r2v-14b", "https://github.com/SkyworkAI/SkyReels-V3", "Skywork Community License", ("video_generation",), ("python", "scripts/run_skyreels_v3_r2v.py"), "very_high", True),
+    EngineSpec("cogvideox1.5-5b-i2v", "1.5-5b-i2v", "https://github.com/zai-org/CogVideo", "CogVideoX License", ("video_generation",), ("python", "scripts/run_cogvideox15_i2v.py"), "high", True),
     EngineSpec("ltx-video", "0.9.8", "https://github.com/Lightricks/LTX-Video", "Apache-2.0 repository; checkpoint license must be verified for the selected model", ("video_generation",), ("python", "inference.py"), "high", True),
     EngineSpec("opentoonz", "current", "https://github.com/opentoonz/opentoonz", "BSD-3-Clause", ("animation", "compositing"), ("OpenToonz",), "professional_2d"),
     EngineSpec("blender", "current", "https://github.com/blender/blender", "GPL-3.0-or-later", ("animation", "rendering", "compositing", "editing"), ("blender", "-b"), "professional_3d"),
@@ -82,22 +83,10 @@ def assert_verified_engine(engine: EngineSpec) -> None:
         raise RuntimeError(f"Engine {engine.id} has no verification evidence record")
 
 
-def verified_engine(
-    engine_id: str,
-    *,
-    runtime_evidence: str,
-    license_evidence: str,
-    checkpoint_evidence: str,
-) -> EngineSpec:
+def verified_engine(engine_id: str, *, runtime_evidence: str, license_evidence: str, checkpoint_evidence: str) -> EngineSpec:
     if not runtime_evidence or not license_evidence or not checkpoint_evidence:
         raise ValueError("runtime, license, and checkpoint evidence are required")
-    return replace(
-        get_catalog_engine(engine_id),
-        runtime_verified=True,
-        license_verified=True,
-        checkpoint_verified=True,
-        verification_evidence=f"runtime={runtime_evidence}; license={license_evidence}; checkpoint={checkpoint_evidence}",
-    )
+    return replace(get_catalog_engine(engine_id), runtime_verified=True, license_verified=True, checkpoint_verified=True, verification_evidence=f"runtime={runtime_evidence}; license={license_evidence}; checkpoint={checkpoint_evidence}")
 
 
 @dataclass(frozen=True)
@@ -115,18 +104,8 @@ class EngineVerificationRecord:
     source_revision: str | None = None
 
     def __post_init__(self) -> None:
-        required = {
-            "engine_id": self.engine_id,
-            "engine_version": self.engine_version,
-            "executable": self.executable,
-            "version_observation": self.version_observation,
-            "checkpoint_path": self.checkpoint_path,
-            "checkpoint_sha256": self.checkpoint_sha256,
-            "license_source": self.license_source,
-            "license_evidence": self.license_evidence,
-            "runtime_output_sha256": self.runtime_output_sha256,
-        }
-        if any(not value.strip() for value in required.values()):
+        required = (self.engine_id, self.engine_version, self.executable, self.version_observation, self.checkpoint_path, self.checkpoint_sha256, self.license_source, self.license_evidence, self.runtime_output_sha256)
+        if any(not value.strip() for value in required):
             raise ValueError("complete engine verification evidence is required")
         if self.source_revision is not None and not self.source_revision.strip():
             raise ValueError("source_revision cannot be empty when supplied")
@@ -139,57 +118,28 @@ class EngineVerificationRecord:
 
     def to_engine(self) -> EngineSpec:
         engine = get_catalog_engine(self.engine_id)
-        promoted = replace(
-            engine,
-            version_family=self.engine_version,
-            runtime_verified=True,
-            license_verified=True,
-            checkpoint_verified=True,
-            verification_evidence=(
-                f"executable={self.executable}; version={self.version_observation}; "
-                f"checkpoint={self.checkpoint_path}:{self.checkpoint_sha256}; "
-                f"runtime_output_sha256={self.runtime_output_sha256}; "
-                f"license_source={self.license_source}; license_evidence={self.license_evidence}"
-                + (f"; source_revision={self.source_revision}" if self.source_revision else "")
-            ),
-            source_revision=self.source_revision,
-            checkpoint_path=self.checkpoint_path,
-            checkpoint_sha256=self.checkpoint_sha256,
-            runtime_output_sha256=self.runtime_output_sha256,
-        )
+        promoted = replace(engine, version_family=self.engine_version, runtime_verified=True, license_verified=True, checkpoint_verified=True, verification_evidence=(f"executable={self.executable}; version={self.version_observation}; checkpoint={self.checkpoint_path}:{self.checkpoint_sha256}; runtime_output_sha256={self.runtime_output_sha256}; license_source={self.license_source}; license_evidence={self.license_evidence}" + (f"; source_revision={self.source_revision}" if self.source_revision else "")), source_revision=self.source_revision, checkpoint_path=self.checkpoint_path, checkpoint_sha256=self.checkpoint_sha256, runtime_output_sha256=self.runtime_output_sha256)
         assert_verified_engine(promoted)
         return promoted
 
 
 class SQLiteEngineVerificationStore:
     """Durable creator-owned evidence records. It never creates verification itself."""
-
     def __init__(self, path: str | Path):
         self.path = Path(path)
         self.path.parent.mkdir(parents=True, exist_ok=True)
         with sqlite3.connect(self.path) as connection:
-            connection.execute(
-                "CREATE TABLE IF NOT EXISTS engine_verification ("
-                "engine_id TEXT PRIMARY KEY, payload TEXT NOT NULL)"
-            )
+            connection.execute("CREATE TABLE IF NOT EXISTS engine_verification (engine_id TEXT PRIMARY KEY, payload TEXT NOT NULL)")
 
     def save(self, record: EngineVerificationRecord) -> None:
         payload = json.dumps(record.__dict__, sort_keys=True)
         with sqlite3.connect(self.path) as connection:
-            connection.execute(
-                "INSERT INTO engine_verification(engine_id, payload) VALUES (?, ?) "
-                "ON CONFLICT(engine_id) DO UPDATE SET payload=excluded.payload",
-                (record.engine_id, payload),
-            )
+            connection.execute("INSERT INTO engine_verification(engine_id, payload) VALUES (?, ?) ON CONFLICT(engine_id) DO UPDATE SET payload=excluded.payload", (record.engine_id, payload))
 
     def load(self, engine_id: str) -> EngineVerificationRecord | None:
         with sqlite3.connect(self.path) as connection:
-            row = connection.execute(
-                "SELECT payload FROM engine_verification WHERE engine_id=?", (engine_id,)
-            ).fetchone()
-        if row is None:
-            return None
-        return EngineVerificationRecord(**json.loads(row[0]))
+            row = connection.execute("SELECT payload FROM engine_verification WHERE engine_id=?", (engine_id,)).fetchone()
+        return None if row is None else EngineVerificationRecord(**json.loads(row[0]))
 
     def snapshot(self) -> tuple[EngineVerificationRecord, ...]:
         with sqlite3.connect(self.path) as connection:
@@ -199,7 +149,6 @@ class SQLiteEngineVerificationStore:
 
 class RuntimeEngineRegistry:
     """Resolve production engines only from persisted evidence records."""
-
     def __init__(self, store: SQLiteEngineVerificationStore):
         self.store = store
 
@@ -216,27 +165,13 @@ class RuntimeEngineRegistry:
 def license_record(engine_id: str) -> LicenseRecord:
     engine = get_engine(engine_id)
     status = CommercialStatus.REVIEW_REQUIRED if engine.commercial_use_review_required else CommercialStatus.ALLOWED
-    return LicenseRecord(
-        subject_id=engine.id,
-        subject_version=engine.version_family,
-        official_source=engine.official_source,
-        license_name=engine.license,
-        commercial_status=status,
-        territory_restriction=engine.territory_restriction,
-    )
+    return LicenseRecord(subject_id=engine.id, subject_version=engine.version_family, official_source=engine.official_source, license_name=engine.license, commercial_status=status, territory_restriction=engine.territory_restriction)
 
 
 def catalog_license_record(engine_id: str) -> LicenseRecord:
     engine = get_catalog_engine(engine_id)
     status = CommercialStatus.REVIEW_REQUIRED if engine.commercial_use_review_required else CommercialStatus.ALLOWED
-    return LicenseRecord(
-        subject_id=engine.id,
-        subject_version=engine.version_family,
-        official_source=engine.official_source,
-        license_name=engine.license,
-        commercial_status=status,
-        territory_restriction=engine.territory_restriction,
-    )
+    return LicenseRecord(subject_id=engine.id, subject_version=engine.version_family, official_source=engine.official_source, license_name=engine.license, commercial_status=status, territory_restriction=engine.territory_restriction)
 
 
 def ids(engines: Iterable[EngineSpec] = VERIFIED_ENGINES) -> tuple[str, ...]:
