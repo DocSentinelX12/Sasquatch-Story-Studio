@@ -1,19 +1,20 @@
-"""Local GPU worker agent lifecycle, without assuming a network is present."""
+"""Local GPU worker agent lifecycle, enrollment, and heartbeat."""
 from __future__ import annotations
 
 from collections.abc import Callable
-from typing import Any
+from typing import Any, Protocol
 
 from .gpu_infrastructure import GpuHostObservation, probe_nvidia_host
+from .remote_worker import WorkerAccess
+
+
+class WorkerControlTransport(Protocol):
+    def post_json(self, path: str, payload: dict[str, Any], *, bearer_token: str) -> dict[str, Any]:
+        ...
 
 
 class GpuWorkerAgent:
-    """Observe, describe, and heartbeat one physical GPU worker.
-
-    Transport and lease execution are deliberately separate. This keeps local
-    hardware truth testable before a remote protocol is allowed to schedule
-    production work on the worker.
-    """
+    """Observe, register, and heartbeat one physical GPU worker."""
 
     def __init__(self, worker_id: str, observer: Callable[[], GpuHostObservation] | None = None):
         if not worker_id.strip():
@@ -49,3 +50,30 @@ class GpuWorkerAgent:
             "health_evidence": "dcgm_health_check" if observation.health_json else "nvidia_smi_inventory_only",
             "dcgm_available": observation.dcgm_available,
         }
+
+    def register_remote(self, transport: WorkerControlTransport, enrollment_token: str) -> WorkerAccess:
+        if not enrollment_token.strip():
+            raise ValueError("enrollment token is required")
+        response = transport.post_json(
+            "/v1/worker/register",
+            self.registration_payload(),
+            bearer_token=enrollment_token,
+        )
+        access_token = response.get("access_token")
+        if not isinstance(access_token, str) or not access_token.strip():
+            raise RuntimeError("worker registration did not return an access token")
+        worker_id = response.get("worker_id", self.worker_id)
+        if worker_id != self.worker_id:
+            raise RuntimeError("worker registration returned a mismatched worker identity")
+        return WorkerAccess(self.worker_id, access_token)
+
+    def heartbeat_remote(self, transport: WorkerControlTransport, access: WorkerAccess) -> None:
+        if access.worker_id != self.worker_id:
+            raise ValueError("worker access identity does not match agent")
+        response = transport.post_json(
+            "/v1/worker/heartbeat",
+            self.heartbeat_payload(),
+            bearer_token=access.access_token,
+        )
+        if response.get("worker_id", self.worker_id) != self.worker_id:
+            raise RuntimeError("worker heartbeat returned a mismatched worker identity")
