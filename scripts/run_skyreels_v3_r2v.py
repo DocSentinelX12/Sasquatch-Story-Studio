@@ -43,8 +43,6 @@ def main() -> int:
             raise RuntimeError(f"SkyReels reference image is missing or empty: {reference}")
     if args.duration < 1:
         raise ValueError("SkyReels duration must be positive")
-    if args.low_vram and args.offload:
-        raise ValueError("SkyReels low_vram and offload are mutually exclusive")
 
     sys.path.insert(0, str(repository))
     import imageio
