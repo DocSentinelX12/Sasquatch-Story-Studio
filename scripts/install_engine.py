@@ -103,11 +103,12 @@ def install_piper_voice(data_dir: Path) -> list[Path]:
 
     Piper 1.8.0's bundled downloader uses urllib against a Hugging Face resolve
     URL. The CI failure was an HTTP 499 from that path. The Hugging Face Hub
-    client is already independently verified in this workflow, and supports the
-    same official voice repository with commit-aware downloads. We therefore use
-    the supported Hub client directly, then validate the voice manifest before
-    allowing Piper to run.
+    client is used directly because it supports the same official voice
+    repository with commit-aware downloads and is separately verified in the
+    workflow. Each matrix job has an isolated worker, so the client is installed
+    explicitly here rather than relying on the separate Hub job.
     """
+    run(sys.executable, "-m", "pip", "install", "huggingface_hub[cli]", timeout=1200)
     from huggingface_hub import HfApi, hf_hub_download
 
     repo = "rhasspy/piper-voices"
@@ -276,7 +277,7 @@ def install(engine_id: str, with_models: bool) -> None:
         models = []
         if with_models:
             model = root / "ltxv-2b-0.9.8-distilled.safetensors"; hf_download("Lightricks/LTX-Video", root, "ltxv-2b-0.9.8-distilled.safetensors"); models = [model]
-        run(sys.executable, "inference.py", "--help", cwd=root, timeout=180); evidence(engine_id, "https://github.com/Lightricks/LTX-Video", ROOT / engine_id, models, []); return
+        run(sys.executable, "inference.py", "--help", cwd=root, timeout=180); evidence(engine_id, "https://github.com/Lightricks/LTX-Video", root, models, []); return
 
     if engine_id == "piper":
         run(sys.executable, "-m", "pip", "install", "piper-tts==1.8.0", timeout=1800)
