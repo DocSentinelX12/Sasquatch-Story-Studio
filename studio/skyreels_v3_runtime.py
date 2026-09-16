@@ -47,8 +47,6 @@ def build_skyreels_r2v_command(
         raise ValueError("SkyReels duration must be positive")
     if resolution not in {"480P", "540P", "720P"}:
         raise ValueError("SkyReels resolution must be 480P, 540P, or 720P")
-    if low_vram and offload:
-        raise ValueError("SkyReels low_vram and offload are mutually exclusive in the studio bridge")
 
     if len(reference_images) == 1 and str(reference_images[0]) == "{reference_images}":
         refs = "{reference_images}"
