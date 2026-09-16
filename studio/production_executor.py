@@ -28,11 +28,15 @@ class ProductionWorkerExecutor:
             requested_engine = payload.get("engine_id")
             if requested_engine and requested_engine != self.adapter.info.id:
                 raise RuntimeError(f"worker adapter {self.adapter.info.id} does not match requested engine {requested_engine}")
+            parameters = payload.get("parameters", {}) if isinstance(payload.get("parameters", {}), dict) else {}
+            parameters = dict(parameters)
+            if task.gpu_uuids:
+                parameters["gpu_uuids"] = task.gpu_uuids
             request = ProductionRequest(
                 stage=task.stage,
                 payload=payload,
                 canonical_source_hash=task.canonical_source_hash,
-                parameters=payload.get("parameters", {}) if isinstance(payload.get("parameters", {}), dict) else {},
+                parameters=parameters,
                 seed=payload.get("seed"),
             )
             response = self.adapter.execute(request)
