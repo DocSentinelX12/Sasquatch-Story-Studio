@@ -34,6 +34,10 @@ class ProcessAdapter:
     is_local: bool = True
     uses_paid_service: bool = False
     uses_paid_api: bool = False
+    source_revision: str | None = None
+    checkpoint_path: str | None = None
+    checkpoint_sha256: str | None = None
+    runtime_output_sha256: str | None = None
 
     @property
     def info(self) -> AdapterInfo:
@@ -98,6 +102,10 @@ class ProcessAdapter:
                 "commercial_use_review_required": self.commercial_use_review_required,
                 "canonical_source_hash": request.canonical_source_hash,
                 "output_sha256": digest,
+                "verified_checkpoint_path": self.checkpoint_path,
+                "verified_checkpoint_sha256": self.checkpoint_sha256,
+                "verified_source_revision": self.source_revision,
+                "verified_runtime_output_sha256": self.runtime_output_sha256,
                 "exit_code": completed.returncode,
             },
         )
