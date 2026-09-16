@@ -11,6 +11,8 @@ import secrets
 from dataclasses import dataclass
 from typing import Any, Mapping, Protocol
 
+from .hardware_requirements import HardwareRequirements
+from .scheduler import JobRequirements
 from .worker import WorkerResult, WorkerResultState, WorkerTask
 
 
@@ -49,6 +51,37 @@ class RemoteWorkerTransport(Protocol):
         ...
 
 
+def _hardware_payload(requirements: HardwareRequirements | None) -> dict[str, Any] | None:
+    if requirements is None:
+        return None
+    return {
+        "min_gpu_count": requirements.min_gpu_count,
+        "min_vram_per_gpu_bytes": requirements.min_vram_per_gpu_bytes,
+        "min_total_vram_bytes": requirements.min_total_vram_bytes,
+        "min_compute_capability": requirements.min_compute_capability,
+        "required_gpu_models": requirements.required_gpu_models,
+        "placement": requirements.placement.value,
+        "require_nccl": requirements.require_nccl,
+        "allow_multi_node": requirements.allow_multi_node,
+        "require_gpu_direct_network": requirements.require_gpu_direct_network,
+    }
+
+
+def _requirements_payload(requirements: object) -> dict[str, Any]:
+    if not isinstance(requirements, JobRequirements):
+        raise ValueError("remote worker task requirements must be JobRequirements")
+    return {
+        "slots": requirements.slots,
+        "memory_bytes": requirements.memory_bytes,
+        "vram_bytes": requirements.vram_bytes,
+        "scratch_bytes": requirements.scratch_bytes,
+        "power_watts": requirements.power_watts,
+        "capabilities": requirements.capabilities,
+        "engines": requirements.engines,
+        "hardware": _hardware_payload(requirements.hardware),
+    }
+
+
 def _task_payload(task: WorkerTask) -> dict[str, Any]:
     return {
         "task_id": task.task_id,
@@ -57,7 +90,7 @@ def _task_payload(task: WorkerTask) -> dict[str, Any]:
         "shot_id": task.shot_id,
         "input_refs": task.input_refs,
         "input_hashes": task.input_hashes,
-        "requirements": task.requirements,
+        "requirements": _requirements_payload(task.requirements),
         "provenance_context": task.provenance_context,
         "canonical_source_hash": task.canonical_source_hash,
         "payload_json": task.payload_json,
