@@ -9,13 +9,18 @@ on:
       - "studio/process_adapter.py"
       - "studio/engine_adapters.py"
       - "studio/hunyuan_runtime.py"
+      - "studio/skyreels_v3_runtime.py"
       - "scripts/promote_runtime_evidence.py"
       - "scripts/install_hunyuanvideo15.py"
       - "scripts/verify_hunyuanvideo15_runtime.py"
+      - "scripts/install_skyreels_v3.py"
+      - "scripts/run_skyreels_v3_r2v.py"
+      - "scripts/verify_skyreels_v3_runtime.py"
       - "tests/test_engines.py"
       - "tests/test_runtime_verification.py"
       - "tests/test_engine_adapters.py"
       - "tests/test_hunyuan_runtime.py"
+      - "tests/test_skyreels_v3_runtime.py"
 
 permissions:
   contents: read
@@ -40,3 +45,4 @@ jobs:
           tests/test_runtime_verification.py
           tests/test_engine_adapters.py
           tests/test_hunyuan_runtime.py
+          tests/test_skyreels_v3_runtime.py
