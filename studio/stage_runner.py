@@ -73,9 +73,10 @@ class DistributedStageRunner:
                 input_refs=input_refs,
                 input_hashes=input_hashes,
                 requirements=requirements,
-                provenance_context=(("worker_id", worker_id),),
+                provenance_context=(("worker_id", worker_id), ("gpu_uuids", ",".join(job.allocated_gpu_uuids))),
                 canonical_source_hash=self.canonical_source_hash,
                 payload_json=json.dumps(payload, sort_keys=True),
+                gpu_uuids=job.allocated_gpu_uuids,
             )
 
         record = self.fabric.dispatch(production_task, factory, now=now)
