@@ -21,7 +21,7 @@ def observation() -> GpuHostObservation:
         worker_id="worker-a",
         driver_version="test-driver",
         cuda_supported_version="12.8",
-        gpus=(GpuDeviceObservation(0, "GPU-0", "Test GPU", 16384, "8.0"),),
+        gpus=(GpuDeviceObservation(0, "GPU-0", "Test GPU", 16384, 0, "0000:01:00.0", "8.0"),),
         topology_text="GPU0",
         dcgm_available=False,
         dcgm_version=None,
