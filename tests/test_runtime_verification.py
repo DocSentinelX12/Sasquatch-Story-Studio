@@ -89,9 +89,9 @@ def test_sha256_path_rejects_empty_model_directory(tmp_path: Path) -> None:
         sha256_path(empty)
 
 
-def test_hunyuan_catalog_entry_is_not_runtime_verified_by_catalogue_presence():
+def test_hunyuan_catalog_entry_is_video_only_and_not_runtime_verified_by_catalogue_presence():
     engine = get_catalog_engine("hunyuanvideo-1.5")
-    assert engine.capabilities == ("video_generation", "image_generation")
+    assert engine.capabilities == ("video_generation",)
     assert engine.runtime_verified is False
     assert engine.license_verified is False
     assert engine.checkpoint_verified is False
