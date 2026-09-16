@@ -59,6 +59,37 @@ def test_verified_engine_becomes_real_process_adapter(tmp_path: Path):
     assert response.provenance["verified_checkpoint_sha256"] == hashlib.sha256((tmp_path / "checkpoint.bin").read_bytes()).hexdigest()
 
 
+def test_process_adapter_binds_prompt_and_image_request_values(tmp_path: Path):
+    registry = _registry(tmp_path)
+    output = tmp_path / "render.txt"
+    config = VerifiedEngineRuntimeConfig(
+        engine_id="wan2.2",
+        command=(
+            sys.executable,
+            "-c",
+            "from pathlib import Path; Path(__import__('sys').argv[3]).write_text(__import__('sys').argv[1] + '|' + __import__('sys').argv[2], encoding='utf-8')",
+            "{prompt}",
+            "{image_path}",
+            "{output}",
+        ),
+        output_path=str(output),
+        working_directory=str(tmp_path),
+    )
+    adapter = build_verified_engine_adapter(registry, config)
+    image = tmp_path / "reference.webp"
+    image.write_bytes(b"image")
+
+    adapter.execute(
+        ProductionRequest(
+            "animate",
+            {"prompt": "make the character bounce", "image_path": str(image)},
+            "b" * 64,
+        )
+    )
+
+    assert output.read_text(encoding="utf-8") == f"make the character bounce|{image.resolve()}"
+
+
 def test_unverified_engine_cannot_be_wired(tmp_path: Path):
     registry = RuntimeEngineRegistry(SQLiteEngineVerificationStore(tmp_path / "engines.sqlite"))
     config = VerifiedEngineRuntimeConfig(
