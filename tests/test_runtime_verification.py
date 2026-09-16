@@ -1,10 +1,11 @@
 from pathlib import Path
 import sys
+import hashlib
 
 import pytest
 
-from studio.engine_registry import EngineSpec
-from studio.runtime_verification import probe_version, sha256_file, verify_engine_runtime
+from studio.engine_registry import EngineSpec, get_catalog_engine
+from studio.runtime_verification import probe_version, sha256_file, sha256_path, verify_engine_runtime
 
 
 def test_sha256_file_hashes_real_checkpoint(tmp_path: Path) -> None:
@@ -64,3 +65,36 @@ def test_verification_rejects_missing_output_placeholder(tmp_path: Path) -> None
             license_evidence="test fixture only, never a production engine record",
             recorded_at=1,
         )
+
+
+def test_sha256_path_hashes_model_directory_deterministically(tmp_path: Path) -> None:
+    model = tmp_path / "hunyuan"
+    (model / "text_encoder").mkdir(parents=True)
+    (model / "transformer").mkdir()
+    (model / "transformer" / "weights.bin").write_bytes(b"weights")
+    (model / "text_encoder" / "config.json").write_text("{}", encoding="utf-8")
+
+    first = sha256_path(model)
+    (model / "text_encoder" / "config.json").touch()
+    assert sha256_path(model) == first
+
+    (model / "text_encoder" / "config.json").write_text("{\"changed\":true}", encoding="utf-8")
+    assert sha256_path(model) != first
+
+
+def test_sha256_path_rejects_empty_model_directory(tmp_path: Path) -> None:
+    empty = tmp_path / "empty"
+    empty.mkdir()
+    with pytest.raises(RuntimeError, match="contains no files"):
+        sha256_path(empty)
+
+
+def test_hunyuan_catalog_entry_is_not_runtime_verified_by_catalogue_presence():
+    engine = get_catalog_engine("hunyuanvideo-1.5")
+    assert engine.capabilities == ("video_generation", "image_generation")
+    assert engine.runtime_verified is False
+    assert engine.license_verified is False
+    assert engine.checkpoint_verified is False
+    assert engine.commercial_use_review_required is True
+    assert "European Union" in (engine.territory_restriction or "")
+    assert engine.official_source == "https://github.com/Tencent-Hunyuan/HunyuanVideo-1.5"
