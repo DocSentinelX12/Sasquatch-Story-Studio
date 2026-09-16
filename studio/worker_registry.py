@@ -7,6 +7,7 @@ from dataclasses import asdict, dataclass
 from enum import StrEnum
 from pathlib import Path
 
+from .gpu_infrastructure import GpuDeviceObservation, GpuHostObservation
 from .resources import ComputeResource
 
 
@@ -29,12 +30,15 @@ class WorkerRecord:
     observed_at: int | None = None
     observation_source: str = ""
     quota_note: str = ""
+    hardware_observation: GpuHostObservation | None = None
 
     def __post_init__(self) -> None:
         if not self.id.strip():
             raise ValueError("worker id is required")
         if not self.resource.id.strip():
             raise ValueError("worker resource id is required")
+        if self.hardware_observation is not None and self.hardware_observation.worker_id != self.id:
+            raise ValueError("hardware observation worker identity must match record")
 
 
 class WorkerRegistry:
@@ -66,9 +70,36 @@ class WorkerRegistry:
         if state not in {WorkerState.TEMPORARILY_UNAVAILABLE, WorkerState.QUOTA_EXHAUSTED, WorkerState.OFFLINE}:
             raise ValueError("mark_unavailable requires an unavailable worker state")
         current = self.get(worker_id)
-        updated = WorkerRecord(current.id, current.resource, state, observed_at, current.observation_source, current.quota_note if quota_note is None else quota_note)
+        updated = WorkerRecord(
+            current.id,
+            current.resource,
+            state,
+            observed_at,
+            current.observation_source,
+            current.quota_note if quota_note is None else quota_note,
+            current.hardware_observation,
+        )
         self._records[worker_id] = updated
         return updated
+
+
+def _serialize_observation(observation: GpuHostObservation | None) -> dict | None:
+    return None if observation is None else asdict(observation)
+
+
+def _deserialize_observation(payload: dict | None) -> GpuHostObservation | None:
+    if payload is None:
+        return None
+    return GpuHostObservation(
+        worker_id=payload["worker_id"],
+        driver_version=payload["driver_version"],
+        cuda_supported_version=payload["cuda_supported_version"],
+        gpus=tuple(GpuDeviceObservation(**item) for item in payload["gpus"]),
+        topology_text=payload.get("topology_text"),
+        dcgm_available=payload["dcgm_available"],
+        dcgm_version=payload.get("dcgm_version"),
+        health_json=payload.get("health_json"),
+    )
 
 
 class SQLiteWorkerRegistryStore:
@@ -90,6 +121,7 @@ class SQLiteWorkerRegistryStore:
                 payload["resource"]["gpu_models"] = list(record.resource.gpu_models)
                 payload["resource"]["capabilities"] = list(record.resource.capabilities)
                 payload["resource"]["installed_engines"] = list(record.resource.installed_engines)
+                payload["hardware_observation"] = _serialize_observation(record.hardware_observation)
                 connection.execute("INSERT INTO workers VALUES (?, ?)", (record.id, json.dumps(payload, sort_keys=True)))
 
     def load(self) -> WorkerRegistry:
@@ -104,5 +136,6 @@ class SQLiteWorkerRegistryStore:
             resource_payload["installed_engines"] = tuple(resource_payload["installed_engines"])
             resource = ComputeResource(**resource_payload)
             payload["state"] = WorkerState(payload["state"])
+            payload["hardware_observation"] = _deserialize_observation(payload.get("hardware_observation"))
             records.append(WorkerRecord(resource=resource, **payload))
         return WorkerRegistry(tuple(records))
