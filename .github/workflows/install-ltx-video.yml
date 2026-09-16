@@ -1,0 +1,35 @@
+name: Install LTX-Video
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "scripts/install_ltx_video.py"
+      - "scripts/run_ltx_video.py"
+      - "studio/ltx_video_runtime.py"
+      - "studio/engine_adapters.py"
+      - "studio/engine_registry.py"
+      - "tests/test_ltx_video_runtime.py"
+      - ".github/workflows/install-ltx-video.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  install:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install and verify source integration
+        run: python scripts/install_ltx_video.py
+      - name: Run targeted LTX-Video contract tests
+        run: python -m pip install pytest && python -m pytest -q tests/test_ltx_video_runtime.py tests/test_engine_adapters.py
+      - name: Upload installation evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: ltx-video-installation-evidence
+          path: engine-installations/ltx-video/installation-evidence.json
