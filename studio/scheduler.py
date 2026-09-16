@@ -4,9 +4,8 @@ from __future__ import annotations
 import json
 import sqlite3
 from dataclasses import dataclass
-from enum import StrEnum
-from pathlib import Path
 from typing import Iterable
+from pathlib import Path
 
 from .hardware_requirements import HardwareRequirements
 from .resources import ComputeResource, ResourceSnapshot
@@ -47,6 +46,7 @@ class Job:
     state: JobState = JobState.QUEUED
     lease_owner: str | None = None
     lease_until: int | None = None
+    allocated_gpu_uuids: tuple[str, ...] = ()
 
 
 class Scheduler:
@@ -91,12 +91,15 @@ class Scheduler:
         now: int,
         lease_seconds: int = 900,
         job_id: str | None = None,
+        gpu_uuids: tuple[str, ...] = (),
     ) -> Job | None:
-        """Lease work for this worker, optionally binding the lease to one job."""
+        """Lease work for this worker and bind any verified GPU allocation to it."""
         if not worker_id.strip() or lease_seconds < 1 or pool_power_watts < 0:
             raise ValueError("worker_id, lease duration, and power must be valid")
         if job_id is not None and not job_id.strip():
             raise ValueError("job_id cannot be empty")
+        if len(set(gpu_uuids)) != len(gpu_uuids) or any(not uuid.strip() for uuid in gpu_uuids):
+            raise ValueError("GPU allocation must contain unique non-empty UUIDs")
         if not worker_resource.healthy:
             return None
         candidates = sorted(
@@ -110,13 +113,21 @@ class Scheduler:
         leased_jobs = tuple(job for job in self._jobs.values() if job.state == JobState.LEASED)
         reserved_pool_power = sum(job.requirements.power_watts for job in leased_jobs)
         reserved_on_worker = tuple(job.requirements for job in leased_jobs if job.lease_owner == worker_id)
+        reserved_gpu_uuids = {
+            uuid
+            for job in leased_jobs
+            if job.lease_owner == worker_id
+            for uuid in job.allocated_gpu_uuids
+        }
+        if reserved_gpu_uuids.intersection(gpu_uuids):
+            return None
         worker_snapshot = ResourceSnapshot(compute=(worker_resource,), power=())
         for job in candidates:
             if pool_power_watts - reserved_pool_power < job.requirements.power_watts:
                 continue
             if not _fits(job.requirements, worker_snapshot, reserved=reserved_on_worker, check_power=False):
                 continue
-            leased = Job(job.id, job.requirements, job.priority, JobState.LEASED, worker_id, now + lease_seconds)
+            leased = Job(job.id, job.requirements, job.priority, JobState.LEASED, worker_id, now + lease_seconds, gpu_uuids)
             self._jobs[job.id] = leased
             return leased
         return None
@@ -173,7 +184,10 @@ class SQLiteSchedulerStore:
         self.path = Path(path)
         self.path.parent.mkdir(parents=True, exist_ok=True)
         with sqlite3.connect(self.path) as connection:
-            connection.execute("CREATE TABLE IF NOT EXISTS scheduler_jobs (id TEXT PRIMARY KEY, requirements_json TEXT NOT NULL, priority INTEGER NOT NULL, state TEXT NOT NULL, lease_owner TEXT, lease_until INTEGER)")
+            connection.execute("CREATE TABLE IF NOT EXISTS scheduler_jobs (id TEXT PRIMARY KEY, requirements_json TEXT NOT NULL, priority INTEGER NOT NULL, state TEXT NOT NULL, lease_owner TEXT, lease_until INTEGER, allocated_gpu_uuids_json TEXT NOT NULL DEFAULT '[]')")
+            columns = {row[1] for row in connection.execute("PRAGMA table_info(scheduler_jobs)")}
+            if "allocated_gpu_uuids_json" not in columns:
+                connection.execute("ALTER TABLE scheduler_jobs ADD COLUMN allocated_gpu_uuids_json TEXT NOT NULL DEFAULT '[]'")
 
     def save(self, scheduler: Scheduler) -> None:
         rows = []
@@ -192,17 +206,18 @@ class SQLiteSchedulerStore:
                     "allow_multi_node": item.allow_multi_node,
                     "require_gpu_direct_network": item.require_gpu_direct_network,
                 }
-            rows.append((job.id, json.dumps({"slots": job.requirements.slots, "memory_bytes": job.requirements.memory_bytes, "vram_bytes": job.requirements.vram_bytes, "scratch_bytes": job.requirements.scratch_bytes, "power_watts": job.requirements.power_watts, "capabilities": job.requirements.capabilities, "engines": job.requirements.engines, "hardware": hardware}, sort_keys=True), job.priority, job.state.value, job.lease_owner, job.lease_until))
+            }
+            rows.append((job.id, json.dumps({"slots": job.requirements.slots, "memory_bytes": job.requirements.memory_bytes, "vram_bytes": job.requirements.vram_bytes, "scratch_bytes": job.requirements.scratch_bytes, "power_watts": job.requirements.power_watts, "capabilities": job.requirements.capabilities, "engines": job.requirements.engines, "hardware": hardware}, sort_keys=True), job.priority, job.state.value, job.lease_owner, job.lease_until, json.dumps(job.allocated_gpu_uuids)))
         with sqlite3.connect(self.path) as connection:
             connection.execute("BEGIN IMMEDIATE")
             connection.execute("DELETE FROM scheduler_jobs")
-            connection.executemany("INSERT INTO scheduler_jobs VALUES (?, ?, ?, ?, ?, ?)", rows)
+            connection.executemany("INSERT INTO scheduler_jobs (id, requirements_json, priority, state, lease_owner, lease_until, allocated_gpu_uuids_json) VALUES (?, ?, ?, ?, ?, ?, ?)", rows)
 
     def load(self) -> Scheduler:
         with sqlite3.connect(self.path) as connection:
-            rows = connection.execute("SELECT id, requirements_json, priority, state, lease_owner, lease_until FROM scheduler_jobs ORDER BY id").fetchall()
+            rows = connection.execute("SELECT id, requirements_json, priority, state, lease_owner, lease_until, allocated_gpu_uuids_json FROM scheduler_jobs ORDER BY id").fetchall()
         jobs = []
-        for job_id, requirements_json, priority, state, lease_owner, lease_until in rows:
+        for job_id, requirements_json, priority, state, lease_owner, lease_until, allocated_gpu_uuids_json in rows:
             data = json.loads(requirements_json)
             hardware_data = data.get("hardware")
             hardware = None
@@ -220,5 +235,5 @@ class SQLiteSchedulerStore:
                     require_gpu_direct_network=hardware_data["require_gpu_direct_network"],
                 )
             requirements = JobRequirements(slots=data["slots"], memory_bytes=data["memory_bytes"], vram_bytes=data["vram_bytes"], scratch_bytes=data["scratch_bytes"], power_watts=data["power_watts"], capabilities=tuple(data["capabilities"]), engines=tuple(data["engines"]), hardware=hardware)
-            jobs.append(Job(job_id, requirements, priority, JobState(state), lease_owner, lease_until))
+            jobs.append(Job(job_id, requirements, priority, JobState(state), lease_owner, lease_until, tuple(json.loads(allocated_gpu_uuids_json))))
         return Scheduler(jobs)
