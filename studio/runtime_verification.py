@@ -28,6 +28,7 @@ class RuntimeEvidence:
     license_evidence: str
     runtime_output_sha256: str
     recorded_at: int
+    source_revision: str | None = None
 
     def __post_init__(self) -> None:
         required = {
@@ -44,6 +45,8 @@ class RuntimeEvidence:
         for name, value in required.items():
             if not value or not value.strip():
                 raise ValueError(f"{name} is required")
+        if self.source_revision is not None and not self.source_revision.strip():
+            raise ValueError("source_revision cannot be empty when supplied")
         for name in ("checkpoint_sha256", "runtime_output_sha256"):
             value = getattr(self, name)
             if len(value) != 64 or any(c not in "0123456789abcdef" for c in value.lower()):
@@ -63,6 +66,7 @@ class RuntimeEvidence:
             license_evidence=self.license_evidence,
             runtime_output_sha256=self.runtime_output_sha256,
             recorded_at=self.recorded_at,
+            source_revision=self.source_revision,
         )
 
 
@@ -150,6 +154,7 @@ def verify_engine_runtime(
     recorded_at: int,
     working_directory: str | Path | None = None,
     timeout_seconds: int = 3600,
+    source_revision: str | None = None,
 ) -> RuntimeEvidence:
     """Perform a real configured verification run and return immutable evidence.
 
@@ -188,4 +193,5 @@ def verify_engine_runtime(
         license_evidence=license_evidence,
         runtime_output_sha256=output_digest,
         recorded_at=recorded_at,
+        source_revision=source_revision,
     )
