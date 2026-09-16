@@ -26,6 +26,10 @@ class EngineSpec:
     license_verified: bool = False
     checkpoint_verified: bool = False
     verification_evidence: str | None = None
+    source_revision: str | None = None
+    checkpoint_path: str | None = None
+    checkpoint_sha256: str | None = None
+    runtime_output_sha256: str | None = None
 
 
 ENGINE_CATALOG: tuple[EngineSpec, ...] = (
@@ -107,6 +111,7 @@ class EngineVerificationRecord:
     license_evidence: str
     runtime_output_sha256: str
     recorded_at: int
+    source_revision: str | None = None
 
     def __post_init__(self) -> None:
         required = {
@@ -122,6 +127,8 @@ class EngineVerificationRecord:
         }
         if any(not value.strip() for value in required.values()):
             raise ValueError("complete engine verification evidence is required")
+        if self.source_revision is not None and not self.source_revision.strip():
+            raise ValueError("source_revision cannot be empty when supplied")
         for field_name in ("checkpoint_sha256", "runtime_output_sha256"):
             value = getattr(self, field_name)
             if len(value) != 64 or any(char not in "0123456789abcdef" for char in value.lower()):
@@ -142,7 +149,12 @@ class EngineVerificationRecord:
                 f"checkpoint={self.checkpoint_path}:{self.checkpoint_sha256}; "
                 f"runtime_output_sha256={self.runtime_output_sha256}; "
                 f"license_source={self.license_source}; license_evidence={self.license_evidence}"
+                + (f"; source_revision={self.source_revision}" if self.source_revision else "")
             ),
+            source_revision=self.source_revision,
+            checkpoint_path=self.checkpoint_path,
+            checkpoint_sha256=self.checkpoint_sha256,
+            runtime_output_sha256=self.runtime_output_sha256,
         )
         assert_verified_engine(promoted)
         return promoted
