@@ -1,7 +1,7 @@
 name: Install SkyReels V3 R2V
 
 on:
-  pull_request:
+  push:
     branches: [main]
     paths:
       - "scripts/install_skyreels_v3.py"

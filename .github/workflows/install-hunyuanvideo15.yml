@@ -1,13 +1,14 @@
 name: Install HunyuanVideo 1.5
 
 on:
-  pull_request:
+  push:
     branches: [main]
     paths:
       - "scripts/install_hunyuanvideo15.py"
       - "studio/hunyuan_runtime.py"
       - "studio/runtime_verification.py"
       - "studio/engine_registry.py"
+      - ".github/workflows/install-hunyuanvideo15.yml"
   workflow_dispatch:
 
 permissions:

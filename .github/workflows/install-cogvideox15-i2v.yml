@@ -1,7 +1,7 @@
 name: Install CogVideoX1.5 I2V
 
 on:
-  pull_request:
+  push:
     branches: [main]
     paths:
       - "scripts/install_cogvideox15_i2v.py"
