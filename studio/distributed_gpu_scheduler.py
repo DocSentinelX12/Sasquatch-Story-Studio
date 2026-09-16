@@ -36,7 +36,13 @@ class DistributedGpuScheduler:
         if any(not worker.network.rdma for worker in self.workers):
             raise RuntimeError("every participating worker must expose RDMA evidence")
 
-        local_requirement = replace(requirements, placement=GpuPlacement.ANY, allow_multi_node=False, min_gpu_count=1)
+        local_requirement = replace(
+            requirements,
+            placement=GpuPlacement.ANY,
+            allow_multi_node=False,
+            min_gpu_count=1,
+            require_gpu_direct_network=False,
+        )
         allocation: dict[str, list[str]] = {}
         used: dict[str, set[str]] = {}
 
