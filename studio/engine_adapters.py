@@ -12,6 +12,7 @@ from typing import Mapping, Sequence
 from .cogvideox15_i2v_runtime import build_cogvideox15_i2v_command
 from .engine_registry import EngineSpec, RuntimeEngineRegistry
 from .hunyuan_runtime import build_hunyuan_command
+from .ltx25_runtime import build_ltx25_command
 from .ltx_video_runtime import build_ltx_video_command
 from .process_adapter import ProcessAdapter
 from .skyreels_v3_runtime import build_skyreels_r2v_command
@@ -217,6 +218,39 @@ def build_ltx_video_runtime_config(
         command=command,
         output_path=output_path,
         working_directory=str(repository.expanduser().resolve()),
+        timeout_seconds=timeout_seconds,
+    )
+
+
+def build_ltx25_runtime_config(
+    *,
+    studio_root: Path,
+    source_repository: Path,
+    model_root: Path,
+    output_path: str,
+    python_executable: str = "python",
+    timeout_seconds: int = 21600,
+) -> VerifiedEngineRuntimeConfig:
+    """Build the official LTX-2.5 distilled I2V/T2V command.
+
+    The model directory must contain the official split components. Prompt and
+    image values remain request-bound tokens, and production use is still gated
+    by persisted runtime, checkpoint, and license evidence.
+    """
+    command = build_ltx25_command(
+        python_executable=python_executable,
+        studio_root=studio_root.expanduser().resolve(),
+        source_repository=source_repository.expanduser().resolve(),
+        model_root=model_root.expanduser().resolve(),
+        prompt="{prompt}",
+        image_path="{image_path}",
+        output_token="{output}",
+    )
+    return VerifiedEngineRuntimeConfig(
+        engine_id="ltx-2.5",
+        command=command,
+        output_path=output_path,
+        working_directory=str(studio_root.expanduser().resolve()),
         timeout_seconds=timeout_seconds,
     )
 
