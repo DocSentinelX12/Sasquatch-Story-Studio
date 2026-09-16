@@ -1,17 +1,18 @@
 from studio.compute_broker import ComputeBroker, ProductionTask
+from studio.gpu_infrastructure import GpuDeviceObservation, GpuHostObservation
 from studio.resources import ComputeResource
 from studio.scheduler import JobRequirements, JobState, Scheduler
 from studio.worker_registry import WorkerRecord, WorkerRegistry, WorkerState
 
 
-def record(worker_id, *, vram, capabilities=(), engines=(), state=WorkerState.VERIFIED_AVAILABLE):
+def record(worker_id, *, vram, capabilities=(), engines=(), state=WorkerState.VERIFIED_AVAILABLE, hardware=None):
     return WorkerRecord(
         worker_id,
         ComputeResource(
             worker_id + "-resource", 16, 32 * 1024**3, gpu_count=1,
             vram_bytes=vram, capabilities=capabilities, installed_engines=engines,
             logical_slots=4, scratch_bytes=100 * 1024**3, power_budget_watts=500,
-        ), state=state,
+        ), state=state, hardware_observation=hardware,
     )
 
 
@@ -61,3 +62,56 @@ def test_submit_and_expiry_requeue():
     assert leased is not None and leased.state == JobState.LEASED
     assert broker.release_or_requeue(job.id, 15)
     assert scheduler.snapshot()[0].state == JobState.QUEUED
+
+
+def test_hardware_requirements_are_enforced_from_observed_gpu_inventory():
+    hardware = GpuHostObservation(
+        worker_id="gpu",
+        driver_version="580.00",
+        cuda_supported_version="13.0",
+        gpus=(GpuDeviceObservation(0, "GPU-0", "Observed GPU", 96 * 1024, 0, "0000:01:00.0", "10.0"),),
+        topology_text="GPU0 GPU0",
+        dcgm_available=False,
+        dcgm_version=None,
+        health_json=None,
+    )
+    registry = WorkerRegistry((record("gpu", vram=96 * 1024**3, hardware=hardware),))
+    broker = ComputeBroker(Scheduler(), registry)
+    task = ProductionTask(
+        "t",
+        JobRequirements(
+            hardware=__import__("studio.hardware_requirements", fromlist=["HardwareRequirements"]).HardwareRequirements(
+                min_gpu_count=1,
+                min_vram_per_gpu_bytes=80 * 1024**3,
+                min_compute_capability="9.0",
+            )
+        ),
+    )
+    decision = broker.select_worker(task)
+    assert decision.selected_worker == "gpu"
+
+
+def test_topology_sensitive_hardware_is_rejected_without_verified_placement_evidence():
+    hardware = GpuHostObservation(
+        worker_id="gpu",
+        driver_version="580.00",
+        cuda_supported_version="13.0",
+        gpus=(
+            GpuDeviceObservation(0, "GPU-0", "Observed GPU", 96 * 1024, 0, "0000:01:00.0", "10.0"),
+            GpuDeviceObservation(1, "GPU-1", "Observed GPU", 96 * 1024, 0, "0000:02:00.0", "10.0"),
+        ),
+        topology_text="GPU0 GPU1\nGPU1 GPU0",
+        dcgm_available=False,
+        dcgm_version=None,
+        health_json=None,
+    )
+    registry = WorkerRegistry((record("gpu", vram=192 * 1024**3, hardware=hardware),))
+    broker = ComputeBroker(Scheduler(), registry)
+    from studio.hardware_requirements import GpuPlacement, HardwareRequirements
+    task = ProductionTask(
+        "t",
+        JobRequirements(hardware=HardwareRequirements(min_gpu_count=2, placement=GpuPlacement.SAME_NVLINK_DOMAIN)),
+    )
+    decision = broker.select_worker(task)
+    assert decision.selected_worker is None
+    assert dict(decision.rejected_workers)["gpu"] == "same-NVLink-domain placement evidence is not verified"
