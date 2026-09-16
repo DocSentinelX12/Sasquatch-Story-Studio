@@ -6,6 +6,9 @@ import argparse
 import sys
 from pathlib import Path
 
+STUDIO_ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(STUDIO_ROOT))
+
 from studio.ltx25_runtime import required_model_paths, validate_dimensions
 
 
