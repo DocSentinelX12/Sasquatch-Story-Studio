@@ -27,6 +27,7 @@ def _registry(tmp_path: Path) -> RuntimeEngineRegistry:
             license_evidence="test fixture only",
             runtime_output_sha256=hashlib.sha256(output.read_bytes()).hexdigest(),
             recorded_at=1,
+            source_revision="test-source-revision",
         )
     )
     return RuntimeEngineRegistry(store)
@@ -54,6 +55,8 @@ def test_verified_engine_becomes_real_process_adapter(tmp_path: Path):
     assert response.adapter_id == "wan2.2"
     assert response.provenance["engine_id"] == "wan2.2"
     assert response.provenance["quality_tier"] == "very_high"
+    assert response.provenance["verified_source_revision"] == "test-source-revision"
+    assert response.provenance["verified_checkpoint_sha256"] == hashlib.sha256((tmp_path / "checkpoint.bin").read_bytes()).hexdigest()
 
 
 def test_unverified_engine_cannot_be_wired(tmp_path: Path):
