@@ -7,6 +7,7 @@ import pytest
 from studio.engine_adapters import (
     VerifiedEngineRuntimeConfig,
     build_hunyuan_runtime_config,
+    build_skyreels_r2v_runtime_config,
     build_verified_engine_adapter,
 )
 from studio.engine_registry import EngineVerificationRecord, RuntimeEngineRegistry, SQLiteEngineVerificationStore
@@ -77,6 +78,20 @@ def test_hunyuan_runtime_config_is_wired_to_dynamic_shot_inputs(tmp_path: Path):
     assert config.working_directory == str((tmp_path / "HunyuanVideo-1.5").resolve())
 
 
+def test_skyreels_runtime_config_is_wired_to_dynamic_shot_inputs(tmp_path: Path):
+    config = build_skyreels_r2v_runtime_config(
+        repository=tmp_path / "SkyReels-V3",
+        model_path=tmp_path / "SkyReels-V3-R2V-14B",
+        output_path=str(tmp_path / "renders" / "shot.mp4"),
+    )
+    assert config.engine_id == "skyreels-v3-r2v-14b"
+    assert config.command[:2] == ("python", "scripts/run_skyreels_v3_r2v.py")
+    assert "{prompt}" in config.command
+    assert "{reference_images}" in config.command
+    assert "{output}" in config.command
+    assert config.working_directory == str((tmp_path / "SkyReels-V3").resolve())
+
+
 def test_process_adapter_binds_prompt_and_image_request_values(tmp_path: Path):
     registry = _registry(tmp_path)
     output = tmp_path / "render.txt"
@@ -106,6 +121,38 @@ def test_process_adapter_binds_prompt_and_image_request_values(tmp_path: Path):
     )
 
     assert output.read_text(encoding="utf-8") == f"make the character bounce|{image.resolve()}"
+
+
+def test_process_adapter_binds_multiple_reference_images(tmp_path: Path):
+    registry = _registry(tmp_path)
+    output = tmp_path / "render.txt"
+    config = VerifiedEngineRuntimeConfig(
+        engine_id="wan2.2",
+        command=(
+            sys.executable,
+            "-c",
+            "from pathlib import Path; Path(__import__('sys').argv[2]).write_text(__import__('sys').argv[1], encoding='utf-8')",
+            "{reference_images}",
+            "{output}",
+        ),
+        output_path=str(output),
+        working_directory=str(tmp_path),
+    )
+    adapter = build_verified_engine_adapter(registry, config)
+    first = tmp_path / "reference-1.png"
+    second = tmp_path / "reference-2.png"
+    first.write_bytes(b"first")
+    second.write_bytes(b"second")
+
+    adapter.execute(
+        ProductionRequest(
+            "animate",
+            {"reference_images": [str(first), str(second)]},
+            "c" * 64,
+        )
+    )
+
+    assert output.read_text(encoding="utf-8") == f"{first.resolve()},{second.resolve()}"
 
 
 def test_unverified_engine_cannot_be_wired(tmp_path: Path):
