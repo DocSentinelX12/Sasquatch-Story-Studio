@@ -1,3 +1,4 @@
+import os
 import sys
 from pathlib import Path
 
@@ -43,3 +44,34 @@ def test_process_adapter_rejects_unverified_execution(tmp_path: Path):
         assert "verified" in str(exc).lower()
     else:
         raise AssertionError("unverified process adapter executed")
+
+
+def test_process_adapter_binds_leased_gpu_uuids_to_cuda_visibility(tmp_path: Path):
+    output = tmp_path / "cuda.txt"
+    adapter = ProcessAdapter(
+        adapter_id="gpu-process",
+        version="1",
+        license_name="MIT",
+        capabilities=("video_generation",),
+        command=(
+            sys.executable,
+            "-c",
+            "from pathlib import Path; import os; Path(__import__('sys').argv[1]).write_text(os.environ.get('CUDA_VISIBLE_DEVICES', ''), encoding='utf-8')",
+        ),
+        output_path=str(output),
+        working_directory=str(tmp_path),
+        verified=True,
+    )
+
+    response = adapter.execute(
+        ProductionRequest(
+            "animate",
+            {},
+            "c" * 64,
+            parameters={"output_path": str(output), "gpu_uuids": ("GPU-0", "GPU-7")},
+        )
+    )
+
+    assert output.read_text(encoding="utf-8") == "GPU-0,GPU-7"
+    assert response.provenance["allocated_gpu_uuids"] == ("GPU-0", "GPU-7")
+    assert response.provenance["cuda_visible_devices"] == "GPU-0,GPU-7"
