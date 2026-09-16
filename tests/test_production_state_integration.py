@@ -1,7 +1,8 @@
 import pytest
 
 from studio.models import EpisodePlan, Scene, Shot
-from studio.production_state import ProductionStateError, build_episode_production_state
+from studio.production_graph import build_episode_production_state
+from studio.production_state import ProductionStateError
 
 
 def make_plan() -> EpisodePlan:
