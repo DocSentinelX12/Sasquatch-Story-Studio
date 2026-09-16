@@ -39,6 +39,7 @@ ENGINE_CATALOG: tuple[EngineSpec, ...] = (
     EngineSpec("skyreels-v3-r2v-14b", "3-r2v-14b", "https://github.com/SkyworkAI/SkyReels-V3", "Skywork Community License", ("video_generation",), ("python", "scripts/run_skyreels_v3_r2v.py"), "very_high", True),
     EngineSpec("cogvideox1.5-5b-i2v", "1.5-5b-i2v", "https://github.com/zai-org/CogVideo", "CogVideoX License", ("video_generation",), ("python", "scripts/run_cogvideox15_i2v.py"), "high", True),
     EngineSpec("ltx-video", "0.9.8", "https://github.com/Lightricks/LTX-Video", "LTXV Open Weights License 0.X", ("video_generation",), ("python", "scripts/run_ltx_video.py"), "high", True, source_revision="4b2d053057623ddd4d0a1d3e9cd28890e9ef487f"),
+    EngineSpec("ltx-2.5", "2.5", "https://github.com/Lightricks/LTX-2", "LTX-2.x Community License Agreement", ("video_generation",), ("python", "scripts/run_ltx25.py"), "very_high", True, source_revision="598ab41247a77dbfe29b5186e915bcf4f9040ec7"),
     EngineSpec("opentoonz", "current", "https://github.com/opentoonz/opentoonz", "BSD-3-Clause", ("animation", "compositing"), ("OpenToonz",), "professional_2d"),
     EngineSpec("blender", "current", "https://github.com/blender/blender", "GPL-3.0-or-later", ("animation", "rendering", "compositing", "editing"), ("blender", "-b"), "professional_3d"),
     EngineSpec("comfyui", "current", "https://github.com/Comfy-Org/ComfyUI", "GPL-3.0", ("image_generation", "video_generation"), ("python", "main.py"), "high"),
