@@ -148,7 +148,7 @@ class Scheduler:
     def fail(self, job_id: str, worker_id: str) -> None:
         job = self._jobs[job_id]
         if job.state != JobState.LEASED or job.lease_owner != worker_id:
-            raise ValueError("only the current lease owner can fail a job")
+            raise RuntimeError("only the current lease owner can fail a job")
         self._jobs[job.id] = Job(job.id, job.requirements, job.priority, JobState.FAILED)
 
     def snapshot(self) -> tuple[Job, ...]:
@@ -207,7 +207,6 @@ class SQLiteSchedulerStore:
                     "allow_multi_node": item.allow_multi_node,
                     "require_gpu_direct_network": item.require_gpu_direct_network,
                 }
-            }
             rows.append((job.id, json.dumps({"slots": job.requirements.slots, "memory_bytes": job.requirements.memory_bytes, "vram_bytes": job.requirements.vram_bytes, "scratch_bytes": job.requirements.scratch_bytes, "power_watts": job.requirements.power_watts, "capabilities": job.requirements.capabilities, "engines": job.requirements.engines, "hardware": hardware}, sort_keys=True), job.priority, job.state.value, job.lease_owner, job.lease_until, json.dumps(job.allocated_gpu_uuids)))
         with sqlite3.connect(self.path) as connection:
             connection.execute("BEGIN IMMEDIATE")
