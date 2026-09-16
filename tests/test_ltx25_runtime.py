@@ -29,7 +29,7 @@ def test_ltx25_frame_and_resolution_contract():
     validate_dimensions(height=DEFAULT_HEIGHT, width=DEFAULT_WIDTH, num_frames=DEFAULT_NUM_FRAMES)
     with pytest.raises(ValueError, match="multiples of 32"):
         validate_dimensions(height=545, width=DEFAULT_WIDTH, num_frames=DEFAULT_NUM_FRAMES)
-    with pytest.raises(ValueError, match="8N\+1"):
+    with pytest.raises(ValueError, match=r"8N\+1"):
         validate_dimensions(height=DEFAULT_HEIGHT, width=DEFAULT_WIDTH, num_frames=120)
 
 
@@ -43,7 +43,7 @@ def test_ltx25_command_binds_real_studio_inputs(tmp_path: Path):
         studio_root=studio_root,
         source_repository=(tmp_path / "LTX-2").resolve(),
         model_root=(tmp_path / "models" / "LTX-2.5").resolve(),
-        prompt="make the Sasquatch bounce",
+        prompt="{prompt}",
         image_path="{image_path}",
         output_token="{output}",
     )
