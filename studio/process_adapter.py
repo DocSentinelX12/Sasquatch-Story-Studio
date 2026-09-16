@@ -15,9 +15,11 @@ from .production import ProductionRequest, ProductionResponse
 class ProcessAdapter:
     """Execute an explicitly configured engine command and require real output.
 
-    The command may contain the literal ``{output}`` token. If present, that token
-    is replaced with the requested output path. If absent, the output path is
-    appended for backwards compatibility with the original adapter contract.
+    The command may contain ``{output}``, ``{prompt}``, or ``{image_path}``.
+    ``output`` is always required when the command uses an explicit token.
+    Prompt and image values are taken from request parameters first, then the
+    request payload. Existing commands without these tokens retain their prior
+    behavior.
     """
 
     adapter_id: str
@@ -49,6 +51,12 @@ class ProcessAdapter:
             self.verified,
         )
 
+    @staticmethod
+    def _request_value(request: ProductionRequest, name: str) -> object | None:
+        if name in request.parameters:
+            return request.parameters[name]
+        return request.payload.get(name)
+
     def execute(self, request: ProductionRequest) -> ProductionResponse:
         require_verified(self)
         if not self.command or any(not item for item in self.command):
@@ -62,14 +70,31 @@ class ProcessAdapter:
             raise RuntimeError(f"engine working directory does not exist: {workdir}")
         output.parent.mkdir(parents=True, exist_ok=True)
 
-        if "{output}" in self.command:
-            command = tuple(str(output) if item == "{output}" else item for item in self.command)
-        else:
-            command = tuple(self.command) + (str(output),)
+        prompt = self._request_value(request, "prompt")
+        image_path = self._request_value(request, "image_path")
+        command: list[str] = []
+        for item in self.command:
+            if item == "{output}":
+                command.append(str(output))
+            elif item == "{prompt}":
+                if not isinstance(prompt, str) or not prompt.strip():
+                    raise ValueError(f"engine {self.adapter_id} requires a non-empty prompt parameter")
+                command.append(prompt)
+            elif item == "{image_path}":
+                if image_path is None:
+                    command.append("none")
+                elif isinstance(image_path, (str, Path)):
+                    command.append(str(Path(image_path).expanduser().resolve()))
+                else:
+                    raise ValueError(f"engine {self.adapter_id} image_path must be a path string")
+            else:
+                command.append(item)
+        if "{output}" not in self.command:
+            command.append(str(output))
 
         try:
             completed = subprocess.run(
-                command,
+                tuple(command),
                 cwd=workdir,
                 check=False,
                 stdout=subprocess.PIPE,
