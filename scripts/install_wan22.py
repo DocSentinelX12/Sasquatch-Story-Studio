@@ -1,11 +1,18 @@
 #!/usr/bin/env python3
-"""Install the official Wan2.2 source tree and record reproducible evidence."""
+"""Install the official Wan2.2 source tree and record reproducible evidence.
+
+The Studio's ordinary CI runners are CPU-only. Wan2.2's official dependency set
+includes flash-attn, which requires a CUDA build environment. We therefore verify
+the source/package integration in CPU CI without pretending that CUDA runtime
+verification has occurred. The real CUDA dependency/runtime check remains part of
+the deferred final video-evidence phase.
+"""
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import subprocess
-import sys
 from pathlib import Path
 
 ROOT = Path("engine-installations") / "wan2.2"
@@ -41,8 +48,14 @@ def main() -> int:
     if revision != EXPECTED_REVISION:
         raise RuntimeError(f"Wan2.2 source revision changed unexpectedly: expected {EXPECTED_REVISION}, got {revision}")
 
-    run("python", "-m", "pip", "install", "--upgrade", "pip", timeout=600)
-    run("python", "-m", "pip", "install", ".", cwd=REPOSITORY, timeout=3600)
+    run("python", "-m", "pip", "install", "--upgrade", "pip", "setuptools", "wheel", timeout=600)
+
+    # Wan2.2's setup metadata imports torch while resolving flash-attn. The
+    # isolated GitHub runner has no CUDA toolchain, so a normal `pip install .`
+    # attempts an impossible flash-attn build. Install the package itself without
+    # dependencies for source/package verification; CUDA dependencies are not
+    # represented as runtime-verified by this step.
+    run("python", "-m", "pip", "install", ".", "--no-deps", cwd=REPOSITORY, timeout=1200)
     run("python", "-m", "compileall", "-q", ".", cwd=REPOSITORY, timeout=600)
 
     model_evidence: list[dict[str, object]] = []
@@ -50,9 +63,7 @@ def main() -> int:
         model_root = ROOT / "Wan2.2-T2V-A14B-Diffusers"
         run("python", "-m", "pip", "install", "--upgrade", "huggingface_hub[cli]", timeout=1200)
         run("hf", "download", MODEL_REPOSITORY, "--local-dir", str(model_root), timeout=21600)
-        files = [p for p in model_root.rglob("*") if p.is_file()]
-        for path in files:
-            import hashlib
+        for path in sorted(p for p in model_root.rglob("*") if p.is_file()):
             digest = hashlib.sha256(path.read_bytes()).hexdigest()
             model_evidence.append({"path": str(path), "bytes": path.stat().st_size, "sha256": digest})
 
@@ -65,10 +76,12 @@ def main() -> int:
         "executable": ["python", "generate.py"],
         "models": model_evidence,
         "runtime_verified": False,
+        "cuda_dependency_verification": "deferred",
         "notes": [
             "Official Wan2.2 source repository installed at the pinned revision.",
-            "Installation and source compilation do not claim video-generation verification.",
-            "Final CUDA video evidence remains intentionally deferred.",
+            "Package metadata and source compilation are verified in CPU CI without building flash-attn.",
+            "Wan2.2 officially lists flash-attn as a dependency; its CUDA build is intentionally deferred to the final CUDA/video evidence phase.",
+            "No source-install success is used as evidence of video-generation runtime success.",
         ],
     }
     evidence_path = ROOT / "installation-evidence.json"
