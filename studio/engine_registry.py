@@ -26,11 +26,16 @@ class EngineSpec:
     license_verified: bool = False
     checkpoint_verified: bool = False
     verification_evidence: str | None = None
+    source_revision: str | None = None
+    checkpoint_path: str | None = None
+    checkpoint_sha256: str | None = None
+    runtime_output_sha256: str | None = None
 
 
 ENGINE_CATALOG: tuple[EngineSpec, ...] = (
     EngineSpec("wan2.2", "2.2", "https://github.com/Wan-Video/Wan2.2", "Apache-2.0", ("video_generation", "image_generation"), ("python", "generate.py"), "very_high"),
     EngineSpec("wan2.1", "2.1", "https://github.com/Wan-Video/Wan2.1", "Apache-2.0", ("video_generation", "image_generation"), ("python", "generate.py"), "high"),
+    EngineSpec("hunyuanvideo-1.5", "1.5", "https://github.com/Tencent-Hunyuan/HunyuanVideo-1.5", "Tencent Hunyuan Community License Agreement", ("video_generation",), ("torchrun", "generate.py"), "very_high", True, "Worldwide territory excluding the European Union, United Kingdom, and South Korea"),
     EngineSpec("ltx-video", "0.9.8", "https://github.com/Lightricks/LTX-Video", "Apache-2.0 repository; checkpoint license must be verified for the selected model", ("video_generation",), ("python", "inference.py"), "high", True),
     EngineSpec("opentoonz", "current", "https://github.com/opentoonz/opentoonz", "BSD-3-Clause", ("animation", "compositing"), ("OpenToonz",), "professional_2d"),
     EngineSpec("blender", "current", "https://github.com/blender/blender", "GPL-3.0-or-later", ("animation", "rendering", "compositing", "editing"), ("blender", "-b"), "professional_3d"),
@@ -106,6 +111,7 @@ class EngineVerificationRecord:
     license_evidence: str
     runtime_output_sha256: str
     recorded_at: int
+    source_revision: str | None = None
 
     def __post_init__(self) -> None:
         required = {
@@ -121,6 +127,8 @@ class EngineVerificationRecord:
         }
         if any(not value.strip() for value in required.values()):
             raise ValueError("complete engine verification evidence is required")
+        if self.source_revision is not None and not self.source_revision.strip():
+            raise ValueError("source_revision cannot be empty when supplied")
         for field_name in ("checkpoint_sha256", "runtime_output_sha256"):
             value = getattr(self, field_name)
             if len(value) != 64 or any(char not in "0123456789abcdef" for char in value.lower()):
@@ -141,7 +149,12 @@ class EngineVerificationRecord:
                 f"checkpoint={self.checkpoint_path}:{self.checkpoint_sha256}; "
                 f"runtime_output_sha256={self.runtime_output_sha256}; "
                 f"license_source={self.license_source}; license_evidence={self.license_evidence}"
+                + (f"; source_revision={self.source_revision}" if self.source_revision else "")
             ),
+            source_revision=self.source_revision,
+            checkpoint_path=self.checkpoint_path,
+            checkpoint_sha256=self.checkpoint_sha256,
+            runtime_output_sha256=self.runtime_output_sha256,
         )
         assert_verified_engine(promoted)
         return promoted

@@ -4,7 +4,11 @@ from pathlib import Path
 
 import pytest
 
-from studio.engine_adapters import VerifiedEngineRuntimeConfig, build_verified_engine_adapter
+from studio.engine_adapters import (
+    VerifiedEngineRuntimeConfig,
+    build_hunyuan_runtime_config,
+    build_verified_engine_adapter,
+)
 from studio.engine_registry import EngineVerificationRecord, RuntimeEngineRegistry, SQLiteEngineVerificationStore
 from studio.production import ProductionRequest
 
@@ -27,6 +31,7 @@ def _registry(tmp_path: Path) -> RuntimeEngineRegistry:
             license_evidence="test fixture only",
             runtime_output_sha256=hashlib.sha256(output.read_bytes()).hexdigest(),
             recorded_at=1,
+            source_revision="test-source-revision",
         )
     )
     return RuntimeEngineRegistry(store)
@@ -54,6 +59,53 @@ def test_verified_engine_becomes_real_process_adapter(tmp_path: Path):
     assert response.adapter_id == "wan2.2"
     assert response.provenance["engine_id"] == "wan2.2"
     assert response.provenance["quality_tier"] == "very_high"
+    assert response.provenance["verified_source_revision"] == "test-source-revision"
+    assert response.provenance["verified_checkpoint_sha256"] == hashlib.sha256((tmp_path / "checkpoint.bin").read_bytes()).hexdigest()
+
+
+def test_hunyuan_runtime_config_is_wired_to_dynamic_shot_inputs(tmp_path: Path):
+    config = build_hunyuan_runtime_config(
+        repository=tmp_path / "HunyuanVideo-1.5",
+        model_path=tmp_path / "ckpts",
+        output_path=str(tmp_path / "renders" / "shot.mp4"),
+    )
+    assert config.engine_id == "hunyuanvideo-1.5"
+    assert config.command[:3] == ("torchrun", "--nproc_per_node=1", "generate.py")
+    assert "{prompt}" in config.command
+    assert "{image_path}" in config.command
+    assert "{output}" in config.command
+    assert config.working_directory == str((tmp_path / "HunyuanVideo-1.5").resolve())
+
+
+def test_process_adapter_binds_prompt_and_image_request_values(tmp_path: Path):
+    registry = _registry(tmp_path)
+    output = tmp_path / "render.txt"
+    config = VerifiedEngineRuntimeConfig(
+        engine_id="wan2.2",
+        command=(
+            sys.executable,
+            "-c",
+            "from pathlib import Path; Path(__import__('sys').argv[3]).write_text(__import__('sys').argv[1] + '|' + __import__('sys').argv[2], encoding='utf-8')",
+            "{prompt}",
+            "{image_path}",
+            "{output}",
+        ),
+        output_path=str(output),
+        working_directory=str(tmp_path),
+    )
+    adapter = build_verified_engine_adapter(registry, config)
+    image = tmp_path / "reference.webp"
+    image.write_bytes(b"image")
+
+    adapter.execute(
+        ProductionRequest(
+            "animate",
+            {"prompt": "make the character bounce", "image_path": str(image)},
+            "b" * 64,
+        )
+    )
+
+    assert output.read_text(encoding="utf-8") == f"make the character bounce|{image.resolve()}"
 
 
 def test_unverified_engine_cannot_be_wired(tmp_path: Path):

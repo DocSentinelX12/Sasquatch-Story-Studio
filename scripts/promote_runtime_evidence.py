@@ -48,6 +48,7 @@ def main() -> int:
         license_evidence=payload["license_evidence"],
         runtime_output_sha256=payload["runtime_output_sha256"],
         recorded_at=int(payload["recorded_at"]),
+        source_revision=payload.get("source_revision"),
     )
     store = SQLiteEngineVerificationStore(args.registry)
     store.save(record)

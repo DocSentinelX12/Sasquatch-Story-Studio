@@ -10,12 +10,13 @@ def test_catalog_contains_curated_quality_engines_without_claiming_verification(
 
 
 def test_video_generation_catalog_has_candidates_but_no_unearned_verified_choices():
-    assert {"wan2.1", "ltx-video"}.issubset({e.id for e in catalog_engines_for("video_generation")})
-    assert {e.id for e in VERIFIED_ENGINES}.isdisjoint({"wan2.1", "ltx-video"})
+    assert {"wan2.1", "ltx-video", "hunyuanvideo-1.5"}.issubset({e.id for e in catalog_engines_for("video_generation")})
+    assert {e.id for e in VERIFIED_ENGINES}.isdisjoint({"wan2.1", "ltx-video", "hunyuanvideo-1.5"})
 
 
 def test_catalog_lookup_does_not_imply_production_verification():
     assert get_catalog_engine("wan2.2").id == "wan2.2"
+    assert get_catalog_engine("hunyuanvideo-1.5").runtime_verified is False
     try:
         get_engine("wan2.2")
     except KeyError as exc:
