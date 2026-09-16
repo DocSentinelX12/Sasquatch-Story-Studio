@@ -1,0 +1,32 @@
+name: Install HunyuanVideo 1.5
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "scripts/install_hunyuanvideo15.py"
+      - "studio/hunyuan_runtime.py"
+      - "studio/runtime_verification.py"
+      - "studio/engine_registry.py"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  install:
+    name: Install HunyuanVideo 1.5 source
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install source and dependencies
+        run: python scripts/install_hunyuanvideo15.py
+      - name: Publish installation evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: engine-install-hunyuanvideo-1.5
+          path: engine-installations/hunyuanvideo-1.5/installation-evidence.json
+          if-no-files-found: error
