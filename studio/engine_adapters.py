@@ -91,6 +91,10 @@ def _adapter_from_verified_engine(
         timeout_seconds=config.timeout_seconds,
         quality_tier=engine.quality_tier,
         commercial_use_review_required=engine.commercial_use_review_required,
+        source_revision=engine.source_revision,
+        checkpoint_path=engine.checkpoint_path,
+        checkpoint_sha256=engine.checkpoint_sha256,
+        runtime_output_sha256=engine.runtime_output_sha256,
     )
 
 
