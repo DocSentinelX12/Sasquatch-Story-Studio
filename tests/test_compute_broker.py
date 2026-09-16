@@ -118,11 +118,21 @@ def test_topology_sensitive_hardware_is_rejected_without_verified_placement_evid
     assert dict(decision.rejected_workers)["gpu"] == "same-NVLink-domain placement evidence is not verified"
 
 
-def test_lease_binds_the_requested_task_instead_of_a_different_queued_task():
+def test_lease_binds_the_requested_task_and_exact_gpu_allocation():
+    hardware = GpuHostObservation(
+        worker_id="gpu",
+        driver_version="580.00",
+        cuda_supported_version="13.0",
+        gpus=(GpuDeviceObservation(0, "GPU-0", "Observed GPU", 96 * 1024, 0, "0000:01:00.0", "10.0"),),
+        topology_text="GPU0 GPU0",
+        dcgm_available=False,
+        dcgm_version=None,
+        health_json=None,
+    )
     scheduler = Scheduler()
-    registry = WorkerRegistry((record("gpu", vram=24 * 1024**3),))
+    registry = WorkerRegistry((record("gpu", vram=96 * 1024**3, hardware=hardware),))
     broker = ComputeBroker(scheduler, registry)
-    requested = ProductionTask("requested", JobRequirements(), priority=0)
+    requested = ProductionTask("requested", JobRequirements(hardware=HardwareRequirements(min_gpu_count=1)))
     other = ProductionTask("other", JobRequirements(), priority=100)
     broker.submit(requested)
     broker.submit(other)
@@ -130,5 +140,18 @@ def test_lease_binds_the_requested_task_instead_of_a_different_queued_task():
     decision, leased = broker.lease(requested, now=10, lease_seconds=30)
 
     assert decision.selected_worker == "gpu"
+    assert decision.selected_gpu_uuids == ("GPU-0",)
     assert leased is not None
     assert leased.id == "requested"
+    assert leased.allocated_gpu_uuids == ("GPU-0",)
+
+
+def test_overlapping_gpu_allocation_is_rejected_by_scheduler():
+    scheduler = Scheduler()
+    resource = ComputeResource("gpu-resource", 16, 32 * 1024**3, gpu_count=1, vram_bytes=96 * 1024**3, logical_slots=4)
+    first = ProductionTask("first", JobRequirements())
+    second = ProductionTask("second", JobRequirements())
+    scheduler.submit(scheduler_job := __import__("studio.scheduler", fromlist=["Job"]).Job("first", first.requirements))
+    scheduler.submit(__import__("studio.scheduler", fromlist=["Job"]).Job("second", second.requirements))
+    assert scheduler.choose_on_worker("gpu", resource, 0, now=1, gpu_uuids=("GPU-0",), job_id="first") is not None
+    assert scheduler.choose_on_worker("gpu", resource, 0, now=1, gpu_uuids=("GPU-0",), job_id="second") is None
