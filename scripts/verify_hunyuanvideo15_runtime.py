@@ -140,10 +140,10 @@ def main() -> int:
         recorded_at=int(time.time()),
         working_directory=repository,
         timeout_seconds=args.timeout_seconds,
+        source_revision=revision,
     )
 
     payload = evidence.to_record().__dict__
-    payload["model_revision"] = revision
     payload["model_path_type"] = "directory"
     payload["cuda_available"] = True
     payload["generator"] = "generate.py"
