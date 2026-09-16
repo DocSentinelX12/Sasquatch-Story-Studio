@@ -1,5 +1,6 @@
 from studio.compute_broker import ComputeBroker, ProductionTask
 from studio.gpu_infrastructure import GpuDeviceObservation, GpuHostObservation
+from studio.hardware_requirements import GpuPlacement, HardwareRequirements
 from studio.resources import ComputeResource
 from studio.scheduler import JobRequirements, JobState, Scheduler
 from studio.worker_registry import WorkerRecord, WorkerRegistry, WorkerState
@@ -80,7 +81,7 @@ def test_hardware_requirements_are_enforced_from_observed_gpu_inventory():
     task = ProductionTask(
         "t",
         JobRequirements(
-            hardware=__import__("studio.hardware_requirements", fromlist=["HardwareRequirements"]).HardwareRequirements(
+            hardware=HardwareRequirements(
                 min_gpu_count=1,
                 min_vram_per_gpu_bytes=80 * 1024**3,
                 min_compute_capability="9.0",
@@ -107,7 +108,6 @@ def test_topology_sensitive_hardware_is_rejected_without_verified_placement_evid
     )
     registry = WorkerRegistry((record("gpu", vram=192 * 1024**3, hardware=hardware),))
     broker = ComputeBroker(Scheduler(), registry)
-    from studio.hardware_requirements import GpuPlacement, HardwareRequirements
     task = ProductionTask(
         "t",
         JobRequirements(hardware=HardwareRequirements(min_gpu_count=2, placement=GpuPlacement.SAME_NVLINK_DOMAIN)),
