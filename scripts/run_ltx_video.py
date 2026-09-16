@@ -31,12 +31,10 @@ def main() -> int:
         raise RuntimeError(f"LTX-Video repository does not exist: {repository}")
     if not model_path.is_dir():
         raise RuntimeError(f"LTX-Video model directory does not exist: {model_path}")
-    if args.image_path is not None:
-        image = args.image_path.expanduser().resolve()
-        if not image.is_file():
-            raise RuntimeError(f"conditioning image does not exist: {image}")
-    else:
-        image = None
+    raw_image = str(args.image_path) if args.image_path is not None else ""
+    image = Path(raw_image).expanduser().resolve() if raw_image and raw_image != "none" else None
+    if image is not None and not image.is_file():
+        raise RuntimeError(f"conditioning image does not exist: {image}")
 
     sys.path.insert(0, str(repository))
     from ltx_video.inference import InferenceConfig, infer
