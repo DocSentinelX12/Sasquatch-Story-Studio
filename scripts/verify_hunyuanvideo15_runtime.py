@@ -19,6 +19,7 @@ LICENSE_EVIDENCE = (
     "the Territory excludes the European Union, United Kingdom, and South Korea; "
     "the studio keeps commercial-use review and territory restrictions enforced."
 )
+OFFICIAL_SSH_ORIGIN = "git@github.com:Tencent-Hunyuan/HunyuanVideo-1.5"
 
 
 def _git_revision(repository: Path) -> str:
@@ -52,7 +53,7 @@ def _git_origin(repository: Path) -> str:
     origin = completed.stdout.strip().rstrip("/")
     if origin.endswith(".git"):
         origin = origin[:-4]
-    if origin not in {OFFICIAL_REPOSITORY, OFFICIAL_REPOSITORY.replace("https://", "git@github.com:").replace("/", ":", 1)}:
+    if origin not in {OFFICIAL_REPOSITORY, OFFICIAL_SSH_ORIGIN}:
         raise RuntimeError(f"Hunyuan repository origin is not the official source: {origin}")
     return origin
 
