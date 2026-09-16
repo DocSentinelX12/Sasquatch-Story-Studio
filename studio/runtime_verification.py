@@ -66,15 +66,47 @@ class RuntimeEvidence:
         )
 
 
-def sha256_file(path: str | Path) -> str:
-    file_path = Path(path).expanduser().resolve()
-    if not file_path.is_file() or file_path.stat().st_size == 0:
-        raise RuntimeError(f"checkpoint/model file is missing or empty: {file_path}")
+def sha256_path(path: str | Path) -> str:
+    """Hash one model file or a model directory deterministically.
+
+    Directory hashes include each relative file path and its bytes in sorted
+    relative-path order. Empty directories are not included because they do not
+    contribute model content.
+    """
+    target = Path(path).expanduser().resolve()
+    if target.is_file():
+        digest = hashlib.sha256()
+        with target.open("rb") as handle:
+            for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+                digest.update(chunk)
+        if target.stat().st_size == 0:
+            raise RuntimeError(f"checkpoint/model file is missing or empty: {target}")
+        return digest.hexdigest()
+
+    if not target.is_dir():
+        raise RuntimeError(f"checkpoint/model path does not exist: {target}")
+
+    files = sorted(item for item in target.rglob("*") if item.is_file())
+    if not files:
+        raise RuntimeError(f"checkpoint/model directory contains no files: {target}")
+
     digest = hashlib.sha256()
-    with file_path.open("rb") as handle:
-        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
-            digest.update(chunk)
+    for item in files:
+        relative = item.relative_to(target).as_posix().encode("utf-8")
+        digest.update(len(relative).to_bytes(8, "big"))
+        digest.update(relative)
+        with item.open("rb") as handle:
+            for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+                digest.update(chunk)
     return digest.hexdigest()
+
+
+def sha256_file(path: str | Path) -> str:
+    """Hash a single non-empty file, preserving the original file-only API."""
+    target = Path(path).expanduser().resolve()
+    if not target.is_file() or target.stat().st_size == 0:
+        raise RuntimeError(f"checkpoint/model file is missing or empty: {target}")
+    return sha256_path(target)
 
 
 def _run(command: Sequence[str], *, cwd: Path | None, timeout_seconds: int) -> subprocess.CompletedProcess[str]:
@@ -139,11 +171,11 @@ def verify_engine_runtime(
 
     version_observation = probe_version(version_command, timeout_seconds=min(timeout_seconds, 60))
     checkpoint = Path(checkpoint_path).expanduser().resolve()
-    checkpoint_digest = sha256_file(checkpoint)
+    checkpoint_digest = sha256_path(checkpoint)
     command = tuple(str(item) for item in execution_command)
     command = tuple(str(output) if item == "{output}" else item for item in command)
     _run(command, cwd=workdir, timeout_seconds=timeout_seconds)
-    output_digest = sha256_file(output)
+    output_digest = sha256_path(output)
 
     return RuntimeEvidence(
         engine_id=engine.id,
