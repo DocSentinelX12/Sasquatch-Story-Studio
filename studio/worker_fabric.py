@@ -3,12 +3,22 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from enum import StrEnum
-from typing import Callable, Mapping
+from typing import Callable, Mapping, Protocol
 
 from .compute_broker import ComputeBroker, ProductionTask
 from .scheduler import Job
 from .worker import WorkerExecutor, WorkerResultState, WorkerTask
 from .worker_registry import WorkerState
+
+
+class LeaseProvider(Protocol):
+    def __call__(self, worker_id: str, task: WorkerTask, expires_at: int, now: int):
+        ...
+
+
+class LeaseBoundExecutor(Protocol):
+    def execute_with_lease(self, task: WorkerTask, lease: object) -> object:
+        ...
 
 
 class DispatchState(StrEnum):
@@ -29,13 +39,30 @@ class DispatchRecord:
 
 
 class WorkerFabric:
-    """Routes checkpointable tasks and recovers them when workers disappear."""
+    """Routes checkpointable tasks and recovers them when workers disappear.
 
-    def __init__(self, broker: ComputeBroker, executors: Mapping[str, WorkerExecutor]):
+    Local executors retain the existing direct path. Remote executors must
+    expose ``execute_with_lease`` and are given a control-plane-issued lease
+    before any network execution is attempted.
+    """
+
+    def __init__(
+        self,
+        broker: ComputeBroker,
+        executors: Mapping[str, WorkerExecutor],
+        lease_provider: LeaseProvider | None = None,
+    ):
         self.broker = broker
         self.executors = dict(executors)
+        self.lease_provider = lease_provider
 
-    def dispatch(self, task: ProductionTask, worker_task_factory: Callable[[ProductionTask, Job, str], WorkerTask], now: int, lease_seconds: int = 900) -> DispatchRecord:
+    def dispatch(
+        self,
+        task: ProductionTask,
+        worker_task_factory: Callable[[ProductionTask, Job, str], WorkerTask],
+        now: int,
+        lease_seconds: int = 900,
+    ) -> DispatchRecord:
         decision, job = self.broker.lease(task, now, lease_seconds)
         if job is None:
             return DispatchRecord(task.id, task.id, None, DispatchState.NO_WORKER, error=decision.reason)
@@ -46,7 +73,18 @@ class WorkerFabric:
             self.broker.scheduler.requeue(job.id, worker_id)
             return DispatchRecord(task.id, job.id, worker_id, DispatchState.REQUEUED, error="no executor registered for leased worker")
         worker_task = worker_task_factory(task, job, worker_id)
-        result = executor.execute(worker_task)
+        try:
+            if hasattr(executor, "execute_with_lease"):
+                if self.lease_provider is None:
+                    self.broker.scheduler.requeue(job.id, worker_id)
+                    return DispatchRecord(task.id, job.id, worker_id, DispatchState.REQUEUED, error="remote executor requires an authenticated lease provider")
+                lease = self.lease_provider(worker_id, worker_task, job.lease_until or now, now)
+                result = executor.execute_with_lease(worker_task, lease)  # type: ignore[attr-defined]
+            else:
+                result = executor.execute(worker_task)
+        except (PermissionError, RuntimeError, ValueError, OSError) as exc:
+            self.broker.scheduler.requeue(job.id, worker_id)
+            return DispatchRecord(task.id, job.id, worker_id, DispatchState.REQUEUED, error=str(exc))
         if result.task_id != task.id:
             self.broker.scheduler.fail(job.id, worker_id)
             return DispatchRecord(task.id, job.id, worker_id, DispatchState.FAILED, error="executor returned a mismatched task id")
