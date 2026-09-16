@@ -4,6 +4,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from collections.abc import Iterable
 
+from .gpu_placement import evaluate_gpu_placement
 from .scheduler import Job, JobRequirements, Scheduler
 from .worker_registry import WorkerRecord, WorkerRegistry, WorkerState
 
@@ -26,6 +27,7 @@ class BrokerDecision:
     rejected_workers: tuple[tuple[str, str], ...]
     selected_worker: str | None
     reason: str
+    selected_gpu_uuids: tuple[str, ...] = ()
 
 
 class ComputeBroker:
@@ -39,42 +41,56 @@ class ComputeBroker:
         self.verified_engines = frozenset(verified_engines)
 
     @staticmethod
-    def _fits(task: ProductionTask, worker: WorkerRecord, verified_engines: frozenset[str]) -> tuple[bool, str]:
+    def _fits(task: ProductionTask, worker: WorkerRecord, verified_engines: frozenset[str]) -> tuple[bool, str, tuple[str, ...]]:
         req = task.requirements
         resource = worker.resource
         if worker.state not in ComputeBroker._ACTIVE:
-            return False, f"worker state is {worker.state.value}"
+            return False, f"worker state is {worker.state.value}", ()
         if not resource.healthy:
-            return False, "worker resource is unhealthy"
+            return False, "worker resource is unhealthy", ()
         if resource.logical_slots < req.slots:
-            return False, "insufficient logical slots"
+            return False, "insufficient logical slots", ()
         if resource.memory_bytes < req.memory_bytes:
-            return False, "insufficient memory"
+            return False, "insufficient memory", ()
         if resource.vram_bytes < req.vram_bytes:
-            return False, "insufficient VRAM"
+            return False, "insufficient VRAM", ()
         if resource.scratch_bytes < req.scratch_bytes:
-            return False, "insufficient scratch storage"
+            return False, "insufficient scratch storage", ()
         if req.power_watts and (resource.power_budget_watts is None or resource.power_budget_watts < req.power_watts):
-            return False, "insufficient observed worker power budget"
+            return False, "insufficient observed worker power budget", ()
         if not set(req.capabilities).issubset(resource.capabilities):
-            return False, "required capability not observed"
+            return False, "required capability not observed", ()
         if not set(req.engines).issubset(resource.installed_engines):
-            return False, "required engine not observed on worker"
+            return False, "required engine not observed on worker", ()
         if not set(req.engines).issubset(verified_engines):
-            return False, "required engine is not runtime verified"
-        return True, "eligible"
+            return False, "required engine is not runtime verified", ()
+        if req.hardware is not None:
+            placement = evaluate_gpu_placement(req.hardware, worker.hardware_observation)
+            if not placement.eligible:
+                return False, placement.reason, ()
+            return True, "eligible", placement.gpu_uuids
+        return True, "eligible", ()
 
     def select_worker(self, task: ProductionTask) -> BrokerDecision:
         eligible: list[str] = []
         rejected: list[tuple[str, str]] = []
+        placements: dict[str, tuple[str, ...]] = {}
         for worker in self.registry.snapshot():
-            ok, reason = self._fits(task, worker, self.verified_engines)
+            ok, reason, gpu_uuids = self._fits(task, worker, self.verified_engines)
             if ok:
                 eligible.append(worker.id)
+                placements[worker.id] = gpu_uuids
             else:
                 rejected.append((worker.id, reason))
         selected = min(eligible) if eligible else None
-        return BrokerDecision(task.id, tuple(eligible), tuple(rejected), selected, "eligible worker selected" if selected else "no verified eligible worker")
+        return BrokerDecision(
+            task.id,
+            tuple(eligible),
+            tuple(rejected),
+            selected,
+            "eligible worker selected" if selected else "no verified eligible worker",
+            placements.get(selected, ()) if selected else (),
+        )
 
     def submit(self, task: ProductionTask) -> Job:
         job = Job(task.id, task.requirements, task.priority)
