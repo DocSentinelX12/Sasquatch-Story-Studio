@@ -43,6 +43,15 @@ def _git_revision(repository: Path) -> str:
     return revision
 
 
+def require_cuda() -> None:
+    try:
+        import torch
+    except ImportError as exc:
+        raise RuntimeError("Hunyuan runtime verification requires PyTorch in the execution environment") from exc
+    if not torch.cuda.is_available():
+        raise RuntimeError("HunyuanVideo-1.5 runtime verification requires an NVIDIA CUDA GPU")
+
+
 def build_execution_command(
     *,
     python_executable: str,
@@ -109,12 +118,7 @@ def main() -> int:
     if args.timeout_seconds < 1:
         raise ValueError("timeout-seconds must be positive")
 
-    try:
-        import torch
-    except ImportError as exc:
-        raise RuntimeError("Hunyuan runtime verification requires PyTorch in the execution environment") from exc
-    if not torch.cuda.is_available():
-        raise RuntimeError("HunyuanVideo-1.5 runtime verification requires an NVIDIA CUDA GPU")
+    require_cuda()
 
     engine = get_catalog_engine(ENGINE_ID)
     revision = _git_revision(repository)
