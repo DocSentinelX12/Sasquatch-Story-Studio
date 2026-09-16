@@ -4,13 +4,23 @@ A local-first, reproducible production system for turning the creator's stories 
 
 ## Creative authority
 
-The creator's story and explicit scene instructions are canonical. The studio may interpret and expand production details, but it must never silently rewrite story events, dialogue, characters, outcomes, or continuity. Proposed creative changes are emitted as review items.
+The creator's story and explicit scene instructions are canonical. The studio may interpret and expand production details, but it must never silently rewrite story events, dialogue, characters, outcomes, or continuity. Proposed creative changes are emitted as review items. The creator remains the final approval gate for episode changes and release.
+
+## Episodic independence
+
+Every episode is independently producible. Recurring characters and a stable visual language do not require serialized plot continuity. An episode may establish its own season, setting, wardrobe, props, timing, circumstances, and story without inheriting those episode-local states from another episode.
+
+Continuity is therefore enforced strongly **within an episode**, while cross-episode story continuity is optional and creator-directed.
+
+## Surgical episode changes
+
+The studio is designed around creator-directed, surgical corrections. A creator can describe a desired change in ordinary language. The system identifies the smallest affected production scope, records what must remain protected, proposes the resulting change for approval when required, regenerates only the affected material, reconnects it to neighboring material, and validates the result before the revised episode can pass the release gate.
+
+Protected continuity includes dialogue identity and timing, character identity, actions, physical state, props, environment, camera relationships, audio, music, sound effects, scene transitions, and the entry/exit state required for neighboring shots. Nothing unrelated should be silently regenerated or changed.
 
 ## Production flow
 
-`story -> interpretation -> episode plan -> scenes -> shots -> assets -> animation -> dialogue -> lip sync -> sound/music -> compositing -> edit -> QC -> story fidelity -> approval -> master -> archive`
-
-Episodes are intentionally independent. Recurring characters and a stable visual language do not require serialized plot continuity.
+`story -> interpretation -> episode plan -> scenes -> shots -> assets -> animation -> dialogue -> lip sync -> sound/music -> compositing -> edit -> continuity QC -> story fidelity -> creator approval -> master -> archive`
 
 ## Design principles
 
@@ -20,6 +30,8 @@ Episodes are intentionally independent. Recurring characters and a stable visual
 - Checkpointed execution so failed shots can be retried without rerendering completed work.
 - Human approval remains the release gate.
 - No fake integrations, credentials, selectors, URLs, model capabilities, or placeholder production data.
+- Image-art providers are replaceable production backends and must not become the canonical story or character data model.
+- Meta AI can be used as a creator-selected image-art provider only where a real, verified workflow exists. The studio must never claim an API, automation path, credentials, selectors, or integration that has not been verified.
 
 ## Repository map
 
@@ -35,4 +47,4 @@ Episodes are intentionally independent. Recurring characters and a stable visual
 
 Python 3.11+ is the initial target. Run the test suite with `python -m pytest`.
 
-The first implementation establishes the durable production contracts before heavyweight AI runtimes are coupled to the system. This prevents model churn from changing the studio's permanent creative data model.
+The implementation establishes durable production contracts before heavyweight AI runtimes are coupled to the system. This prevents model churn from changing the studio's permanent creative data model.
