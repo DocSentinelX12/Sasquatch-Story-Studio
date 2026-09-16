@@ -36,6 +36,8 @@ ENGINE_CATALOG: tuple[EngineSpec, ...] = (
     EngineSpec("wan2.2", "2.2", "https://github.com/Wan-Video/Wan2.2", "Apache-2.0", ("video_generation", "image_generation"), ("python", "generate.py"), "very_high"),
     EngineSpec("wan2.1", "2.1", "https://github.com/Wan-Video/Wan2.1", "Apache-2.0", ("video_generation", "image_generation"), ("python", "generate.py"), "high"),
     EngineSpec("hunyuanvideo-1.5", "1.5", "https://github.com/Tencent-Hunyuan/HunyuanVideo-1.5", "Tencent Hunyuan Community License Agreement", ("video_generation",), ("torchrun", "generate.py"), "very_high", True, "Worldwide territory excluding the European Union, United Kingdom, and South Korea"),
+    EngineSpec("skyreels-v3-r2v-14b", "3-r2v-14b", "https://github.com/SkyworkAI/SkyReels-V3", "Skywork Community License", ("video_generation",), ("python", "scripts/run_skyreels_v3_r2v.py"), "very_high", True),
+    EngineSpec("cogvideox1.5-5b-i2v", "1.5-5b-i2v", "https://github.com/zai-org/CogVideo", "CogVideoX License", ("video_generation",), ("python", "scripts/run_cogvideox15_i2v.py"), "high", True),
     EngineSpec("ltx-video", "0.9.8", "https://github.com/Lightricks/LTX-Video", "Apache-2.0 repository; checkpoint license must be verified for the selected model", ("video_generation",), ("python", "inference.py"), "high", True),
     EngineSpec("opentoonz", "current", "https://github.com/opentoonz/opentoonz", "BSD-3-Clause", ("animation", "compositing"), ("OpenToonz",), "professional_2d"),
     EngineSpec("blender", "current", "https://github.com/blender/blender", "GPL-3.0-or-later", ("animation", "rendering", "compositing", "editing"), ("blender", "-b"), "professional_3d"),

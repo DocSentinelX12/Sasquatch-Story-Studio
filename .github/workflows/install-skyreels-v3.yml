@@ -1,0 +1,35 @@
+name: Install SkyReels V3 R2V
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "scripts/install_skyreels_v3.py"
+      - "studio/skyreels_v3_runtime.py"
+      - "studio/runtime_verification.py"
+      - "studio/engine_registry.py"
+      - ".github/workflows/install-skyreels-v3.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  install:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install installer tooling
+        run: python -m pip install --upgrade pip
+      - name: Install official SkyReels V3 source and dependencies
+        run: python scripts/install_skyreels_v3.py
+      - name: Upload installation evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: skyreels-v3-installation-evidence
+          path: engine-installations/skyreels-v3-r2v-14b/installation-evidence.json
+          if-no-files-found: error

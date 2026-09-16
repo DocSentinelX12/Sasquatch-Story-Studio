@@ -15,11 +15,11 @@ from .production import ProductionRequest, ProductionResponse
 class ProcessAdapter:
     """Execute an explicitly configured engine command and require real output.
 
-    The command may contain ``{output}``, ``{prompt}``, or ``{image_path}``.
-    ``output`` is always required when the command uses an explicit token.
-    Prompt and image values are taken from request parameters first, then the
-    request payload. Existing commands without these tokens retain their prior
-    behavior.
+    The command may contain ``{output}``, ``{prompt}``, ``{image_path}``, or
+    ``{reference_images}``. ``output`` is always required when the command uses
+    an explicit token. Prompt and image values are taken from request parameters
+    first, then the request payload. Existing commands without these tokens
+    retain their prior behavior.
     """
 
     adapter_id: str
@@ -57,6 +57,20 @@ class ProcessAdapter:
             return request.parameters[name]
         return request.payload.get(name)
 
+    @staticmethod
+    def _reference_images(value: object | None) -> str:
+        if isinstance(value, (str, Path)):
+            values = [value]
+        elif isinstance(value, (list, tuple)):
+            values = list(value)
+        else:
+            raise ValueError("reference_images must be a path string or a list/tuple of paths")
+        if not values:
+            raise ValueError("reference_images must contain at least one path")
+        if any(not isinstance(item, (str, Path)) for item in values):
+            raise ValueError("reference_images entries must be path strings")
+        return ",".join(str(Path(item).expanduser().resolve()) for item in values)
+
     def execute(self, request: ProductionRequest) -> ProductionResponse:
         require_verified(self)
         if not self.command or any(not item for item in self.command):
@@ -72,6 +86,7 @@ class ProcessAdapter:
 
         prompt = self._request_value(request, "prompt")
         image_path = self._request_value(request, "image_path")
+        reference_images = self._request_value(request, "reference_images")
         command: list[str] = []
         for item in self.command:
             if item == "{output}":
@@ -87,6 +102,8 @@ class ProcessAdapter:
                     command.append(str(Path(image_path).expanduser().resolve()))
                 else:
                     raise ValueError(f"engine {self.adapter_id} image_path must be a path string")
+            elif item == "{reference_images}":
+                command.append(self._reference_images(reference_images))
             else:
                 command.append(item)
         if "{output}" not in self.command:

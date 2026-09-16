@@ -9,9 +9,11 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Mapping, Sequence
 
+from .cogvideox15_i2v_runtime import build_cogvideox15_i2v_command
 from .engine_registry import EngineSpec, RuntimeEngineRegistry
 from .hunyuan_runtime import build_hunyuan_command
 from .process_adapter import ProcessAdapter
+from .skyreels_v3_runtime import build_skyreels_r2v_command
 
 
 @dataclass(frozen=True)
@@ -102,6 +104,63 @@ def build_hunyuan_runtime_config(
     )
     return VerifiedEngineRuntimeConfig(
         engine_id="hunyuanvideo-1.5",
+        command=command,
+        output_path=output_path,
+        working_directory=str(repository.expanduser().resolve()),
+        timeout_seconds=timeout_seconds,
+    )
+
+
+def build_skyreels_r2v_runtime_config(
+    *,
+    repository: Path,
+    model_path: Path,
+    output_path: str,
+    python_executable: str = "python",
+    timeout_seconds: int = 3600,
+) -> VerifiedEngineRuntimeConfig:
+    """Build the exact SkyReels R2V production command from real local paths.
+
+    Prompt and reference-image values remain explicit request tokens. The
+    resulting adapter is still gated by persisted runtime, checkpoint, and
+    license evidence before it can execute in production.
+    """
+    command = build_skyreels_r2v_command(
+        python_executable=python_executable,
+        repository=repository,
+        model_path=model_path,
+        prompt="{prompt}",
+        reference_images=("{reference_images}",),
+        output_token="{output}",
+    )
+    return VerifiedEngineRuntimeConfig(
+        engine_id="skyreels-v3-r2v-14b",
+        command=command,
+        output_path=output_path,
+        working_directory=str(repository.expanduser().resolve()),
+        timeout_seconds=timeout_seconds,
+    )
+
+
+def build_cogvideox15_i2v_runtime_config(
+    *,
+    repository: Path,
+    model_path: Path,
+    output_path: str,
+    python_executable: str = "python",
+    timeout_seconds: int = 21600,
+) -> VerifiedEngineRuntimeConfig:
+    """Build the exact CogVideoX1.5 I2V command from real local paths."""
+    command = build_cogvideox15_i2v_command(
+        python_executable=python_executable,
+        repository=repository,
+        model_path=model_path,
+        prompt="{prompt}",
+        image_path="{image_path}",
+        output_token="{output}",
+    )
+    return VerifiedEngineRuntimeConfig(
+        engine_id="cogvideox1.5-5b-i2v",
         command=command,
         output_path=output_path,
         working_directory=str(repository.expanduser().resolve()),
