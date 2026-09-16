@@ -277,7 +277,7 @@ def install(engine_id: str, with_models: bool) -> None:
         models = []
         if with_models:
             model = root / "ltxv-2b-0.9.8-distilled.safetensors"; hf_download("Lightricks/LTX-Video", root, "ltxv-2b-0.9.8-distilled.safetensors"); models = [model]
-        run(sys.executable, "inference.py", "--help", cwd=root, timeout=180); evidence(engine_id, "https://github.com/Lightricks/LTX-Video", root, models, []); return
+        run(sys.executable, "inference.py", "--help", cwd=root, timeout=180); evidence(engine_id, "https://github.com/Lightricks/LTX-Video", ROOT / engine_id, models, []); return
 
     if engine_id == "piper":
         run(sys.executable, "-m", "pip", "install", "piper-tts==1.8.0", timeout=1800)
