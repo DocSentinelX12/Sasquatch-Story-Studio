@@ -5,30 +5,237 @@ on:
 
 permissions:
   contents: read
+  actions: read
+  checks: read
 
 jobs:
   diagnostic:
-    name: Verify GitHub-hosted runner acquisition
+    name: Full GitHub Actions Runner Diagnostic
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
-      - name: Report runner identity
+      - name: 01 - Runner acquisition and identity
         shell: bash
         run: |
-          set -euo pipefail
-          echo "runner_name=${RUNNER_NAME}"
-          echo "runner_os=${RUNNER_OS}"
-          echo "runner_arch=${RUNNER_ARCH}"
-          echo "runner_temp=${RUNNER_TEMP}"
-          uname -a
-          python3 --version
+          set -u
+          mkdir -p diagnostic-report
+          {
+            echo "=== RUNNER ACQUISITION ==="
+            echo "diagnostic_reached_first_step=true"
+            echo "runner_name=${RUNNER_NAME:-<unset>}"
+            echo "runner_os=${RUNNER_OS:-<unset>}"
+            echo "runner_arch=${RUNNER_ARCH:-<unset>}"
+            echo "runner_temp=${RUNNER_TEMP:-<unset>}"
+            echo "runner_tool_cache=${RUNNER_TOOL_CACHE:-<unset>}"
+            echo "runner_workspace=${GITHUB_WORKSPACE:-<unset>}"
+            echo "runner_tracking_id_present=$([ -n \"${RUNNER_TRACKING_ID:-}\" ] && echo true || echo false)"
+            echo "run_id=${GITHUB_RUN_ID}"
+            echo "run_attempt=${GITHUB_RUN_ATTEMPT}"
+            echo "workflow=${GITHUB_WORKFLOW}"
+            echo "event=${GITHUB_EVENT_NAME}"
+            echo "repository=${GITHUB_REPOSITORY}"
+            echo "ref=${GITHUB_REF}"
+            echo "sha=${GITHUB_SHA}"
+            echo "server_url=${GITHUB_SERVER_URL}"
+            echo "timestamp_utc=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+            echo "uname=$(uname -a)"
+          } | tee diagnostic-report/01-runner.txt
 
-      - name: Checkout repository
+      - name: 02 - Host resources and toolchain
+        shell: bash
+        run: |
+          set -u
+          {
+            echo "=== HOST RESOURCES ==="
+            echo "cpu_count=$(nproc 2>/dev/null || echo unavailable)"
+            echo "memory="
+            free -h 2>&1 || true
+            echo "disk="
+            df -h 2>&1 || true
+            echo "filesystem="
+            df -T "$GITHUB_WORKSPACE" 2>&1 || true
+            echo "=== TOOLCHAIN ==="
+            command -v python3 || true
+            python3 --version 2>&1 || true
+            command -v git || true
+            git --version 2>&1 || true
+            command -v curl || true
+            curl --version 2>&1 | head -n 1 || true
+            command -v tar || true
+            command -v unzip || true
+          } | tee diagnostic-report/02-host.txt
+
+      - name: 03 - Network and DNS reachability
+        shell: bash
+        run: |
+          set -u
+          probe() {
+            name="$1"
+            url="$2"
+            printf '%s=' "$name"
+            if result=$(curl -sS -L --max-time 15 -o /dev/null -w '%{http_code} %{remote_ip} %{time_total}' "$url" 2>&1); then
+              echo "PASS $result"
+            else
+              echo "FAIL $result"
+            fi
+          }
+          {
+            echo "=== NETWORK ==="
+            probe github_api https://api.github.com/
+            probe github_web https://github.com/
+            probe github_actions https://pipelines.actions.githubusercontent.com/
+            echo "=== DNS ==="
+            getent hosts api.github.com 2>&1 || true
+            getent hosts github.com 2>&1 || true
+            getent hosts pipelines.actions.githubusercontent.com 2>&1 || true
+          } | tee diagnostic-report/03-network.txt
+
+      - name: 04 - Repository checkout
         uses: actions/checkout@v4
 
-      - name: Verify workspace execution
+      - name: 05 - Repository and workspace integrity
         shell: bash
         run: |
-          set -euo pipefail
-          test -f README.md
-          echo "workspace_checkout=ok"
-          echo "github_sha=${GITHUB_SHA}"
+          set -u
+          {
+            echo "=== REPOSITORY ==="
+            echo "workspace=$GITHUB_WORKSPACE"
+            echo "expected_sha=$GITHUB_SHA"
+            echo "head_sha=$(git rev-parse HEAD 2>&1 || true)"
+            echo "branch=$(git branch --show-current 2>&1 || true)"
+            echo "status="
+            git status --short --branch 2>&1 || true
+            echo "README_present=$([ -f README.md ] && echo true || echo false)"
+            echo "workflow_present=$([ -f .github/workflows/runner-acquisition-diagnostic.yml ] && echo true || echo false)"
+            echo "workspace_read=$([ -r "$GITHUB_WORKSPACE" ] && echo true || echo false)"
+            probe_file="$GITHUB_WORKSPACE/.diagnostic-write-test"
+            if printf '%s\n' "runner-write-test" > "$probe_file" 2>/dev/null; then
+              echo "workspace_write=true"
+              rm -f "$probe_file"
+            else
+              echo "workspace_write=false"
+            fi
+          } | tee diagnostic-report/05-repository.txt
+
+      - name: 06 - GitHub API diagnostics
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -u
+          api_probe() {
+            name="$1"
+            path="$2"
+            body="diagnostic-report/api-${name}.json"
+            headers="diagnostic-report/api-${name}.headers"
+            status=$(curl -sS -L --max-time 20 -D "$headers" -o "$body" -w '%{http_code}' \
+              -H "Accept: application/vnd.github+json" \
+              -H "Authorization: Bearer ${GH_TOKEN}" \
+              -H "X-GitHub-Api-Version: 2022-11-28" \
+              "https://api.github.com${path}" 2>"${body}.error" || echo 000)
+            echo "$name HTTP $status"
+            echo "$status" > "${body}.status"
+            if [ -s "${body}.error" ]; then sed 's/./x/g' "${body}.error" | head -n 3; fi
+          }
+          {
+            echo "=== GITHUB API ==="
+            api_probe repository "/repos/${GITHUB_REPOSITORY}"
+            api_probe workflow "/repos/${GITHUB_REPOSITORY}/actions/workflows/runner-acquisition-diagnostic.yml"
+            api_probe run "/repos/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+            api_probe jobs "/repos/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}/jobs"
+            api_probe check_run "/repos/${GITHUB_REPOSITORY}/check-runs/${GITHUB_RUN_ID}"
+            api_probe rate_limit "/rate_limit"
+          } | tee diagnostic-report/06-api-summary.txt
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          out = Path("diagnostic-report/api-summary.txt")
+          with out.open("w", encoding="utf-8") as f:
+              for p in sorted(Path("diagnostic-report").glob("api-*.json")):
+                  try:
+                      data = json.loads(p.read_text(encoding="utf-8"))
+                      f.write(f"{p.name}: keys={sorted(data)[:30]}\n")
+                      for key in ("message", "documentation_url", "name", "visibility", "status", "conclusion", "run_attempt", "head_sha"):
+                          if key in data:
+                              f.write(f"  {key}={data[key]!r}\n")
+                  except Exception as exc:
+                      f.write(f"{p.name}: JSON_READ_ERROR {type(exc).__name__}: {exc}\n")
+          PY
+
+      - name: 07 - Effective GitHub token permissions
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -u
+          {
+            echo "=== EFFECTIVE TOKEN PERMISSIONS ==="
+            echo "The response headers are captured without printing the token."
+            curl -sS -I --max-time 20 \
+              -H "Accept: application/vnd.github+json" \
+              -H "Authorization: Bearer ${GH_TOKEN}" \
+              -H "X-GitHub-Api-Version: 2022-11-28" \
+              https://api.github.com/repos/${GITHUB_REPOSITORY} 2>&1 \
+              | grep -iE '^(x-oauth-scopes|x-accepted-oauth-scopes|x-github-request-id|http/)' \
+              || true
+            echo "token_present=$([ -n \"${GH_TOKEN:-}\" ] && echo true || echo false)"
+          } | tee diagnostic-report/07-token-permissions.txt
+
+      - name: 08 - Runner environment diagnostics
+        shell: bash
+        run: |
+          set -u
+          {
+            echo "=== ENVIRONMENT SHAPE ==="
+            echo "environment_variable_count=$(env | wc -l)"
+            echo "github_variable_count=$(env | grep -c '^GITHUB_' || true)"
+            echo "runner_variable_count=$(env | grep -c '^RUNNER_' || true)"
+            echo "actions_runtime_token_present=$([ -n \"${ACTIONS_RUNTIME_TOKEN:-}\" ] && echo true || echo false)"
+            echo "actions_cache_url_present=$([ -n \"${ACTIONS_CACHE_URL:-}\" ] && echo true || echo false)"
+            echo "node_version=$(node --version 2>/dev/null || echo unavailable)"
+            echo "npm_version=$(npm --version 2>/dev/null || echo unavailable)"
+            echo "java_version=$(java -version 2>&1 | head -n 1 || echo unavailable)"
+            echo "docker_version=$(docker --version 2>/dev/null || echo unavailable)"
+          } | tee diagnostic-report/08-environment.txt
+
+      - name: 09 - Workflow event payload diagnostics
+        shell: bash
+        run: |
+          set -u
+          {
+            echo "=== EVENT PAYLOAD ==="
+            echo "event_path=$GITHUB_EVENT_PATH"
+            if [ -f "$GITHUB_EVENT_PATH" ]; then
+              python3 - "$GITHUB_EVENT_PATH" <<'PY'
+          import json, sys
+          with open(sys.argv[1], encoding="utf-8") as f:
+              data = json.load(f)
+          safe = {k: data.get(k) for k in ("ref", "repository", "sender", "workflow", "inputs") if k in data}
+          print(json.dumps(safe, indent=2, sort_keys=True, default=str))
+          PY
+            fi
+          } | tee diagnostic-report/09-event.txt
+
+      - name: 10 - Final diagnostic classification
+        shell: bash
+        run: |
+          set -u
+          {
+            echo "=== CLASSIFICATION ==="
+            echo "runner_acquired=true"
+            echo "first_step_executed=true"
+            echo "checkout_reached=true"
+            echo "api_diagnostics_reached=true"
+            echo "network_diagnostics_reached=true"
+            echo "This report diagnoses what is observable after GitHub assigns a runner."
+            echo "A pre-runner failure cannot execute any workflow step and therefore must be classified from the Actions job/run metadata outside this workflow."
+          } | tee diagnostic-report/10-classification.txt
+
+      - name: 11 - Upload complete diagnostic evidence
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: runner-acquisition-diagnostic-${{ github.run_id }}-${{ github.run_attempt }}
+          path: diagnostic-report/
+          if-no-files-found: error
+          retention-days: 14
