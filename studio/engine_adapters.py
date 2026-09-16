@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import Mapping, Sequence
 
 from .engine_registry import EngineSpec, RuntimeEngineRegistry
+from .hunyuan_runtime import build_hunyuan_command
 from .process_adapter import ProcessAdapter
 
 
@@ -73,6 +74,39 @@ def build_production_router(
     from .production import ProductionRouter
 
     return ProductionRouter(list(build_verified_engine_adapters(registry, configs)))
+
+
+def build_hunyuan_runtime_config(
+    *,
+    repository: Path,
+    model_path: Path,
+    output_path: str,
+    torchrun_executable: str = "torchrun",
+    timeout_seconds: int = 3600,
+) -> VerifiedEngineRuntimeConfig:
+    """Build the exact Hunyuan production command from real local paths.
+
+    The command leaves prompt and reference-image values as explicit request
+    tokens so the production adapter can bind actual shot inputs at execution
+    time. Runtime verification must already exist in the registry before this
+    configuration can be turned into an adapter.
+    """
+    command = build_hunyuan_command(
+        torchrun_executable=torchrun_executable,
+        repository=repository,
+        model_path=model_path,
+        prompt="{prompt}",
+        image_path="{image_path}",
+        output_token="{output}",
+        seed=1,
+    )
+    return VerifiedEngineRuntimeConfig(
+        engine_id="hunyuanvideo-1.5",
+        command=command,
+        output_path=output_path,
+        working_directory=str(repository.expanduser().resolve()),
+        timeout_seconds=timeout_seconds,
+    )
 
 
 def _adapter_from_verified_engine(
