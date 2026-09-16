@@ -22,7 +22,7 @@ def build_hunyuan_command(
     num_inference_steps: int = DEFAULT_INFERENCE_STEPS,
     video_length: int = DEFAULT_FRAMES,
 ) -> tuple[str, ...]:
-    """Build the official source-code inference command without inventing flags.
+    """Build the documented source-code inference command.
 
     The default configuration targets the documented 480p base model at 50
     inference steps. A reference image switches the upstream generator into I2V
@@ -31,12 +31,10 @@ def build_hunyuan_command(
     """
     repository = repository.expanduser().resolve()
     model_path = model_path.expanduser().resolve()
-    if not repository.is_dir():
-        raise ValueError(f"Hunyuan repository does not exist: {repository}")
-    if not (repository / "generate.py").is_file():
-        raise ValueError(f"Hunyuan generator is missing: {repository / 'generate.py'}")
-    if not model_path.exists():
-        raise ValueError(f"Hunyuan model path does not exist: {model_path}")
+    if not str(torchrun_executable).strip():
+        raise ValueError("torchrun executable is required")
+    if not repository.is_absolute() or not model_path.is_absolute():
+        raise ValueError("Hunyuan repository and model paths must be absolute")
     if not prompt.strip():
         raise ValueError("Hunyuan prompt is required")
     if not output_token:
