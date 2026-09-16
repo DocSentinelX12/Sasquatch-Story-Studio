@@ -83,10 +83,22 @@ def assert_verified_engine(engine: EngineSpec) -> None:
         raise RuntimeError(f"Engine {engine.id} has no verification evidence record")
 
 
-def verified_engine(engine_id: str, *, runtime_evidence: str, license_evidence: str, checkpoint_evidence: str) -> EngineSpec:
+def verified_engine(
+    engine_id: str,
+    *,
+    runtime_evidence: str,
+    license_evidence: str,
+    checkpoint_evidence: str,
+) -> EngineSpec:
     if not runtime_evidence or not license_evidence or not checkpoint_evidence:
         raise ValueError("runtime, license, and checkpoint evidence are required")
-    return replace(get_catalog_engine(engine_id), runtime_verified=True, license_verified=True, checkpoint_verified=True, verification_evidence=f"runtime={runtime_evidence}; license={license_evidence}; checkpoint={checkpoint_evidence}")
+    return replace(
+        get_catalog_engine(engine_id),
+        runtime_verified=True,
+        license_verified=True,
+        checkpoint_verified=True,
+        verification_evidence=f"runtime={runtime_evidence}; license={license_evidence}; checkpoint={checkpoint_evidence}",
+    )
 
 
 @dataclass(frozen=True)
@@ -104,7 +116,17 @@ class EngineVerificationRecord:
     source_revision: str | None = None
 
     def __post_init__(self) -> None:
-        required = {"engine_id": self.engine_id, "engine_version": self.engine_version, "executable": self.executable, "version_observation": self.version_observation, "checkpoint_path": self.checkpoint_path, "checkpoint_sha256": self.checkpoint_sha256, "license_source": self.license_source, "license_evidence": self.license_evidence, "runtime_output_sha256": self.runtime_output_sha256}
+        required = {
+            "engine_id": self.engine_id,
+            "engine_version": self.engine_version,
+            "executable": self.executable,
+            "version_observation": self.version_observation,
+            "checkpoint_path": self.checkpoint_path,
+            "checkpoint_sha256": self.checkpoint_sha256,
+            "license_source": self.license_source,
+            "license_evidence": self.license_evidence,
+            "runtime_output_sha256": self.runtime_output_sha256,
+        }
         if any(not value.strip() for value in required.values()):
             raise ValueError("complete engine verification evidence is required")
         if self.source_revision is not None and not self.source_revision.strip():
@@ -118,27 +140,54 @@ class EngineVerificationRecord:
 
     def to_engine(self) -> EngineSpec:
         engine = get_catalog_engine(self.engine_id)
-        promoted = replace(engine, version_family=self.engine_version, runtime_verified=True, license_verified=True, checkpoint_verified=True, verification_evidence=(f"executable={self.executable}; version={self.version_observation}; checkpoint={self.checkpoint_path}:{self.checkpoint_sha256}; runtime_output_sha256={self.runtime_output_sha256}; license_source={self.license_source}; license_evidence={self.license_evidence}" + (f"; source_revision={self.source_revision}" if self.source_revision else "")), source_revision=self.source_revision, checkpoint_path=self.checkpoint_path, checkpoint_sha256=self.checkpoint_sha256, runtime_output_sha256=self.runtime_output_sha256)
+        promoted = replace(
+            engine,
+            version_family=self.engine_version,
+            runtime_verified=True,
+            license_verified=True,
+            checkpoint_verified=True,
+            verification_evidence=(
+                f"executable={self.executable}; version={self.version_observation}; "
+                f"checkpoint={self.checkpoint_path}:{self.checkpoint_sha256}; "
+                f"runtime_output_sha256={self.runtime_output_sha256}; "
+                f"license_source={self.license_source}; license_evidence={self.license_evidence}"
+                + (f"; source_revision={self.source_revision}" if self.source_revision else "")
+            ),
+            source_revision=self.source_revision,
+            checkpoint_path=self.checkpoint_path,
+            checkpoint_sha256=self.checkpoint_sha256,
+            runtime_output_sha256=self.runtime_output_sha256,
+        )
         assert_verified_engine(promoted)
         return promoted
 
 
 class SQLiteEngineVerificationStore:
     """Durable creator-owned evidence records. It never creates verification itself."""
+
     def __init__(self, path: str | Path):
         self.path = Path(path)
         self.path.parent.mkdir(parents=True, exist_ok=True)
         with sqlite3.connect(self.path) as connection:
-            connection.execute("CREATE TABLE IF NOT EXISTS engine_verification (engine_id TEXT PRIMARY KEY, payload TEXT NOT NULL)")
+            connection.execute(
+                "CREATE TABLE IF NOT EXISTS engine_verification ("
+                "engine_id TEXT PRIMARY KEY, payload TEXT NOT NULL)"
+            )
 
     def save(self, record: EngineVerificationRecord) -> None:
         payload = json.dumps(record.__dict__, sort_keys=True)
         with sqlite3.connect(self.path) as connection:
-            connection.execute("INSERT INTO engine_verification(engine_id, payload) VALUES (?, ?) ON CONFLICT(engine_id) DO UPDATE SET payload=excluded.payload", (record.engine_id, payload))
+            connection.execute(
+                "INSERT INTO engine_verification(engine_id, payload) VALUES (?, ?) "
+                "ON CONFLICT(engine_id) DO UPDATE SET payload=excluded.payload",
+                (record.engine_id, payload),
+            )
 
     def load(self, engine_id: str) -> EngineVerificationRecord | None:
         with sqlite3.connect(self.path) as connection:
-            row = connection.execute("SELECT payload FROM engine_verification WHERE engine_id=?", (engine_id,)).fetchone()
+            row = connection.execute(
+                "SELECT payload FROM engine_verification WHERE engine_id=?", (engine_id,)
+            ).fetchone()
         if row is None:
             return None
         return EngineVerificationRecord(**json.loads(row[0]))
@@ -151,6 +200,7 @@ class SQLiteEngineVerificationStore:
 
 class RuntimeEngineRegistry:
     """Resolve production engines only from persisted evidence records."""
+
     def __init__(self, store: SQLiteEngineVerificationStore):
         self.store = store
 
@@ -167,13 +217,27 @@ class RuntimeEngineRegistry:
 def license_record(engine_id: str) -> LicenseRecord:
     engine = get_engine(engine_id)
     status = CommercialStatus.REVIEW_REQUIRED if engine.commercial_use_review_required else CommercialStatus.ALLOWED
-    return LicenseRecord(subject_id=engine.id, subject_version=engine.version_family, official_source=engine.official_source, license_name=engine.license, commercial_status=status, territory_restriction=engine.territory_restriction)
+    return LicenseRecord(
+        subject_id=engine.id,
+        subject_version=engine.version_family,
+        official_source=engine.official_source,
+        license_name=engine.license,
+        commercial_status=status,
+        territory_restriction=engine.territory_restriction,
+    )
 
 
 def catalog_license_record(engine_id: str) -> LicenseRecord:
     engine = get_catalog_engine(engine_id)
     status = CommercialStatus.REVIEW_REQUIRED if engine.commercial_use_review_required else CommercialStatus.ALLOWED
-    return LicenseRecord(subject_id=engine.id, subject_version=engine.version_family, official_source=engine.official_source, license_name=engine.license, commercial_status=status, territory_restriction=engine.territory_restriction)
+    return LicenseRecord(
+        subject_id=engine.id,
+        subject_version=engine.version_family,
+        official_source=engine.official_source,
+        license_name=engine.license,
+        commercial_status=status,
+        territory_restriction=engine.territory_restriction,
+    )
 
 
 def ids(engines: Iterable[EngineSpec] = VERIFIED_ENGINES) -> tuple[str, ...]:
