@@ -83,13 +83,30 @@ class Scheduler:
             return leased
         return None
 
-    def choose_on_worker(self, worker_id: str, worker_resource: ComputeResource, pool_power_watts: int, now: int, lease_seconds: int = 900) -> Job | None:
-        """Lease work only when that worker has remaining capacity and pool power is available."""
+    def choose_on_worker(
+        self,
+        worker_id: str,
+        worker_resource: ComputeResource,
+        pool_power_watts: int,
+        now: int,
+        lease_seconds: int = 900,
+        job_id: str | None = None,
+    ) -> Job | None:
+        """Lease work for this worker, optionally binding the lease to one job."""
         if not worker_id.strip() or lease_seconds < 1 or pool_power_watts < 0:
             raise ValueError("worker_id, lease duration, and power must be valid")
+        if job_id is not None and not job_id.strip():
+            raise ValueError("job_id cannot be empty")
         if not worker_resource.healthy:
             return None
-        candidates = sorted((j for j in self._jobs.values() if j.state == JobState.QUEUED), key=lambda j: (-j.priority, j.id))
+        candidates = sorted(
+            (
+                j
+                for j in self._jobs.values()
+                if j.state == JobState.QUEUED and (job_id is None or j.id == job_id)
+            ),
+            key=lambda j: (-j.priority, j.id),
+        )
         leased_jobs = tuple(job for job in self._jobs.values() if job.state == JobState.LEASED)
         reserved_pool_power = sum(job.requirements.power_watts for job in leased_jobs)
         reserved_on_worker = tuple(job.requirements for job in leased_jobs if job.lease_owner == worker_id)
