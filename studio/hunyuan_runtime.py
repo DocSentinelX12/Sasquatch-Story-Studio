@@ -44,7 +44,13 @@ def build_hunyuan_command(
     if video_length < 1:
         raise ValueError("video_length must be positive")
 
-    image_value = "none" if image_path is None else str(Path(image_path).expanduser().resolve())
+    if image_path == "{image_path}":
+        image_value = "{image_path}"
+    elif image_path is None:
+        image_value = "none"
+    else:
+        image_value = str(Path(image_path).expanduser().resolve())
+
     return (
         torchrun_executable,
         "--nproc_per_node=1",
