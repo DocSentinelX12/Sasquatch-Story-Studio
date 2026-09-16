@@ -14,12 +14,10 @@ from studio.runtime_verification import verify_engine_runtime
 from studio.skyreels_v3_runtime import (
     ENGINE_ID,
     MODEL_REPOSITORY,
-    OFFICIAL_REPOSITORY,
+    MODEL_REVISION,
     OFFICIAL_SOURCE_REVISION,
     build_skyreels_r2v_command,
 )
-
-MODEL_REVISION = "8df04fa97e062099633b366d19a6b0b2dabd5a69"
 
 
 def require_cuda() -> None:
@@ -63,7 +61,7 @@ def main() -> int:
     references = tuple(Path(path).expanduser().resolve() for path in args.reference_image)
     output = Path(args.output).expanduser().resolve()
 
-    if len(references) > 4:
+    if not 1 <= len(references) <= 4:
         raise ValueError("SkyReels requires 1 to 4 reference images")
     if any(not path.is_file() or path.stat().st_size == 0 for path in references):
         raise RuntimeError("every SkyReels reference image must be a real non-empty file")
@@ -95,10 +93,10 @@ def main() -> int:
         execution_command=command,
         checkpoint_path=model_path,
         output_path=output,
-        license_source=MODEL_REPOSITORY + "/blob/8df04fa97e062099633b366d19a6b0b2dabd5a69/LICENSE",
+        license_source=MODEL_REPOSITORY + f"/blob/{MODEL_REVISION}/LICENSE",
         license_evidence=(
-            "SkyReels V3 R2V model card states commercial use is supported under the Skywork Community License; "
-            "the license also requires compliance with its stated lawful-use and security-review conditions."
+            "The pinned SkyReels V3 R2V license states that the Skywork model supports commercial use, "
+            "subject to the Skywork Community License terms, including its lawful-use and security-review requirements."
         ),
         recorded_at=int(time.time()),
         working_directory=repository,
@@ -124,7 +122,7 @@ def main() -> int:
         "verification_mode": "real_model_inference",
         "recorded_at": evidence.recorded_at,
         "promotion_ready": True,
-        "note": "Promotion-ready runtime evidence was produced only after real local CUDA generation completed successfully. Commercial-use review remains an explicit production router gate.",
+        "note": "Promotion-ready runtime evidence is produced only after real local CUDA generation completes successfully. Commercial-use review remains an explicit production router gate.",
     }
     evidence_path = Path(args.evidence).expanduser().resolve()
     evidence_path.parent.mkdir(parents=True, exist_ok=True)
