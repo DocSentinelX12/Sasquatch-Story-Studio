@@ -1,0 +1,34 @@
+name: Runner Acquisition Diagnostic
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  diagnostic:
+    name: Verify GitHub-hosted runner acquisition
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Report runner identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "runner_name=${RUNNER_NAME}"
+          echo "runner_os=${RUNNER_OS}"
+          echo "runner_arch=${RUNNER_ARCH}"
+          echo "runner_temp=${RUNNER_TEMP}"
+          uname -a
+          python3 --version
+
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Verify workspace execution
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -f README.md
+          echo "workspace_checkout=ok"
+          echo "github_sha=${GITHUB_SHA}"
