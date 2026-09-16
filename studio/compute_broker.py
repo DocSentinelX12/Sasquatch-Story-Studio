@@ -110,6 +110,7 @@ class ComputeBroker:
             now,
             lease_seconds,
             job_id=task.id,
+            gpu_uuids=decision.selected_gpu_uuids,
         )
         if job is None:
             return BrokerDecision(task.id, decision.eligible_workers, decision.rejected_workers, None, "requested task is not currently leaseable", decision.selected_gpu_uuids), None
