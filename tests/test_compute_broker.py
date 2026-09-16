@@ -90,6 +90,7 @@ def test_hardware_requirements_are_enforced_from_observed_gpu_inventory():
     )
     decision = broker.select_worker(task)
     assert decision.selected_worker == "gpu"
+    assert decision.selected_gpu_uuids == ("GPU-0",)
 
 
 def test_topology_sensitive_hardware_is_rejected_without_verified_placement_evidence():
@@ -115,3 +116,19 @@ def test_topology_sensitive_hardware_is_rejected_without_verified_placement_evid
     decision = broker.select_worker(task)
     assert decision.selected_worker is None
     assert dict(decision.rejected_workers)["gpu"] == "same-NVLink-domain placement evidence is not verified"
+
+
+def test_lease_binds_the_requested_task_instead_of_a_different_queued_task():
+    scheduler = Scheduler()
+    registry = WorkerRegistry((record("gpu", vram=24 * 1024**3),))
+    broker = ComputeBroker(scheduler, registry)
+    requested = ProductionTask("requested", JobRequirements(), priority=0)
+    other = ProductionTask("other", JobRequirements(), priority=100)
+    broker.submit(requested)
+    broker.submit(other)
+
+    decision, leased = broker.lease(requested, now=10, lease_seconds=30)
+
+    assert decision.selected_worker == "gpu"
+    assert leased is not None
+    assert leased.id == "requested"
