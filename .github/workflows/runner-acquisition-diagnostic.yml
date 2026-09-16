@@ -28,7 +28,7 @@ jobs:
             echo "runner_temp=${RUNNER_TEMP:-<unset>}"
             echo "runner_tool_cache=${RUNNER_TOOL_CACHE:-<unset>}"
             echo "runner_workspace=${GITHUB_WORKSPACE:-<unset>}"
-            echo "runner_tracking_id_present=$([ -n \"${RUNNER_TRACKING_ID:-}\" ] && echo true || echo false)"
+            echo "runner_tracking_id_present=$([ -n "${RUNNER_TRACKING_ID:-}" ] && echo true || echo false)"
             echo "run_id=${GITHUB_RUN_ID}"
             echo "run_attempt=${GITHUB_RUN_ATTEMPT}"
             echo "workflow=${GITHUB_WORKFLOW}"
@@ -140,10 +140,12 @@ jobs:
           {
             echo "=== GITHUB API ==="
             api_probe repository "/repos/${GITHUB_REPOSITORY}"
+            api_probe actions_permissions "/repos/${GITHUB_REPOSITORY}/actions/permissions"
             api_probe workflow "/repos/${GITHUB_REPOSITORY}/actions/workflows/runner-acquisition-diagnostic.yml"
             api_probe run "/repos/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
             api_probe jobs "/repos/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}/jobs"
-            api_probe check_run "/repos/${GITHUB_REPOSITORY}/check-runs/${GITHUB_RUN_ID}"
+            api_probe self_hosted_runners "/repos/${GITHUB_REPOSITORY}/actions/runners"
+            api_probe check_suites "/repos/${GITHUB_REPOSITORY}/check-suites?head_sha=${GITHUB_SHA}"
             api_probe rate_limit "/rate_limit"
           } | tee diagnostic-report/06-api-summary.txt
           python3 - <<'PY'
@@ -155,7 +157,7 @@ jobs:
                   try:
                       data = json.loads(p.read_text(encoding="utf-8"))
                       f.write(f"{p.name}: keys={sorted(data)[:30]}\n")
-                      for key in ("message", "documentation_url", "name", "visibility", "status", "conclusion", "run_attempt", "head_sha"):
+                      for key in ("message", "documentation_url", "name", "visibility", "status", "conclusion", "run_attempt", "head_sha", "total_count"):
                           if key in data:
                               f.write(f"  {key}={data[key]!r}\n")
                   except Exception as exc:
@@ -178,7 +180,7 @@ jobs:
               https://api.github.com/repos/${GITHUB_REPOSITORY} 2>&1 \
               | grep -iE '^(x-oauth-scopes|x-accepted-oauth-scopes|x-github-request-id|http/)' \
               || true
-            echo "token_present=$([ -n \"${GH_TOKEN:-}\" ] && echo true || echo false)"
+            echo "token_present=$([ -n "${GH_TOKEN:-}" ] && echo true || echo false)"
           } | tee diagnostic-report/07-token-permissions.txt
 
       - name: 08 - Runner environment diagnostics
@@ -190,8 +192,8 @@ jobs:
             echo "environment_variable_count=$(env | wc -l)"
             echo "github_variable_count=$(env | grep -c '^GITHUB_' || true)"
             echo "runner_variable_count=$(env | grep -c '^RUNNER_' || true)"
-            echo "actions_runtime_token_present=$([ -n \"${ACTIONS_RUNTIME_TOKEN:-}\" ] && echo true || echo false)"
-            echo "actions_cache_url_present=$([ -n \"${ACTIONS_CACHE_URL:-}\" ] && echo true || echo false)"
+            echo "actions_runtime_token_present=$([ -n "${ACTIONS_RUNTIME_TOKEN:-}" ] && echo true || echo false)"
+            echo "actions_cache_url_present=$([ -n "${ACTIONS_CACHE_URL:-}" ] && echo true || echo false)"
             echo "node_version=$(node --version 2>/dev/null || echo unavailable)"
             echo "npm_version=$(npm --version 2>/dev/null || echo unavailable)"
             echo "java_version=$(java -version 2>&1 | head -n 1 || echo unavailable)"
