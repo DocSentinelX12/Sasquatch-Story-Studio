@@ -15,6 +15,7 @@ from .hunyuan_runtime import build_hunyuan_command
 from .ltx_video_runtime import build_ltx_video_command
 from .process_adapter import ProcessAdapter
 from .skyreels_v3_runtime import build_skyreels_r2v_command
+from .wan21_runtime import build_wan21_command
 from .wan22_runtime import build_wan22_command
 
 
@@ -188,6 +189,31 @@ def build_wan22_runtime_config(
     )
     return VerifiedEngineRuntimeConfig(
         engine_id="wan2.2",
+        command=command,
+        output_path=output_path,
+        working_directory=str(repository.expanduser().resolve()),
+        timeout_seconds=timeout_seconds,
+    )
+
+
+def build_wan21_runtime_config(
+    *,
+    repository: Path,
+    model_path: Path,
+    output_path: str,
+    python_executable: str = "python",
+    timeout_seconds: int = 21600,
+) -> VerifiedEngineRuntimeConfig:
+    """Build the official Wan2.1 T2V command with a dynamic Studio prompt."""
+    command = build_wan21_command(
+        python_executable=python_executable,
+        repository=repository,
+        model_path=model_path,
+        prompt="{prompt}",
+        output_token="{output}",
+    )
+    return VerifiedEngineRuntimeConfig(
+        engine_id="wan2.1",
         command=command,
         output_path=output_path,
         working_directory=str(repository.expanduser().resolve()),
