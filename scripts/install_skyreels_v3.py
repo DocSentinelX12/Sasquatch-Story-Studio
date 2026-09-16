@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -15,7 +16,9 @@ if str(REPOSITORY_ROOT) not in sys.path:
 from studio.runtime_verification import sha256_path
 from studio.skyreels_v3_runtime import (
     ENGINE_ID,
+    MODEL_REPO_ID,
     MODEL_REPOSITORY,
+    MODEL_REVISION,
     OFFICIAL_REPOSITORY,
     OFFICIAL_SOURCE_REVISION,
 )
@@ -23,7 +26,6 @@ from studio.skyreels_v3_runtime import (
 ROOT = Path("engine-installations") / ENGINE_ID
 REPOSITORY = ROOT / "SkyReels-V3"
 MODEL_ROOT = ROOT / "SkyReels-V3-R2V-14B"
-MODEL_REVISION = "8df04fa97e062099633b366d19a6b0b2dabd5a69"
 
 
 def run(*args: str, cwd: Path | None = None, timeout: int = 3600) -> subprocess.CompletedProcess[str]:
@@ -58,11 +60,13 @@ def download_model() -> list[Path]:
         "-c",
         (
             "from huggingface_hub import snapshot_download; "
-            f"snapshot_download(repo_id='{MODEL_REPOSITORY.rsplit('/', 2)[-2]}/{MODEL_REPOSITORY.rsplit('/', 1)[-1]}', "
-            f"revision='{MODEL_REVISION}', local_dir=r'{MODEL_ROOT.resolve()}')"
+            f"snapshot_download(repo_id='{MODEL_REPO_ID}', revision='{MODEL_REVISION}', local_dir=r'{MODEL_ROOT.resolve()}')"
         ),
         timeout=21600,
     )
+    hub_metadata = MODEL_ROOT / ".cache" / "huggingface"
+    if hub_metadata.exists():
+        shutil.rmtree(hub_metadata)
     files = [path for path in MODEL_ROOT.rglob("*") if path.is_file()]
     if not files:
         raise RuntimeError("SkyReels model download completed without model files")
@@ -103,8 +107,9 @@ def main() -> int:
         "runtime_verified": False,
         "notes": [
             "Official SkyReels V3 source repository cloned at the observed upstream revision.",
-            "The R2V 14B model is the official Skywork/SkyReels-V3-R2V-14B checkpoint.",
+            "The R2V 14B model is the official Skywork/SkyReels-V3-R2V-14B checkpoint at the pinned model revision.",
             "The source requirements are installed without flash_attn because the upstream attention module has an explicit PyTorch scaled-dot-product fallback when FlashAttention is unavailable.",
+            "Hugging Face local_dir metadata is removed before model evidence hashing so the checkpoint hash covers model files rather than download bookkeeping.",
             "Installation evidence does not claim runtime generation verification.",
             "Use scripts/verify_skyreels_v3_runtime.py on a real CUDA host with the complete R2V model before promotion.",
         ],
