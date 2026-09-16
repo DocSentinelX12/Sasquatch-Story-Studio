@@ -13,11 +13,13 @@ REPOSITORY = ROOT / "LTX-Video"
 OFFICIAL_REPOSITORY = "https://github.com/Lightricks/LTX-Video"
 EXPECTED_REVISION = "4b2d053057623ddd4d0a1d3e9cd28890e9ef487f"
 MODEL_REPOSITORY = "Lightricks/LTX-Video"
-MODEL_REVISION = "19560f8"
+MODEL_REVISION = "19560f8b59a58a0431baf39c78cd8a60a86b9c33"
 CHECKPOINT = "ltxv-2b-0.9.8-distilled.safetensors"
 UPSCALER = "ltxv-spatial-upscaler-0.9.8.safetensors"
 CHECKPOINT_SHA256 = "76aa8c4786af752fa6f951947129d5290c3c6c0b2fadcadea6b5e114ae2cad8f"
 UPSCALER_SHA256 = "5b076031c6f860db9037a54f3bb819f10bfb5532ea26a6d30062292428a0c208"
+MODEL_LICENSE = "LTXV Open Weights License 0.X"
+MODEL_LICENSE_SOURCE = "https://huggingface.co/Lightricks/LTX-Video/blob/main/LTX-Video-Open-Weights-License-0.X.txt"
 
 
 def run(*args: str, cwd: Path | None = None, timeout: int = 3600) -> subprocess.CompletedProcess[str]:
@@ -59,7 +61,7 @@ def main() -> int:
     if args.with_models:
         model_root = ROOT / "models"
         run("python", "-m", "pip", "install", "--upgrade", "huggingface_hub[cli]", timeout=1200)
-        run("hf", "download", MODEL_REPOSITORY, CHECKPOINT, UPSCALER, "--revision", "main", "--local-dir", str(model_root), timeout=21600)
+        run("hf", "download", MODEL_REPOSITORY, CHECKPOINT, UPSCALER, "--revision", MODEL_REVISION, "--local-dir", str(model_root), timeout=21600)
         for filename, expected in ((CHECKPOINT, CHECKPOINT_SHA256), (UPSCALER, UPSCALER_SHA256)):
             path = model_root / filename
             if not path.is_file():
@@ -80,10 +82,13 @@ def main() -> int:
         "executable": ["python", "scripts/run_ltx_video.py"],
         "models": models,
         "runtime_verified": False,
-        "license": "Apache-2.0",
+        "license": MODEL_LICENSE,
+        "license_source": MODEL_LICENSE_SOURCE,
+        "commercial_use_review_required": True,
         "notes": [
             "Official LTX-Video source is installed at the pinned revision.",
             "The Studio bridge invokes the official ltx_video.inference implementation and binds the requested output path.",
+            "The 0.9.8 model weights are governed by the LTXV Open Weights License 0.X, not the repository Apache-2.0 software license.",
             "Installation and compilation are not video-generation verification.",
             "Final CUDA video evidence remains intentionally deferred.",
         ],
