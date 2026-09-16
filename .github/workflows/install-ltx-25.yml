@@ -1,0 +1,35 @@
+name: Install LTX-2.5
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "scripts/install_ltx25.py"
+      - "scripts/run_ltx25.py"
+      - "studio/ltx25_runtime.py"
+      - "studio/engine_adapters.py"
+      - "studio/engine_registry.py"
+      - "tests/test_ltx25_runtime.py"
+      - ".github/workflows/install-ltx-25.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  install:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install and verify pinned LTX-2.5 source integration
+        run: python scripts/install_ltx25.py
+      - name: Run targeted LTX-2.5 contract tests
+        run: python -m pip install pytest && python -m pytest -q tests/test_ltx25_runtime.py tests/test_engine_adapters.py
+      - name: Upload installation evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: ltx-2-5-installation-evidence
+          path: engine-installations/ltx-2.5/installation-evidence.json
