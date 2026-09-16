@@ -8,6 +8,7 @@ from enum import StrEnum
 from pathlib import Path
 from typing import Iterable
 
+from .hardware_requirements import HardwareRequirements
 from .resources import ComputeResource, ResourceSnapshot
 
 
@@ -28,6 +29,7 @@ class JobRequirements:
     power_watts: int = 0
     capabilities: tuple[str, ...] = ()
     engines: tuple[str, ...] = ()
+    hardware: HardwareRequirements | None = None
 
     def __post_init__(self) -> None:
         if self.slots < 1:
@@ -159,7 +161,21 @@ class SQLiteSchedulerStore:
     def save(self, scheduler: Scheduler) -> None:
         rows = []
         for job in scheduler.snapshot():
-            rows.append((job.id, json.dumps({"slots": job.requirements.slots, "memory_bytes": job.requirements.memory_bytes, "vram_bytes": job.requirements.vram_bytes, "scratch_bytes": job.requirements.scratch_bytes, "power_watts": job.requirements.power_watts, "capabilities": job.requirements.capabilities, "engines": job.requirements.engines}, sort_keys=True), job.priority, job.state.value, job.lease_owner, job.lease_until))
+            hardware = None
+            if job.requirements.hardware is not None:
+                item = job.requirements.hardware
+                hardware = {
+                    "min_gpu_count": item.min_gpu_count,
+                    "min_vram_per_gpu_bytes": item.min_vram_per_gpu_bytes,
+                    "min_total_vram_bytes": item.min_total_vram_bytes,
+                    "min_compute_capability": item.min_compute_capability,
+                    "required_gpu_models": list(item.required_gpu_models),
+                    "placement": item.placement.value,
+                    "require_nccl": item.require_nccl,
+                    "allow_multi_node": item.allow_multi_node,
+                    "require_gpu_direct_network": item.require_gpu_direct_network,
+                }
+            rows.append((job.id, json.dumps({"slots": job.requirements.slots, "memory_bytes": job.requirements.memory_bytes, "vram_bytes": job.requirements.vram_bytes, "scratch_bytes": job.requirements.scratch_bytes, "power_watts": job.requirements.power_watts, "capabilities": job.requirements.capabilities, "engines": job.requirements.engines, "hardware": hardware}, sort_keys=True), job.priority, job.state.value, job.lease_owner, job.lease_until))
         with sqlite3.connect(self.path) as connection:
             connection.execute("BEGIN IMMEDIATE")
             connection.execute("DELETE FROM scheduler_jobs")
@@ -171,6 +187,21 @@ class SQLiteSchedulerStore:
         jobs = []
         for job_id, requirements_json, priority, state, lease_owner, lease_until in rows:
             data = json.loads(requirements_json)
-            requirements = JobRequirements(slots=data["slots"], memory_bytes=data["memory_bytes"], vram_bytes=data["vram_bytes"], scratch_bytes=data["scratch_bytes"], power_watts=data["power_watts"], capabilities=tuple(data["capabilities"]), engines=tuple(data["engines"]))
+            hardware_data = data.get("hardware")
+            hardware = None
+            if hardware_data is not None:
+                from .hardware_requirements import GpuPlacement
+                hardware = HardwareRequirements(
+                    min_gpu_count=hardware_data["min_gpu_count"],
+                    min_vram_per_gpu_bytes=hardware_data["min_vram_per_gpu_bytes"],
+                    min_total_vram_bytes=hardware_data["min_total_vram_bytes"],
+                    min_compute_capability=hardware_data["min_compute_capability"],
+                    required_gpu_models=tuple(hardware_data["required_gpu_models"]),
+                    placement=GpuPlacement(hardware_data["placement"]),
+                    require_nccl=hardware_data["require_nccl"],
+                    allow_multi_node=hardware_data["allow_multi_node"],
+                    require_gpu_direct_network=hardware_data["require_gpu_direct_network"],
+                )
+            requirements = JobRequirements(slots=data["slots"], memory_bytes=data["memory_bytes"], vram_bytes=data["vram_bytes"], scratch_bytes=data["scratch_bytes"], power_watts=data["power_watts"], capabilities=tuple(data["capabilities"]), engines=tuple(data["engines"]), hardware=hardware)
             jobs.append(Job(job_id, requirements, priority, JobState(state), lease_owner, lease_until))
         return Scheduler(jobs)
