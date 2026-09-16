@@ -87,6 +87,13 @@ class ProcessAdapter:
         prompt = self._request_value(request, "prompt")
         image_path = self._request_value(request, "image_path")
         reference_images = self._request_value(request, "reference_images")
+        gpu_uuids = self._request_value(request, "gpu_uuids")
+        if gpu_uuids is None:
+            visible_gpu_uuids: tuple[str, ...] = ()
+        elif isinstance(gpu_uuids, (list, tuple)) and all(isinstance(item, str) and item.strip() for item in gpu_uuids):
+            visible_gpu_uuids = tuple(gpu_uuids)
+        else:
+            raise ValueError(f"engine {self.adapter_id} gpu_uuids must be a list/tuple of non-empty UUID strings")
         command: list[str] = []
         for item in self.command:
             if item == "{output}":
@@ -109,6 +116,10 @@ class ProcessAdapter:
         if "{output}" not in self.command:
             command.append(str(output))
 
+        environment = os.environ.copy()
+        if visible_gpu_uuids:
+            environment["CUDA_VISIBLE_DEVICES"] = ",".join(visible_gpu_uuids)
+
         try:
             completed = subprocess.run(
                 tuple(command),
@@ -118,7 +129,7 @@ class ProcessAdapter:
                 stderr=subprocess.PIPE,
                 text=True,
                 timeout=self.timeout_seconds,
-                env=os.environ.copy(),
+                env=environment,
             )
         except FileNotFoundError as exc:
             raise RuntimeError(f"engine executable is unavailable: {self.command[0]}") from exc
@@ -148,6 +159,8 @@ class ProcessAdapter:
                 "verified_checkpoint_sha256": self.checkpoint_sha256,
                 "verified_source_revision": self.source_revision,
                 "verified_runtime_output_sha256": self.runtime_output_sha256,
+                "allocated_gpu_uuids": visible_gpu_uuids,
+                "cuda_visible_devices": ",".join(visible_gpu_uuids) if visible_gpu_uuids else None,
                 "exit_code": completed.returncode,
             },
         )
