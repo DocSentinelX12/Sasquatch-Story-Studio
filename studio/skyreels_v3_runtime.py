@@ -6,7 +6,9 @@ from pathlib import Path
 ENGINE_ID = "skyreels-v3-r2v-14b"
 OFFICIAL_REPOSITORY = "https://github.com/SkyworkAI/SkyReels-V3"
 MODEL_REPOSITORY = "https://huggingface.co/Skywork/SkyReels-V3-R2V-14B"
+MODEL_REPO_ID = "Skywork/SkyReels-V3-R2V-14B"
 OFFICIAL_SOURCE_REVISION = "28c771e8456341be6a213e3d1133ed1fd19bf75d"
+MODEL_REVISION = "8df04fa97e062099633b366d19a6b0b2dabd5a69"
 DEFAULT_DURATION = 5
 DEFAULT_RESOLUTION = "720P"
 MAX_REFERENCE_IMAGES = 4
