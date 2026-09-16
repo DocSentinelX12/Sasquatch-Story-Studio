@@ -34,7 +34,7 @@ class EngineSpec:
 
 ENGINE_CATALOG: tuple[EngineSpec, ...] = (
     EngineSpec("wan2.2", "2.2", "https://github.com/Wan-Video/Wan2.2", "Apache-2.0", ("video_generation", "image_generation"), ("python", "generate.py", "--task", "t2v-A14B"), "very_high", source_revision="42bf4cfaa384bc21833865abc2f9e6c0e67233dc"),
-    EngineSpec("wan2.1", "2.1", "https://github.com/Wan-Video/Wan2.1", "Apache-2.0", ("video_generation", "image_generation"), ("python", "generate.py"), "high", source_revision="9737cba9c1c3c4d04b33fcad41c111989865d315"),
+    EngineSpec("wan2.1", "2.1", "https://github.com/Wan-Video/Wan2.1", "Apache-2.0", ("video_generation", "image_generation"), ("python", "generate.py"), "high"),
     EngineSpec("hunyuanvideo-1.5", "1.5", "https://github.com/Tencent-Hunyuan/HunyuanVideo-1.5", "Tencent Hunyuan Community License Agreement", ("video_generation",), ("torchrun", "generate.py"), "very_high", True, "Worldwide territory excluding the European Union, United Kingdom, and South Korea"),
     EngineSpec("skyreels-v3-r2v-14b", "3-r2v-14b", "https://github.com/SkyworkAI/SkyReels-V3", "Skywork Community License", ("video_generation",), ("python", "scripts/run_skyreels_v3_r2v.py"), "very_high", True),
     EngineSpec("cogvideox1.5-5b-i2v", "1.5-5b-i2v", "https://github.com/zai-org/CogVideo", "CogVideoX License", ("video_generation",), ("python", "scripts/run_cogvideox15_i2v.py"), "high", True),
