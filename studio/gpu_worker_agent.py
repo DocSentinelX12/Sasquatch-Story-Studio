@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import hashlib
+import json
 from collections.abc import Callable
 from typing import Any, Protocol
 
@@ -35,11 +36,36 @@ class GpuWorkerAgent:
             return None
         return hashlib.sha256(observation.topology_text.encode("utf-8")).hexdigest()
 
+    @staticmethod
+    def _identity_digest(observation: GpuHostObservation) -> str:
+        identity = {
+            "worker_id": observation.worker_id,
+            "driver_version": observation.driver_version,
+            "cuda_supported_version": observation.cuda_supported_version,
+            "gpus": [
+                {
+                    "uuid": gpu.uuid,
+                    "name": gpu.name,
+                    "pci_bus_id": gpu.pci_bus_id,
+                    "compute_capability": gpu.compute_capability,
+                    "memory_total_mib": gpu.memory_total_mib,
+                }
+                for gpu in observation.gpus
+            ],
+            "topology_text": observation.topology_text,
+        }
+        return hashlib.sha256(json.dumps(identity, sort_keys=True, separators=(",", ":")).encode("utf-8")).hexdigest()
+
+    @staticmethod
+    def _observation_payload(observation: GpuHostObservation) -> dict[str, Any]:
+        return json.loads(observation.canonical_json())
+
     def registration_payload(self) -> dict[str, Any]:
         observation = self.observe()
         return {
             "worker_id": self.worker_id,
             "hardware_observation_digest": observation.digest(),
+            "hardware_identity_digest": self._identity_digest(observation),
             "driver_version": observation.driver_version,
             "cuda_supported_version": observation.cuda_supported_version,
             "gpu_count": observation.gpu_count,
@@ -50,6 +76,7 @@ class GpuWorkerAgent:
             "dcgm_version": observation.dcgm_version,
             "health_evidence_present": observation.health_json is not None,
             "health_state": classify_dcgm_health(observation.health_json),
+            "hardware_observation": self._observation_payload(observation),
         }
 
     def heartbeat_payload(self) -> dict[str, Any]:
@@ -57,6 +84,7 @@ class GpuWorkerAgent:
         return {
             "worker_id": self.worker_id,
             "hardware_observation_digest": observation.digest(),
+            "hardware_identity_digest": self._identity_digest(observation),
             "gpu_count": observation.gpu_count,
             "gpu_uuids": tuple(gpu.uuid for gpu in observation.gpus),
             "topology_digest": self._topology_digest(observation),
@@ -64,6 +92,7 @@ class GpuWorkerAgent:
             "health_state": classify_dcgm_health(observation.health_json),
             "dcgm_available": observation.dcgm_available,
             "dcgm_version": observation.dcgm_version,
+            "hardware_observation": self._observation_payload(observation),
         }
 
     def register_remote(self, transport: WorkerControlTransport, enrollment_token: str) -> WorkerAccess:
