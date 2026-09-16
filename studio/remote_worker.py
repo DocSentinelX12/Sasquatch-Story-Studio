@@ -7,7 +7,6 @@ allocation. Enrollment credentials are provisioned outside source control.
 from __future__ import annotations
 
 import hashlib
-import json
 import secrets
 from dataclasses import dataclass
 from typing import Any, Mapping, Protocol
@@ -67,13 +66,13 @@ def _task_payload(task: WorkerTask) -> dict[str, Any]:
 
 
 class RemoteWorkerExecutor:
-    """WorkerExecutor implementation that uses the authenticated network path."""
+    """Network-backed executor that requires a control-plane lease."""
 
     def __init__(self, transport: RemoteWorkerTransport, access: WorkerAccess):
         self.transport = transport
         self.access = access
 
-    def execute(self, task: WorkerTask, lease: RemoteLease) -> WorkerResult:
+    def execute_with_lease(self, task: WorkerTask, lease: RemoteLease) -> WorkerResult:
         if lease.worker_id != self.access.worker_id or lease.task_id != task.task_id:
             return WorkerResult(task.task_id, WorkerResultState.REJECTED, error="remote lease does not match worker task")
         if lease.gpu_uuids != task.gpu_uuids:
@@ -91,14 +90,15 @@ class RemoteWorkerExecutor:
             raise RuntimeError("remote worker returned invalid output references")
         return WorkerResult(task.task_id, WorkerResultState(state), tuple(output_refs), str(response.get("error", "")))
 
+    def execute(self, task: WorkerTask) -> WorkerResult:
+        raise RuntimeError("remote execution requires an explicit control-plane lease")
+
 
 class WorkerLifecycleAuthority:
     """Control-plane authorization for enrollment, heartbeat, and execution.
 
-    This class intentionally does not create credentials on disk or persist
-    secrets in source control. The caller supplies an enrollment token and may
-    persist only the resulting token hash and worker metadata in its own secure
-    control-plane store.
+    Credentials are supplied out of band. Only hashes of enrollment and access
+    credentials are retained in this authority.
     """
 
     def __init__(self, enrollment_tokens: Mapping[str, str]):
