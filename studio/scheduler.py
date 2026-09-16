@@ -4,6 +4,7 @@ from __future__ import annotations
 import json
 import sqlite3
 from dataclasses import dataclass
+from enum import StrEnum
 from typing import Iterable
 from pathlib import Path
 
@@ -147,7 +148,7 @@ class Scheduler:
     def fail(self, job_id: str, worker_id: str) -> None:
         job = self._jobs[job_id]
         if job.state != JobState.LEASED or job.lease_owner != worker_id:
-            raise RuntimeError("only the current lease owner can fail a job")
+            raise ValueError("only the current lease owner can fail a job")
         self._jobs[job.id] = Job(job.id, job.requirements, job.priority, JobState.FAILED)
 
     def snapshot(self) -> tuple[Job, ...]:
