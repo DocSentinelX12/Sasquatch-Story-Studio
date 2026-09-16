@@ -1,6 +1,7 @@
 """Local GPU worker agent lifecycle, enrollment, and heartbeat."""
 from __future__ import annotations
 
+import hashlib
 from collections.abc import Callable
 from typing import Any, Protocol
 
@@ -32,7 +33,6 @@ class GpuWorkerAgent:
     def _topology_digest(observation: GpuHostObservation) -> str | None:
         if not observation.topology_text:
             return None
-        import hashlib
         return hashlib.sha256(observation.topology_text.encode("utf-8")).hexdigest()
 
     def registration_payload(self) -> dict[str, Any]:
