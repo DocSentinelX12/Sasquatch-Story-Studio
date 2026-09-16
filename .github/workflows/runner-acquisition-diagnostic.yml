@@ -9,7 +9,7 @@ permissions:
 jobs:
   diagnostic:
     name: Verify GitHub-hosted runner acquisition
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-latest
     steps:
       - name: Report runner identity
         shell: bash
