@@ -5,7 +5,7 @@ import hashlib
 from collections.abc import Callable
 from typing import Any, Protocol
 
-from .gpu_infrastructure import GpuHostObservation, probe_nvidia_host
+from .gpu_infrastructure import GpuHostObservation, classify_dcgm_health, probe_nvidia_host
 from .remote_worker import WorkerAccess
 
 
@@ -49,6 +49,7 @@ class GpuWorkerAgent:
             "dcgm_available": observation.dcgm_available,
             "dcgm_version": observation.dcgm_version,
             "health_evidence_present": observation.health_json is not None,
+            "health_state": classify_dcgm_health(observation.health_json),
         }
 
     def heartbeat_payload(self) -> dict[str, Any]:
@@ -60,6 +61,7 @@ class GpuWorkerAgent:
             "gpu_uuids": tuple(gpu.uuid for gpu in observation.gpus),
             "topology_digest": self._topology_digest(observation),
             "health_evidence": "dcgm_health_check" if observation.health_json else "nvidia_smi_inventory_only",
+            "health_state": classify_dcgm_health(observation.health_json),
             "dcgm_available": observation.dcgm_available,
             "dcgm_version": observation.dcgm_version,
         }
