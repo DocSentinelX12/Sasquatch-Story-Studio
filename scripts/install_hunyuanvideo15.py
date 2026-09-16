@@ -6,7 +6,12 @@ import argparse
 import json
 import os
 import subprocess
+import sys
 from pathlib import Path
+
+REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
+if str(REPOSITORY_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPOSITORY_ROOT))
 
 from studio.hunyuan_runtime import ENGINE_ID, OFFICIAL_REPOSITORY
 from studio.runtime_verification import sha256_path
