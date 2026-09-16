@@ -1,0 +1,40 @@
+name: Model Adapter Targeted Verification
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "studio/engine_registry.py"
+      - "studio/runtime_verification.py"
+      - "studio/process_adapter.py"
+      - "studio/engine_adapters.py"
+      - "scripts/promote_runtime_evidence.py"
+      - "scripts/verify_hunyuanvideo15_runtime.py"
+      - "tests/test_engines.py"
+      - "tests/test_runtime_verification.py"
+      - "tests/test_engine_adapters.py"
+      - "tests/test_hunyuan_runtime.py"
+
+permissions:
+  contents: read
+
+env:
+  PYTHONPATH: .
+
+jobs:
+  targeted:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install test tooling
+        run: python -m pip install --upgrade pip pytest
+      - name: Run model adapter and runtime evidence tests
+        run: >-
+          python -m pytest -q
+          tests/test_engines.py
+          tests/test_runtime_verification.py
+          tests/test_engine_adapters.py
+          tests/test_hunyuan_runtime.py
