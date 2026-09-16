@@ -11,6 +11,7 @@ import secrets
 from dataclasses import dataclass
 from typing import Any, Mapping, Protocol
 
+from .data_plane import DataPlane, TransferPlan
 from .hardware_requirements import HardwareRequirements
 from .scheduler import JobRequirements
 from .worker import WorkerResult, WorkerResultState, WorkerTask
@@ -48,6 +49,9 @@ class WorkerAccess:
 
 class RemoteWorkerTransport(Protocol):
     def post_json(self, path: str, payload: Mapping[str, Any], *, bearer_token: str) -> dict[str, Any]:
+        ...
+
+    def get_bytes(self, path: str, *, bearer_token: str, expected_digest: str, offset: int, size_bytes: int) -> bytes:
         ...
 
 
@@ -125,6 +129,24 @@ class RemoteWorkerExecutor:
 
     def execute(self, task: WorkerTask) -> WorkerResult:
         raise RuntimeError("remote execution requires an explicit control-plane lease")
+
+    def receive_artifact(self, address: str, plan: TransferPlan, data_plane: DataPlane) -> object:
+        if not address.startswith("sha256:"):
+            raise ValueError("remote artifact address must use sha256:<digest>")
+        digest = address[7:]
+        if digest != plan.reference.digest:
+            raise ValueError("remote artifact address does not match transfer reference")
+
+        def fetch_chunk(chunk):
+            return self.transport.get_bytes(
+                f"/v1/worker/artifacts/{digest}/chunks/{chunk.index}",
+                bearer_token=self.access.access_token,
+                expected_digest=chunk.digest or hashlib.sha256(b"").hexdigest(),
+                offset=chunk.offset,
+                size_bytes=chunk.size_bytes,
+            )
+
+        return data_plane.receive_remote(plan, fetch_chunk)
 
 
 class WorkerLifecycleAuthority:
