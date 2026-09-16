@@ -5,6 +5,7 @@ import hashlib
 import json
 import os
 import uuid
+from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 from typing import BinaryIO
@@ -53,7 +54,7 @@ class TransferResult:
 
 
 class DataPlane:
-    """Plans and executes resumable local transfers without deleting creator data."""
+    """Plans and executes resumable local and remote transfers without deleting creator data."""
 
     def __init__(self, state_root: str | Path, chunk_size: int = 4 * 1024 * 1024):
         if chunk_size <= 0:
@@ -155,6 +156,46 @@ class DataPlane:
                     raise InterruptedError("transfer interrupted after requested checkpoint")
         if self.reference_for(destination, self.chunk_size) != plan.reference:
             raise IOError("destination failed final content verification")
+        self._save_completed(plan.transfer_id, completed)
+        return TransferResult(plan.transfer_id, plan.reference, tuple(sorted(completed)), resumed, True, plan.source, plan.destination)
+
+    def receive_remote(
+        self,
+        plan: TransferPlan,
+        fetch_chunk: Callable[[TransferChunk], bytes],
+        interrupt_after_chunks: int | None = None,
+    ) -> TransferResult:
+        """Receive remote chunks through a transport while retaining resumable state."""
+        if plan.source.strip() == "":
+            raise ValueError("remote transfer source is required")
+        destination = Path(plan.destination)
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        completed = self._load_completed(plan.transfer_id)
+        resumed = bool(completed)
+        mode = "r+b" if destination.exists() else "w+b"
+        with destination.open(mode) as destination_handle:
+            if destination.exists() and destination_handle.seek(0, os.SEEK_END) < plan.reference.size_bytes:
+                destination_handle.truncate(plan.reference.size_bytes)
+            for chunk in plan.chunks:
+                if chunk.index in completed and self._verify_chunk(destination_handle, chunk):
+                    continue
+                completed.discard(chunk.index)
+                data = fetch_chunk(chunk)
+                if len(data) != chunk.size_bytes:
+                    raise IOError(f"remote chunk {chunk.index} has an invalid size")
+                if chunk.digest is None or hashlib.sha256(data).hexdigest() != chunk.digest:
+                    raise IOError(f"remote chunk {chunk.index} failed checksum verification")
+                destination_handle.seek(chunk.offset)
+                destination_handle.write(data)
+                destination_handle.flush()
+                if not self._verify_chunk(destination_handle, chunk):
+                    raise IOError(f"destination chunk {chunk.index} failed checksum verification")
+                completed.add(chunk.index)
+                self._save_completed(plan.transfer_id, completed)
+                if interrupt_after_chunks is not None and interrupt_after_chunks <= len(completed) and len(completed) < len(plan.chunks):
+                    raise InterruptedError("remote transfer interrupted after requested checkpoint")
+        if self.reference_for(destination, self.chunk_size) != plan.reference:
+            raise IOError("remote destination failed final content verification")
         self._save_completed(plan.transfer_id, completed)
         return TransferResult(plan.transfer_id, plan.reference, tuple(sorted(completed)), resumed, True, plan.source, plan.destination)
 
