@@ -51,10 +51,12 @@ class GpuTopologyEvidence:
 
 
 def parse_nvidia_smi_topology(output: str, gpu_uuids_by_index: dict[int, str]) -> GpuTopologyEvidence:
-    """Parse the GPU-to-GPU portion of ``nvidia-smi topo -m``.
+    """Parse the GPU, NIC, CPU-affinity, and NUMA columns of ``nvidia-smi topo -m``.
 
-    CPU affinity and NIC locality are retained when present. GPU rows with an
-    unrecognized shape fail closed instead of inventing topology.
+    NVIDIA's topology matrix places optional NIC columns between the GPU
+    columns and the CPU/NUMA affinity columns. Column positions are therefore
+    taken from the header rather than assuming CPU affinity immediately
+    follows the GPU matrix. Unknown or incomplete rows fail closed.
     """
     if not output.strip():
         raise ValueError("topology output is empty")
@@ -70,7 +72,15 @@ def parse_nvidia_smi_topology(output: str, gpu_uuids_by_index: dict[int, str]) -
     if any(index not in gpu_uuids_by_index for index in indices):
         raise ValueError("topology references a GPU absent from the observed inventory")
 
-    matrix_rows: list[tuple[str, ...]] = []
+    try:
+        cpu_header_index = header.index("CPU")
+        if header[cpu_header_index + 1] != "Affinity":
+            raise ValueError
+    except (ValueError, IndexError):
+        raise ValueError("nvidia-smi topology CPU affinity columns were not found") from None
+
+    nic_columns = tuple(header[1 + len(gpu_tokens) : cpu_header_index])
+    matrix_rows: list[tuple[int, tuple[str, ...]]] = []
     cpu_affinity: list[tuple[str, str]] = []
     nic_paths: list[tuple[str, str, str]] = []
     for line in lines[header_index + 1 :]:
@@ -80,18 +90,23 @@ def parse_nvidia_smi_topology(output: str, gpu_uuids_by_index: dict[int, str]) -
         row_index = int(fields[0][3:])
         if row_index not in indices:
             continue
-        if len(fields) < len(gpu_tokens) + 2:
+        required_fields = cpu_header_index + 1
+        if len(fields) < required_fields:
             raise ValueError("nvidia-smi topology GPU row is incomplete")
         matrix_values = tuple(fields[1 : 1 + len(gpu_tokens)])
+        if len(matrix_values) != len(gpu_tokens):
+            raise ValueError("nvidia-smi topology GPU matrix row is incomplete")
         matrix_rows.append((row_index, matrix_values))
-        cpu_value = fields[1 + len(gpu_tokens)]
+        cpu_value = fields[cpu_header_index]
         cpu_affinity.append((gpu_uuids_by_index[row_index], cpu_value))
-        for column, value in zip(gpu_tokens, matrix_values):
-            if column != fields[0] and value not in {"SYS", "NODE", "PHB", "PXB", "PIX", "NVL", "N/A", "X"} and not re.fullmatch(r"NV\d+", value):
-                nic_paths.append((gpu_uuids_by_index[row_index], column, value))
+        for offset, column in enumerate(nic_columns, start=1 + len(gpu_tokens)):
+            nic_value = fields[offset]
+            nic_paths.append((gpu_uuids_by_index[row_index], column, nic_value))
 
     if len(matrix_rows) != len(indices):
         raise ValueError("nvidia-smi topology did not expose every observed GPU row")
+    if len({row_index for row_index, _ in matrix_rows}) != len(indices):
+        raise ValueError("nvidia-smi topology contains duplicate GPU rows")
     matrix_rows.sort(key=lambda item: indices.index(item[0]))
     matrix = tuple(row for _, row in matrix_rows)
     uuids = tuple(gpu_uuids_by_index[index] for index in indices)
