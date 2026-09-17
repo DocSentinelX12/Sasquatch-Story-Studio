@@ -1,28 +1,96 @@
 from studio.compute_broker import ComputeBroker, ProductionTask
 from studio.gpu_infrastructure import GpuDeviceObservation, GpuHostObservation
 from studio.hardware_requirements import GpuPlacement, HardwareRequirements
-from studio.scheduler import JobRequirements, Scheduler
-from studio.worker_registry import WorkerRegistry
+from studio.resources import ComputeResource
+from studio.scheduler import Job, JobRequirements, JobState, Scheduler
+from studio.worker_registry import WorkerRecord, WorkerRegistry, WorkerState
 
 
-def record(worker_id="gpu", vram=96 * 1024**3, hardware=None):
-    from studio.resources import ComputeResource
-
-    return __import__("studio.worker_registry", fromlist=["WorkerRecord"]).WorkerRecord(
-        id=worker_id,
-        state=__import__("studio.worker_registry", fromlist=["WorkerState"]).WorkerState.VERIFIED_AVAILABLE,
-        resource=ComputeResource(
-            logical_slots=8,
-            memory_bytes=128 * 1024**3,
-            vram_bytes=vram,
-            scratch_bytes=1024**3,
-            power_budget_watts=1000,
-            capabilities=frozenset({"video_generation"}),
-            installed_engines=frozenset(),
-            healthy=True,
-        ),
-        hardware_observation=hardware,
+def record(worker_id, *, vram, capabilities=(), engines=(), state=WorkerState.VERIFIED_AVAILABLE, hardware=None):
+    return WorkerRecord(
+        worker_id,
+        ComputeResource(
+            worker_id + "-resource", 16, 32 * 1024**3, gpu_count=1,
+            vram_bytes=vram, capabilities=capabilities, installed_engines=engines,
+            logical_slots=4, scratch_bytes=100 * 1024**3, power_budget_watts=500,
+        ), state=state, hardware_observation=hardware,
     )
+
+
+def test_routes_only_to_observed_capabilities_and_runtime_verified_engine():
+    registry = WorkerRegistry((
+        record("small", vram=8 * 1024**3, capabilities=("video",), engines=("wan",)),
+        record("strong", vram=24 * 1024**3, capabilities=("video", "cuda"), engines=("wan",)),
+    ))
+    broker = ComputeBroker(Scheduler(), registry, verified_engines=("wan",))
+    task = ProductionTask("shot-1", JobRequirements(vram_bytes=16 * 1024**3, capabilities=("cuda",), engines=("wan",)))
+    decision = broker.select_worker(task)
+    assert decision.selected_worker == "strong"
+    assert dict(decision.rejected_workers)["small"] == "insufficient VRAM"
+
+
+def test_unavailable_worker_is_never_selected():
+    registry = WorkerRegistry((record("offline", vram=32 * 1024**3, state=WorkerState.OFFLINE),))
+    decision = ComputeBroker(Scheduler(), registry).select_worker(ProductionTask("t", JobRequirements()))
+    assert decision.selected_worker is None
+    assert decision.rejected_workers == (("offline", "worker state is offline"),)
+
+
+def test_unverified_engine_is_never_selected_even_when_installed():
+    registry = WorkerRegistry((record("gpu", vram=24 * 1024**3, capabilities=("video",), engines=("wan",)),))
+    decision = ComputeBroker(Scheduler(), registry).select_worker(ProductionTask("t", JobRequirements(engines=("wan",))))
+    assert decision.selected_worker is None
+    assert dict(decision.rejected_workers)["gpu"] == "required engine is not runtime verified"
+
+
+def test_no_route_is_truthful():
+    registry = WorkerRegistry((record("a", vram=4 * 1024**3),))
+    decision = ComputeBroker(Scheduler(), registry).select_worker(
+        ProductionTask("t", JobRequirements(vram_bytes=16 * 1024**3))
+    )
+    assert decision.selected_worker is None
+    assert decision.reason == "no verified eligible worker"
+
+
+def test_submit_and_expiry_requeue():
+    scheduler = Scheduler()
+    registry = WorkerRegistry((record("strong", vram=24 * 1024**3),))
+    broker = ComputeBroker(scheduler, registry)
+    task = ProductionTask("t", JobRequirements())
+    job = broker.submit(task)
+    decision, leased = broker.lease(task, now=10, lease_seconds=5)
+    assert decision.selected_worker == "strong"
+    assert leased is not None and leased.state == JobState.LEASED
+    assert broker.release_or_requeue(job.id, 15)
+    assert scheduler.snapshot()[0].state == JobState.QUEUED
+
+
+def test_hardware_requirements_are_enforced_from_observed_gpu_inventory():
+    hardware = GpuHostObservation(
+        worker_id="gpu",
+        driver_version="580.00",
+        cuda_supported_version="13.0",
+        gpus=(GpuDeviceObservation(0, "GPU-0", "Observed GPU", 96 * 1024, 0, "0000:01:00.0", "10.0"),),
+        topology_text="GPU0 GPU0",
+        dcgm_available=False,
+        dcgm_version=None,
+        health_json=None,
+    )
+    registry = WorkerRegistry((record("gpu", vram=96 * 1024**3, hardware=hardware),))
+    broker = ComputeBroker(Scheduler(), registry)
+    task = ProductionTask(
+        "t",
+        JobRequirements(
+            hardware=HardwareRequirements(
+                min_gpu_count=1,
+                min_vram_per_gpu_bytes=80 * 1024**3,
+                min_compute_capability="9.0",
+            )
+        ),
+    )
+    decision = broker.select_worker(task)
+    assert decision.selected_worker == "gpu"
+    assert decision.selected_gpu_uuids == ("GPU-0",)
 
 
 def test_topology_sensitive_hardware_is_rejected_without_verified_placement_evidence():
@@ -65,8 +133,24 @@ def test_lease_binds_the_requested_task_and_exact_gpu_allocation():
     registry = WorkerRegistry((record("gpu", vram=96 * 1024**3, hardware=hardware),))
     broker = ComputeBroker(scheduler, registry)
     requested = ProductionTask("requested", JobRequirements(hardware=HardwareRequirements(min_gpu_count=1)))
-    decision, job = broker.lease(requested, now=0)
+    other = ProductionTask("other", JobRequirements(), priority=100)
+    broker.submit(requested)
+    broker.submit(other)
+
+    decision, leased = broker.lease(requested, now=10, lease_seconds=30)
+
     assert decision.selected_worker == "gpu"
     assert decision.selected_gpu_uuids == ("GPU-0",)
-    assert job is not None
-    assert job.id == "requested"
+    assert leased is not None
+    assert leased.id == "requested"
+    assert leased.allocated_gpu_uuids == ("GPU-0",)
+
+
+def test_overlapping_gpu_allocation_is_rejected_by_scheduler():
+    scheduler = Scheduler()
+    resource = ComputeResource("gpu-resource", 16, 32 * 1024**3, gpu_count=1, vram_bytes=96 * 1024**3, logical_slots=4)
+    scheduler.submit(Job("first", JobRequirements()))
+    scheduler.submit(Job("second", JobRequirements()))
+
+    assert scheduler.choose_on_worker("gpu", resource, 0, now=1, gpu_uuids=("GPU-0",), job_id="first") is not None
+    assert scheduler.choose_on_worker("gpu", resource, 0, now=1, gpu_uuids=("GPU-0",), job_id="second") is None
