@@ -1,17 +1,17 @@
 """Control-plane HTTP service for authenticated GPU worker lifecycle.
 
-The service is deliberately standard-library only. TLS termination is required
-outside this handler, and the existing SecureWorkerClient refuses plain HTTP.
-This module owns transport-level request parsing and authorization while
-WorkerControlPlane remains the authoritative inventory and health boundary.
+The service is standard-library only and deliberately keeps production state
+above the worker fabric. TLS termination remains an explicit deployment
+requirement because SecureWorkerClient refuses plain HTTP.
 """
 from __future__ import annotations
 
 import json
+import time
 from dataclasses import dataclass
-from typing import Any, Mapping
+from typing import Any, Callable, Mapping
 
-from .remote_worker import WorkerAccess
+from .remote_worker import RemoteLease, WorkerAccess
 from .worker_control_plane import WorkerControlPlane
 
 
@@ -31,11 +31,33 @@ def _bearer(value: str | None) -> str:
     return token.strip()
 
 
-class WorkerControlServer:
-    """HTTP-independent service implementation for worker lifecycle endpoints."""
+def _lease(payload: Mapping[str, Any]) -> RemoteLease:
+    raw = payload.get("lease")
+    if not isinstance(raw, Mapping):
+        raise ValueError("lease is required")
+    try:
+        return RemoteLease(
+            lease_id=str(raw["lease_id"]),
+            task_id=str(raw["task_id"]),
+            worker_id=str(raw["worker_id"]),
+            expires_at=int(raw["expires_at"]),
+            gpu_uuids=tuple(str(value) for value in raw.get("gpu_uuids", ())),
+            execution_nonce=str(raw["execution_nonce"]),
+        )
+    except (KeyError, TypeError, ValueError) as exc:
+        raise ValueError("invalid remote lease") from exc
 
-    def __init__(self, control_plane: WorkerControlPlane):
+
+class WorkerControlServer:
+    """HTTP-independent control service for worker lifecycle and execution."""
+
+    def __init__(
+        self,
+        control_plane: WorkerControlPlane,
+        execute: Callable[[Mapping[str, Any], RemoteLease, WorkerAccess, int], Mapping[str, Any]] | None = None,
+    ):
         self.control_plane = control_plane
+        self._execute = execute
 
     @staticmethod
     def decode_json_body(body: bytes) -> dict[str, Any]:
@@ -70,28 +92,47 @@ class WorkerControlServer:
         record = self.control_plane.heartbeat(payload, WorkerAccess(worker_id, token), now)
         return self._json(200, {"worker_id": record.id, "state": record.state.value, "observed_at": record.observed_at})
 
-    def dispatch(self, method: str, path: str, body: bytes, authorization: str | None, *, now: int) -> ControlResponse:
+    def execute(self, request: Mapping[str, Any], *, now: int) -> ControlResponse:
+        if self._execute is None:
+            return self._json(503, {"error": "remote execution service is not configured"})
+        token = _bearer(request.get("authorization"))
+        payload = request.get("payload")
+        if not isinstance(payload, Mapping):
+            raise ValueError("worker execution payload must be an object")
+        lease = _lease(payload)
+        access = WorkerAccess(lease.worker_id, token)
+        self.control_plane.authority.authorize_execution(access, lease, now)
+        result = self._execute(payload, lease, access, now)
+        if not isinstance(result, Mapping):
+            raise ValueError("worker execution callback must return an object")
+        self.control_plane.authority.complete_lease(access, lease, now)
+        return self._json(200, result)
+
+    def dispatch(self, method: str, path: str, body: bytes, authorization: str | None, *, now: int | None = None) -> ControlResponse:
         if method.upper() != "POST":
             return self._json(405, {"error": "method not allowed"})
+        current = int(time.time()) if now is None else now
         try:
             payload = self.decode_json_body(body)
             request = {"authorization": authorization, "payload": payload}
             if path == "/v1/worker/register":
-                return self.register(request, now=now)
+                return self.register(request, now=current)
             if path == "/v1/worker/heartbeat":
-                return self.heartbeat(request, now=now)
+                return self.heartbeat(request, now=current)
+            if path == "/v1/worker/execute":
+                return self.execute(request, now=current)
             return self._json(404, {"error": "worker endpoint not found"})
         except PermissionError as exc:
             return self._json(401, {"error": str(exc)})
-        except (KeyError, ValueError) as exc:
+        except (KeyError, ValueError, TypeError) as exc:
             return self._json(400, {"error": str(exc)})
 
 
 class WorkerControlHTTPHandler:
     """Thin adapter for an HTTP server implementation.
 
-    The handler delegates all lifecycle decisions to WorkerControlServer. A
-    deployment must wrap the listener in TLS before exposing these endpoints.
+    Deployments must provide TLS before exposing these endpoints. The handler
+    never creates certificates, credentials, or worker identities itself.
     """
 
     service: WorkerControlServer
