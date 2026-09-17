@@ -15,6 +15,7 @@ import subprocess
 from dataclasses import asdict, dataclass
 from typing import Callable, Sequence
 
+from .gpu_topology import GpuTopologyEvidence, parse_nvidia_smi_topology
 from .nccl_evidence import NCCLTestEvidence
 
 
@@ -51,6 +52,7 @@ class GpuHostObservation:
     dcgm_version: str | None
     health_json: str | None
     nccl_evidence: NCCLTestEvidence | None = None
+    topology_evidence: GpuTopologyEvidence | None = None
 
     def __post_init__(self) -> None:
         if not self.worker_id.strip():
@@ -61,6 +63,10 @@ class GpuHostObservation:
             raise ValueError("GPU UUIDs must be unique")
         if self.dcgm_available and not (self.dcgm_version or "").strip():
             raise ValueError("DCGM availability requires an observed version")
+        if self.topology_evidence is not None:
+            observed = tuple(gpu.uuid for gpu in sorted(self.gpus, key=lambda item: item.index))
+            if self.topology_evidence.gpu_uuids != observed:
+                raise ValueError("topology evidence must match the observed GPU inventory")
 
     @property
     def gpu_count(self) -> int:
@@ -72,6 +78,11 @@ class GpuHostObservation:
         if self.nccl_evidence is not None:
             payload["nccl_evidence"]["command"] = list(self.nccl_evidence.command)
             payload["nccl_evidence"]["gpu_uuids"] = list(self.nccl_evidence.gpu_uuids)
+        if self.topology_evidence is not None:
+            payload["topology_evidence"]["gpu_uuids"] = list(self.topology_evidence.gpu_uuids)
+            payload["topology_evidence"]["gpu_matrix"] = [list(row) for row in self.topology_evidence.gpu_matrix]
+            payload["topology_evidence"]["cpu_affinity"] = [list(item) for item in self.topology_evidence.cpu_affinity]
+            payload["topology_evidence"]["nic_paths"] = [list(item) for item in self.topology_evidence.nic_paths]
         return json.dumps(payload, sort_keys=True, separators=(",", ":"))
 
     def digest(self) -> str:
@@ -163,6 +174,7 @@ def probe_nvidia_host(worker_id: str, runner: Runner = _default_runner) -> GpuHo
         raise RuntimeError("nvidia-smi succeeded but reported no physical GPUs")
 
     topology = _run_text(runner, ("nvidia-smi", "topo", "-m"))
+    topology_evidence = parse_nvidia_smi_topology(topology, {gpu.index: gpu.uuid for gpu in gpus})
 
     dcgm_available = shutil.which("dcgmi") is not None
     dcgm_version: str | None = None
@@ -187,4 +199,5 @@ def probe_nvidia_host(worker_id: str, runner: Runner = _default_runner) -> GpuHo
         dcgm_available=dcgm_available,
         dcgm_version=dcgm_version,
         health_json=health_json,
+        topology_evidence=topology_evidence,
     )
