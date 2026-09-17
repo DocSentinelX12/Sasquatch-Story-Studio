@@ -53,10 +53,10 @@ class GpuTopologyEvidence:
 def parse_nvidia_smi_topology(output: str, gpu_uuids_by_index: dict[int, str]) -> GpuTopologyEvidence:
     """Parse the GPU, NIC, CPU-affinity, and NUMA columns of ``nvidia-smi topo -m``.
 
-    NVIDIA's topology matrix places optional NIC columns between the GPU
-    columns and the CPU/NUMA affinity columns. Column positions are therefore
-    taken from the header rather than assuming CPU affinity immediately
-    follows the GPU matrix. Unknown or incomplete rows fail closed.
+    Header tokens are used only to identify the GPU and NIC column names.
+    Row offsets are derived from those column counts because ``CPU Affinity``
+    and ``NUMA Affinity`` are multi-token labels while the data rows are fixed
+    columns. Unknown or incomplete rows fail closed.
     """
     if not output.strip():
         raise ValueError("topology output is empty")
@@ -79,7 +79,9 @@ def parse_nvidia_smi_topology(output: str, gpu_uuids_by_index: dict[int, str]) -
     except (ValueError, IndexError):
         raise ValueError("nvidia-smi topology CPU affinity columns were not found") from None
 
-    nic_columns = tuple(header[1 + len(gpu_tokens) : cpu_header_index])
+    nic_columns = tuple(header[len(gpu_tokens) : cpu_header_index])
+    nic_start = 1 + len(gpu_tokens)
+    cpu_value_index = nic_start + len(nic_columns)
     matrix_rows: list[tuple[int, tuple[str, ...]]] = []
     cpu_affinity: list[tuple[str, str]] = []
     nic_paths: list[tuple[str, str, str]] = []
@@ -90,16 +92,16 @@ def parse_nvidia_smi_topology(output: str, gpu_uuids_by_index: dict[int, str]) -
         row_index = int(fields[0][3:])
         if row_index not in indices:
             continue
-        required_fields = cpu_header_index + 1
+        required_fields = cpu_value_index + 1
         if len(fields) < required_fields:
             raise ValueError("nvidia-smi topology GPU row is incomplete")
         matrix_values = tuple(fields[1 : 1 + len(gpu_tokens)])
         if len(matrix_values) != len(gpu_tokens):
             raise ValueError("nvidia-smi topology GPU matrix row is incomplete")
         matrix_rows.append((row_index, matrix_values))
-        cpu_value = fields[cpu_header_index]
+        cpu_value = fields[cpu_value_index]
         cpu_affinity.append((gpu_uuids_by_index[row_index], cpu_value))
-        for offset, column in enumerate(nic_columns, start=1 + len(gpu_tokens)):
+        for offset, column in enumerate(nic_columns, start=nic_start):
             nic_value = fields[offset]
             nic_paths.append((gpu_uuids_by_index[row_index], column, nic_value))
 
