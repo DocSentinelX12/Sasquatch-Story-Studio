@@ -8,6 +8,8 @@ from enum import StrEnum
 from pathlib import Path
 
 from .gpu_infrastructure import GpuDeviceObservation, GpuHostObservation
+from .gpu_topology import GpuTopologyEvidence
+from .nccl_evidence import NCCLTestEvidence
 from .resources import ComputeResource
 
 
@@ -84,12 +86,45 @@ class WorkerRegistry:
 
 
 def _serialize_observation(observation: GpuHostObservation | None) -> dict | None:
-    return None if observation is None else asdict(observation)
+    if observation is None:
+        return None
+    payload = asdict(observation)
+    if observation.nccl_evidence is not None:
+        payload["nccl_evidence"]["command"] = list(observation.nccl_evidence.command)
+        payload["nccl_evidence"]["gpu_uuids"] = list(observation.nccl_evidence.gpu_uuids)
+    if observation.topology_evidence is not None:
+        payload["topology_evidence"]["gpu_uuids"] = list(observation.topology_evidence.gpu_uuids)
+        payload["topology_evidence"]["gpu_matrix"] = [list(row) for row in observation.topology_evidence.gpu_matrix]
+        payload["topology_evidence"]["cpu_affinity"] = [list(item) for item in observation.topology_evidence.cpu_affinity]
+        payload["topology_evidence"]["nic_paths"] = [list(item) for item in observation.topology_evidence.nic_paths]
+    return payload
 
 
 def _deserialize_observation(payload: dict | None) -> GpuHostObservation | None:
     if payload is None:
         return None
+    topology_payload = payload.get("topology_evidence")
+    topology_evidence = None
+    if topology_payload is not None:
+        topology_evidence = GpuTopologyEvidence(
+            gpu_uuids=tuple(topology_payload["gpu_uuids"]),
+            gpu_matrix=tuple(tuple(row) for row in topology_payload["gpu_matrix"]),
+            cpu_affinity=tuple(tuple(item) for item in topology_payload["cpu_affinity"]),
+            nic_paths=tuple(tuple(item) for item in topology_payload["nic_paths"]),
+            raw_text_sha256=topology_payload["raw_text_sha256"],
+        )
+    nccl_payload = payload.get("nccl_evidence")
+    nccl_evidence = None
+    if nccl_payload is not None:
+        nccl_evidence = NCCLTestEvidence(
+            executable=nccl_payload["executable"],
+            executable_sha256=nccl_payload["executable_sha256"],
+            command=tuple(nccl_payload["command"]),
+            exit_code=nccl_payload["exit_code"],
+            output_sha256=nccl_payload["output_sha256"],
+            gpu_uuids=tuple(nccl_payload["gpu_uuids"]),
+            topology_digest=nccl_payload["topology_digest"],
+        )
     return GpuHostObservation(
         worker_id=payload["worker_id"],
         driver_version=payload["driver_version"],
@@ -99,6 +134,8 @@ def _deserialize_observation(payload: dict | None) -> GpuHostObservation | None:
         dcgm_available=payload["dcgm_available"],
         dcgm_version=payload.get("dcgm_version"),
         health_json=payload.get("health_json"),
+        nccl_evidence=nccl_evidence,
+        topology_evidence=topology_evidence,
     )
 
 
