@@ -8,7 +8,6 @@ epoch.
 """
 from __future__ import annotations
 
-import hashlib
 import itertools
 import json
 import secrets
@@ -264,6 +263,15 @@ class DistributedGpuAllocator:
                                 break
                         else:
                             topology_digests.append((worker_id, observation.topology_evidence.raw_text_sha256))
+                        if requirements.require_nccl:
+                            if observation.nccl_evidence is None:
+                                break
+                            try:
+                                validate_nccl_evidence(observation.nccl_evidence)
+                            except (ValueError, RuntimeError):
+                                break
+                            if tuple(observation.nccl_evidence.gpu_uuids) != selected[worker_id]:
+                                break
                     else:
                         total_vram = sum(
                             next(gpu for gpu in self.registry.get(worker_id).hardware_observation.gpus if gpu.uuid == gpu_uuid).memory_total_mib * 1024**2
@@ -357,6 +365,9 @@ class DistributedGpuAllocator:
         required_pairs = set(itertools.combinations(plan.worker_ids, 2))
         if not required_pairs.issubset(set(evidence.worker_pairs)):
             raise RuntimeError("GPU-direct evidence does not cover every selected worker pair")
+        selected_gpus = {gpu_uuid for _, gpus in plan.gpus_by_worker for gpu_uuid in gpus}
+        if any(left not in selected_gpus or right not in selected_gpus for left, right in evidence.gpu_pairs):
+            raise RuntimeError("GPU-direct evidence references GPUs outside the exact allocation")
         if evidence.exit_code != 0:
             raise RuntimeError("GPU-direct network evidence is not successful")
 
