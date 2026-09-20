@@ -138,3 +138,26 @@ def test_process_executor_requires_the_real_launcher_to_be_present():
     # torchrun-compatible launcher. Runtime GPU/NCCL execution belongs on a
     # verified GPU worker, not in a CPU-only unit test.
     assert DistributedProcessExecutor(spec).spec == spec
+
+
+def test_launch_spec_rejects_output_placeholder_without_bound_output_path():
+    allocator = DistributedGpuAllocator(_registry())
+    allocation = allocator.reserve("task-1", _requirements(), now=100, lease_seconds=600)
+    authority = WorkerLifecycleAuthority({"A": "secret"})
+    access = authority.register("A", "secret", now=100, hardware_identity_digest="a" * 64)
+    lease = authority.issue_distributed_lease(access, allocation, "task-1", now=100)
+
+    spec = DistributedLaunchSpec(
+        executable="torchrun",
+        command=("train.py", "--output", "{output}"),
+        rendezvous_id="task-1",
+        rendezvous_host="node-a.example",
+        rendezvous_port=29400,
+    )
+
+    try:
+        spec.argv(lease)
+    except ValueError as exc:
+        assert "output_path" in str(exc)
+    else:
+        raise AssertionError("unbound {output} placeholder must be rejected")
