@@ -119,8 +119,6 @@ def test_multi_node_reservation_is_atomic_and_builds_complete_rank_map():
     allocation = allocator.reserve("task-1", requirement(), now=100, lease_seconds=60)
 
     assert allocation.state is DistributedGpuAllocationState.RESERVED
-    assert allocation.gpu_direct_network is not None
-    assert allocation.gpu_direct_network.gpu_pairs == (("A", "A-GPU-0", "B", "B-GPU-0"),)
     assert allocation.worker_ids == ("A", "B")
     assert allocation.world_size == 8
     assert allocation.node_count == 2
@@ -213,6 +211,7 @@ def test_gpu_direct_requirement_requires_explicit_peer_evidence_for_every_worker
     )
     allocation = allocator.reserve("task-1", requirement(direct=True), now=100, lease_seconds=60, gpu_direct_network=evidence)
     assert allocation.state is DistributedGpuAllocationState.RESERVED
+    assert allocation.gpu_direct_network == evidence
 
 
 def test_expiry_releases_exact_gpu_reservations():
