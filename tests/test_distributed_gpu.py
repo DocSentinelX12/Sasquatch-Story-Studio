@@ -1,5 +1,3 @@
-import hashlib
-
 import pytest
 
 from studio.distributed_gpu import (
@@ -9,6 +7,7 @@ from studio.distributed_gpu import (
     GpuDirectNetworkEvidence,
 )
 from studio.gpu_infrastructure import GpuDeviceObservation, GpuHostObservation
+from studio.gpu_topology import GpuTopologyEvidence
 from studio.hardware_requirements import GpuPlacement, HardwareRequirements
 from studio.nccl_evidence import NCCLTestEvidence
 from studio.resources import ComputeResource
@@ -39,6 +38,17 @@ def host(worker_id: str, start: int) -> GpuHostObservation:
         health_json=None,
     )
 
+
+
+def topology(worker_id: str) -> GpuTopologyEvidence:
+    uuids = tuple(f"{worker_id}-GPU-{index}" for index in range(4))
+    return GpuTopologyEvidence(
+        gpu_uuids=uuids,
+        gpu_matrix=tuple(tuple("NV4" if left != right else "X" for right in uuids) for left in uuids),
+        cpu_affinity=tuple((uuid, "0-63") for uuid in uuids),
+        nic_paths=tuple((uuid, "mlx5_0", "PIX") for uuid in uuids),
+        raw_text_sha256="c" * 64,
+    )
 
 def registry(*worker_ids: str) -> WorkerRegistry:
     records = []
@@ -116,7 +126,7 @@ def test_multi_node_reservation_is_atomic_and_builds_complete_rank_map():
     assert tuple(rank.local_rank for rank in allocation.ranks) == (0, 1, 2, 3, 0, 1, 2, 3)
     assert len({(rank.worker_id, rank.gpu_uuid) for rank in allocation.ranks}) == 8
 
-    second = allocator.try_reserve("task-2", requirement(1), now=100, lease_seconds=60)
+    second = allocator.try_reserve("task-2", requirement(2), now=100, lease_seconds=60)
     assert second is None
 
 
@@ -146,6 +156,7 @@ def test_nccl_requirement_requires_exact_distributed_collective_evidence():
                 dcgm_version=None,
                 health_json=None,
                 nccl_evidence=local_nccl("A"),
+                topology_evidence=topology("A"),
             ),
         )
     )
@@ -166,6 +177,7 @@ def test_nccl_requirement_requires_exact_distributed_collective_evidence():
                 dcgm_version=None,
                 health_json=None,
                 nccl_evidence=local_nccl("B"),
+                topology_evidence=topology("B"),
             ),
         )
     )
