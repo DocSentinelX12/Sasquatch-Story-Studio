@@ -11,7 +11,7 @@ import time
 from dataclasses import dataclass
 from typing import Any, Callable, Mapping
 
-from .distributed_execution import _parse_lease as _parse_distributed_lease
+from .distributed_execution import DistributedLaunchSpec, DistributedProcessExecutor, _parse_lease as _parse_distributed_lease
 from .remote_worker import RemoteLease, WorkerAccess
 from .worker_control_plane import WorkerControlPlane
 
@@ -114,8 +114,6 @@ class WorkerControlServer:
         return self._json(200, result)
 
     def execute_distributed(self, request: Mapping[str, Any], *, now: int) -> ControlResponse:
-        if self._execute_distributed is None:
-            return self._json(503, {"error": "distributed execution service is not configured"})
         token = _bearer(request.get("authorization"))
         payload = request.get("payload")
         if not isinstance(payload, Mapping):
@@ -129,7 +127,25 @@ class WorkerControlServer:
             return self._json(503, {"error": "distributed allocation authority is not configured"})
         allocation = self._distributed_allocation(lease.allocation_id)
         self.control_plane.authority.authorize_distributed_execution(access, lease, allocation, now)
-        result = self._execute_distributed(payload, lease, access, now)
+        if self._execute_distributed is not None:
+            result = self._execute_distributed(payload, lease, access, now)
+        else:
+            raw_launch = payload.get("launch")
+            if not isinstance(raw_launch, Mapping):
+                return self._json(503, {"error": "distributed execution service is not configured"})
+            try:
+                spec = DistributedLaunchSpec(
+                    executable=str(raw_launch["executable"]),
+                    command=tuple(str(item) for item in raw_launch["command"]),
+                    rendezvous_id=str(raw_launch["rendezvous_id"]),
+                    rendezvous_host=str(raw_launch["rendezvous_host"]),
+                    rendezvous_port=int(raw_launch["rendezvous_port"]),
+                    timeout_seconds=int(raw_launch.get("timeout_seconds", 3600)),
+                    max_restarts=int(raw_launch.get("max_restarts", 0)),
+                )
+            except (KeyError, TypeError, ValueError) as exc:
+                raise ValueError("invalid distributed launch specification") from exc
+            result = DistributedProcessExecutor(spec).execute(payload, lease, access, now)
         if not isinstance(result, Mapping):
             raise ValueError("distributed worker execution callback must return an object")
         return self._json(200, result)
