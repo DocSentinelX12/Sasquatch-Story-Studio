@@ -60,6 +60,8 @@ class DistributedLaunchSpec:
             raise ValueError("distributed lease contains no local ranks")
         if lease.world_size < local_world_size:
             raise ValueError("distributed lease world size is smaller than local world size")
+        if "{output}" in self.command and self.output_path is None:
+            raise ValueError("distributed command contains {output} but output_path is not bound")
         return (
             self.executable,
             "--nnodes",
