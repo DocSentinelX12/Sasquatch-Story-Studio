@@ -159,7 +159,7 @@ def test_lifecycle_authority_issues_exact_per_worker_distributed_lease():
     )
     allocation = allocator.reserve("task-distributed", requirements, now=100, lease_seconds=60)
     authority = WorkerLifecycleAuthority({"worker-a": "secret-a", "worker-b": "secret-b"})
-    access = authority.register("worker-a", "secret-a", now=100, hardware_observation_digest=registry.get("worker-a").hardware_observation.digest())
+    access = authority.register("worker-a", "secret-a", now=100, hardware_identity_digest=__import__("studio.worker_control_plane", fromlist=["WorkerControlPlane"]).WorkerControlPlane._identity_digest(registry.get("worker-a").hardware_observation))
     lease = authority.issue_distributed_lease(access, allocation, "task-distributed", now=101)
 
     assert isinstance(lease, DistributedWorkerLease)
