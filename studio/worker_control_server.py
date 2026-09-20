@@ -11,6 +11,7 @@ import time
 from dataclasses import dataclass
 from typing import Any, Callable, Mapping
 
+from .distributed_execution import _parse_lease as _parse_distributed_lease
 from .remote_worker import RemoteLease, WorkerAccess
 from .worker_control_plane import WorkerControlPlane
 
@@ -55,9 +56,13 @@ class WorkerControlServer:
         self,
         control_plane: WorkerControlPlane,
         execute: Callable[[Mapping[str, Any], RemoteLease, WorkerAccess, int], Mapping[str, Any]] | None = None,
+        distributed_allocation: Callable[[str], Any] | None = None,
+        execute_distributed: Callable[[Mapping[str, Any], Any, WorkerAccess, int], Mapping[str, Any]] | None = None,
     ):
         self.control_plane = control_plane
         self._execute = execute
+        self._distributed_allocation = distributed_allocation
+        self._execute_distributed = execute_distributed
 
     @staticmethod
     def decode_json_body(body: bytes) -> dict[str, Any]:
@@ -108,6 +113,27 @@ class WorkerControlServer:
         self.control_plane.authority.complete_lease(access, lease, now)
         return self._json(200, result)
 
+    def execute_distributed(self, request: Mapping[str, Any], *, now: int) -> ControlResponse:
+        if self._execute_distributed is None:
+            return self._json(503, {"error": "distributed execution service is not configured"})
+        token = _bearer(request.get("authorization"))
+        payload = request.get("payload")
+        if not isinstance(payload, Mapping):
+            raise ValueError("distributed worker execution payload must be an object")
+        raw_lease = payload.get("lease")
+        if not isinstance(raw_lease, Mapping):
+            raise ValueError("distributed lease is required")
+        lease = _parse_distributed_lease(raw_lease)
+        access = WorkerAccess(lease.worker_id, token)
+        if self._distributed_allocation is None:
+            return self._json(503, {"error": "distributed allocation authority is not configured"})
+        allocation = self._distributed_allocation(lease.allocation_id)
+        self.control_plane.authority.authorize_distributed_execution(access, lease, allocation, now)
+        result = self._execute_distributed(payload, lease, access, now)
+        if not isinstance(result, Mapping):
+            raise ValueError("distributed worker execution callback must return an object")
+        return self._json(200, result)
+
     def dispatch(self, method: str, path: str, body: bytes, authorization: str | None, *, now: int | None = None) -> ControlResponse:
         if method.upper() != "POST":
             return self._json(405, {"error": "method not allowed"})
@@ -121,6 +147,8 @@ class WorkerControlServer:
                 return self.heartbeat(request, now=current)
             if path == "/v1/worker/execute":
                 return self.execute(request, now=current)
+            if path == "/v1/worker/execute-distributed":
+                return self.execute_distributed(request, now=current)
             return self._json(404, {"error": "worker endpoint not found"})
         except PermissionError as exc:
             return self._json(401, {"error": str(exc)})
