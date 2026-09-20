@@ -4,6 +4,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from collections.abc import Iterable
 
+from .distributed_gpu import DistributedGpuAllocation, DistributedGpuAllocator
 from .gpu_placement import evaluate_gpu_placement
 from .scheduler import Job, JobRequirements, Scheduler
 from .worker_registry import WorkerRecord, WorkerRegistry, WorkerState
@@ -35,10 +36,17 @@ class ComputeBroker:
 
     _ACTIVE = {WorkerState.VERIFIED_AVAILABLE, WorkerState.VERIFIED_LIMITED}
 
-    def __init__(self, scheduler: Scheduler, registry: WorkerRegistry, verified_engines: Iterable[str] = ()):
+    def __init__(
+        self,
+        scheduler: Scheduler,
+        registry: WorkerRegistry,
+        verified_engines: Iterable[str] = (),
+        distributed_allocator: DistributedGpuAllocator | None = None,
+    ):
         self.scheduler = scheduler
         self.registry = registry
         self.verified_engines = frozenset(verified_engines)
+        self.distributed_allocator = distributed_allocator
 
     @staticmethod
     def _fits(task: ProductionTask, worker: WorkerRecord, verified_engines: frozenset[str]) -> tuple[bool, str, tuple[str, ...]]:
@@ -90,6 +98,35 @@ class ComputeBroker:
             selected,
             "eligible worker selected" if selected else "no verified eligible worker",
             placements.get(selected, ()) if selected else (),
+        )
+
+    def reserve_distributed(
+        self,
+        task: ProductionTask,
+        now: int,
+        lease_seconds: int = 900,
+        *,
+        distributed_nccl=None,
+        gpu_direct_network=None,
+    ) -> DistributedGpuAllocation:
+        """Reserve an exact multi-worker GPU allocation for a distributed task.
+
+        Distributed work is deliberately kept out of the single-worker
+        scheduler. The authoritative distributed allocator owns the gang
+        reservation, exact GPU identities, fencing, and expiry.
+        """
+        requirements = task.requirements.hardware
+        if requirements is None or requirements.placement.value != "multi_node":
+            raise ValueError("distributed broker routing requires MULTI_NODE hardware requirements")
+        if self.distributed_allocator is None:
+            raise RuntimeError("distributed GPU allocator is not configured")
+        return self.distributed_allocator.reserve(
+            task.id,
+            requirements,
+            now,
+            lease_seconds,
+            distributed_nccl=distributed_nccl,
+            gpu_direct_network=gpu_direct_network,
         )
 
     def submit(self, task: ProductionTask) -> Job:
