@@ -12,6 +12,7 @@ from dataclasses import dataclass
 from typing import Any, Mapping, Protocol
 
 from .data_plane import DataPlane, TransferPlan
+from .distributed_gpu import DistributedGpuAllocation, DistributedGpuAllocationState, RankAssignment
 from .hardware_requirements import HardwareRequirements
 from .scheduler import JobRequirements
 from .worker import WorkerResult, WorkerResultState, WorkerTask
@@ -35,6 +36,42 @@ class RemoteLease:
             raise ValueError("remote lease GPU allocation cannot contain duplicates")
         if not self.execution_nonce.strip():
             raise ValueError("execution nonce is required")
+
+
+@dataclass(frozen=True)
+class DistributedWorkerLease:
+    allocation_id: str
+    task_id: str
+    worker_id: str
+    world_size: int
+    node_count: int
+    node_rank: int
+    ranks: tuple[RankAssignment, ...]
+    gpu_uuids: tuple[str, ...]
+    expires_at: int
+    fencing_epoch: int
+    execution_nonce: str
+
+    def __post_init__(self) -> None:
+        if not self.allocation_id.strip() or not self.task_id.strip() or not self.worker_id.strip():
+            raise ValueError("distributed lease identity is required")
+        if self.world_size < 2 or self.node_count < 2:
+            raise ValueError("distributed lease must represent a multi-node allocation")
+        if self.node_rank < 0 or self.node_rank >= self.node_count:
+            raise ValueError("distributed lease node rank is invalid")
+        if self.expires_at < 0 or self.fencing_epoch < 1:
+            raise ValueError("distributed lease expiry and fencing epoch must be valid")
+        if not self.execution_nonce.strip():
+            raise ValueError("distributed lease execution nonce is required")
+        if len(set(self.gpu_uuids)) != len(self.gpu_uuids):
+            raise ValueError("distributed lease GPU allocation cannot contain duplicates")
+        rank_gpus = tuple(rank.gpu_uuid for rank in self.ranks)
+        if rank_gpus != self.gpu_uuids:
+            raise ValueError("distributed lease ranks must exactly match its GPU allocation")
+        if any(rank.worker_id != self.worker_id or rank.node_rank != self.node_rank for rank in self.ranks):
+            raise ValueError("distributed lease rank ownership does not match worker identity")
+        if any(rank.global_rank < 0 or rank.local_rank < 0 for rank in self.ranks):
+            raise ValueError("distributed lease ranks must be non-negative")
 
 
 @dataclass(frozen=True)
@@ -205,6 +242,69 @@ class WorkerLifecycleAuthority:
         for lease_id, lease in tuple(self._leases.items()):
             if lease.worker_id == worker_id:
                 self._leases.pop(lease_id)
+
+    def issue_distributed_lease(
+        self,
+        access: WorkerAccess,
+        allocation: DistributedGpuAllocation,
+        task_id: str,
+        now: int,
+    ) -> DistributedWorkerLease:
+        self.authorize(access)
+        if allocation.state is not DistributedGpuAllocationState.RESERVED:
+            raise PermissionError("distributed allocation is not active")
+        if allocation.expires_at <= now:
+            raise PermissionError("distributed allocation is expired")
+        if allocation.task_id != task_id:
+            raise PermissionError("distributed allocation does not belong to task")
+        worker_ids = allocation.worker_ids
+        try:
+            node_rank = worker_ids.index(access.worker_id)
+        except ValueError as exc:
+            raise PermissionError("worker is not a member of distributed allocation") from exc
+        local_ranks = tuple(rank for rank in allocation.ranks if rank.worker_id == access.worker_id)
+        if not local_ranks:
+            raise PermissionError("distributed allocation contains no GPUs for worker")
+        lease = DistributedWorkerLease(
+            allocation_id=allocation.allocation_id,
+            task_id=allocation.task_id,
+            worker_id=access.worker_id,
+            world_size=allocation.world_size,
+            node_count=allocation.node_count,
+            node_rank=node_rank,
+            ranks=local_ranks,
+            gpu_uuids=tuple(rank.gpu_uuid for rank in local_ranks),
+            expires_at=allocation.expires_at,
+            fencing_epoch=allocation.fencing_epoch,
+            execution_nonce=secrets.token_urlsafe(24),
+        )
+        return lease
+
+    def authorize_distributed_execution(
+        self,
+        access: WorkerAccess,
+        lease: DistributedWorkerLease,
+        allocation: DistributedGpuAllocation,
+        now: int,
+    ) -> None:
+        self.authorize(access)
+        if allocation.state is not DistributedGpuAllocationState.RESERVED:
+            raise PermissionError("distributed allocation is no longer active")
+        if allocation.allocation_id != lease.allocation_id or allocation.task_id != lease.task_id:
+            raise PermissionError("distributed lease allocation identity does not match")
+        if allocation.fencing_epoch != lease.fencing_epoch:
+            raise PermissionError("distributed lease fencing epoch does not match allocation")
+        if allocation.expires_at != lease.expires_at or lease.expires_at <= now:
+            raise PermissionError("distributed lease is expired")
+        expected = tuple(rank for rank in allocation.ranks if rank.worker_id == access.worker_id)
+        if lease.ranks != expected or lease.gpu_uuids != tuple(rank.gpu_uuid for rank in expected):
+            raise PermissionError("distributed lease rank or GPU allocation does not match allocation")
+        if lease.worker_id != access.worker_id:
+            raise PermissionError("distributed lease belongs to another worker")
+        nonce_key = f"{lease.allocation_id}:{lease.execution_nonce}"
+        if nonce_key in self._used_nonces:
+            raise PermissionError("distributed lease execution nonce has already been used")
+        self._used_nonces.add(nonce_key)
 
     def issue_lease(self, access: WorkerAccess, task: WorkerTask, expires_at: int, now: int) -> RemoteLease:
         self.authorize(access)
