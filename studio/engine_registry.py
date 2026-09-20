@@ -116,6 +116,16 @@ class EngineVerificationRecord:
                 raise ValueError(f"{field_name} must be a SHA-256 hex digest")
         if self.recorded_at < 0:
             raise ValueError("recorded_at cannot be negative")
+        if self.distributed_launch_mode is not None and not self.distributed_launch_mode.strip():
+            raise ValueError("distributed_launch_mode cannot be empty when supplied")
+        if self.distributed_execution_verified and self.distributed_launch_mode is None:
+            raise ValueError("distributed launch mode is required when distributed execution is verified")
+        if self.distributed_execution_verified and not self.distributed_runtime_output_sha256:
+            raise ValueError("distributed runtime output evidence is required when distributed execution is verified")
+        if self.distributed_runtime_output_sha256 is not None:
+            value = self.distributed_runtime_output_sha256
+            if len(value) != 64 or any(char not in "0123456789abcdef" for char in value.lower()):
+                raise ValueError("distributed_runtime_output_sha256 must be a SHA-256 hex digest")
 
     def to_engine(self) -> EngineSpec:
         engine = get_catalog_engine(self.engine_id)
