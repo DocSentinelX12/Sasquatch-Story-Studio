@@ -41,6 +41,7 @@ class DistributedGpuScheduler:
             placement=GpuPlacement.ANY,
             allow_multi_node=False,
             min_gpu_count=1,
+            min_total_vram_bytes=0,
             require_gpu_direct_network=False,
         )
         allocation: dict[str, list[str]] = {}
@@ -90,6 +91,6 @@ class DistributedGpuScheduler:
                 raise RuntimeError("selected distributed GPUs do not satisfy total VRAM requirement")
 
         return DistributedAllocation(
-            world_size=len(allocation),
+            world_size=total,
             gpus_by_worker=tuple((worker_id, tuple(allocation[worker_id])) for worker_id in sorted(allocation)),
         )
