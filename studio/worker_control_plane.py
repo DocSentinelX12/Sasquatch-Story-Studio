@@ -143,7 +143,7 @@ class WorkerControlPlane:
         identity_digest = payload.get("hardware_identity_digest")
         if identity_digest != self._identity_digest(observation):
             raise PermissionError("worker hardware identity digest does not match observed inventory")
-        access = self.authority.register(worker_id, enrollment_token, now, hardware_observation_digest=identity_digest)
+        access = self.authority.register(worker_id, enrollment_token, now, hardware_observation_digest=observation.digest())
         self._apply(worker_id, observation, now)
         return access
 
@@ -155,7 +155,7 @@ class WorkerControlPlane:
         identity_digest = payload.get("hardware_identity_digest")
         if identity_digest != self._identity_digest(observation):
             raise PermissionError("worker hardware identity digest does not match observed inventory")
-        self.authority.heartbeat(access, now, hardware_observation_digest=identity_digest)
+        self.authority.heartbeat(access, now, hardware_observation_digest=observation.digest())
         return self._apply(worker_id, observation, now)
 
     def revoke(self, worker_id: str) -> None:
