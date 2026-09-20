@@ -45,7 +45,7 @@ def registry(*worker_ids: str) -> WorkerRegistry:
     for offset, worker_id in enumerate(worker_ids):
         records.append(
             WorkerRecord(
-                worker_id if False else worker_id,
+                worker_id,
                 ComputeResource(
                     worker_id,
                     64,
