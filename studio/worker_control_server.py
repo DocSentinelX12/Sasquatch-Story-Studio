@@ -142,6 +142,7 @@ class WorkerControlServer:
                     rendezvous_port=int(raw_launch["rendezvous_port"]),
                     timeout_seconds=int(raw_launch.get("timeout_seconds", 3600)),
                     max_restarts=int(raw_launch.get("max_restarts", 0)),
+                    output_path=None if raw_launch.get("output_path") is None else str(raw_launch["output_path"]),
                 )
             except (KeyError, TypeError, ValueError) as exc:
                 raise ValueError("invalid distributed launch specification") from exc
