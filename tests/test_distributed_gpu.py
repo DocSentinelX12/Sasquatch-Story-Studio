@@ -134,7 +134,7 @@ def test_multi_node_reservation_is_atomic_and_builds_complete_rank_map():
 def test_multi_node_requires_two_workers_and_never_fabricates_capacity():
     allocator = DistributedGpuAllocator(registry("A"))
 
-    with pytest.raises(ValueError, match="at least two"):
+    with pytest.raises(RuntimeError, match="at least two"):
         allocator.reserve("task-1", requirement(4), now=100, lease_seconds=60)
 
 
@@ -189,7 +189,7 @@ def test_nccl_requirement_requires_exact_distributed_collective_evidence():
     planned = allocator.plan("task-1", requirement(nccl=True), now=100, lease_seconds=60)
     evidence = distributed_nccl(
         planned.worker_ids,
-        tuple((worker_id, tuple(gpu.uuid for gpu in planned.gpus_by_worker_map[worker_id])) for worker_id in planned.worker_ids),
+        tuple((worker_id, planned.gpus_by_worker_map[worker_id]) for worker_id in planned.worker_ids),
     )
     allocation = allocator.reserve("task-1", requirement(nccl=True), now=100, lease_seconds=60, distributed_nccl=evidence)
     assert allocation.state is DistributedGpuAllocationState.RESERVED
@@ -257,7 +257,7 @@ def test_gpu_direct_evidence_must_cover_each_selected_worker_pair_with_bound_gpu
         worker_pairs=(("A", "B"), ("A", "C"), ("B", "C")),
         gpu_pairs=(
             ("A", planned.gpus_by_worker_map["A"][0], "B", planned.gpus_by_worker_map["B"][0]),
-            ("A", planned.gpus_by_worker_map["A"][0], "C", planned.gpus_by_worker_map["C"][0]),
+            ("A", planned.gpus_by_worker_map["A"][0], "C", "C-GPU-0"),
         ),
         transport="RDMA",
         command=("peer-memory-test",),
