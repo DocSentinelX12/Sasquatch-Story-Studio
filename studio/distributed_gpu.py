@@ -196,12 +196,20 @@ class DistributedGpuAllocator:
 
     _ACTIVE = {WorkerState.VERIFIED_AVAILABLE, WorkerState.VERIFIED_LIMITED}
 
-    def __init__(self, registry: WorkerRegistry):
+    def __init__(self, registry: WorkerRegistry, store: "SQLiteDistributedGpuAllocationStore | None" = None):
         self.registry = registry
+        self.store = store
         self._lock = threading.RLock()
         self._allocations: dict[str, DistributedGpuAllocation] = {}
         self._reserved: dict[tuple[str, str], str] = {}
-        self._next_fencing_epoch = 1
+        persisted = store.load() if store is not None else ()
+        for allocation in persisted:
+            self._allocations[allocation.allocation_id] = allocation
+            if allocation.state is DistributedGpuAllocationState.RESERVED:
+                for worker_id, gpus in allocation.gpus_by_worker:
+                    for gpu_uuid in gpus:
+                        self._reserved[(worker_id, gpu_uuid)] = allocation.allocation_id
+        self._next_fencing_epoch = max((item.fencing_epoch for item in persisted), default=0) + 1
 
     def _available_workers(self, requirements: HardwareRequirements) -> list[tuple[str, tuple[str, ...]]]:
         result = []
@@ -342,7 +350,11 @@ class DistributedGpuAllocator:
                     key = (worker_id, gpu_uuid)
                     if key in self._reserved:
                         raise RuntimeError("GPU became reserved while allocation was being committed")
-                    self._reserved[key] = allocation_id
+            if self.store is not None:
+                self.store.reserve(allocation)
+            for worker_id, gpus in plan.gpus_by_worker:
+                for gpu_uuid in gpus:
+                    self._reserved[(worker_id, gpu_uuid)] = allocation_id
             self._allocations[allocation_id] = allocation
             return allocation
 
@@ -390,6 +402,8 @@ class DistributedGpuAllocator:
             **{**allocation.__dict__, "state": state}
         )
         self._allocations[allocation_id] = updated
+        if self.store is not None:
+            self.store.update(updated)
         for worker_id, gpus in allocation.gpus_by_worker:
             for gpu_uuid in gpus:
                 self._reserved.pop((worker_id, gpu_uuid), None)
@@ -452,12 +466,69 @@ class SQLiteDistributedGpuAllocationStore:
             except sqlite3.IntegrityError as exc:
                 raise RuntimeError("distributed GPU reservation conflicts with an existing allocation") from exc
 
-    def release(self, allocation_id: str) -> None:
+    def load(self) -> tuple[DistributedGpuAllocation, ...]:
+        with sqlite3.connect(self.path) as connection:
+            rows = connection.execute(
+                "SELECT payload FROM distributed_allocations ORDER BY allocation_id"
+            ).fetchall()
+        return tuple(_allocation_from_json(json.loads(payload)) for (payload,) in rows)
+
+    def reserve(self, allocation: DistributedGpuAllocation) -> None:
+        payload = json.dumps(_allocation_json(allocation), sort_keys=True)
         with sqlite3.connect(self.path) as connection:
             connection.execute("PRAGMA foreign_keys = ON")
             connection.execute("BEGIN IMMEDIATE")
-            connection.execute("DELETE FROM distributed_gpu_reservations WHERE allocation_id = ?", (allocation_id,))
-            connection.execute("DELETE FROM distributed_allocations WHERE allocation_id = ?", (allocation_id,))
+            try:
+                connection.execute(
+                    "INSERT INTO distributed_allocations(allocation_id,payload) VALUES (?,?)",
+                    (allocation.allocation_id, payload),
+                )
+                connection.executemany(
+                    "INSERT INTO distributed_gpu_reservations(worker_id,gpu_uuid,allocation_id) VALUES (?,?,?)",
+                    [
+                        (worker_id, gpu_uuid, allocation.allocation_id)
+                        for worker_id, gpus in allocation.gpus_by_worker
+                        for gpu_uuid in gpus
+                    ],
+                )
+            except sqlite3.IntegrityError as exc:
+                raise RuntimeError("distributed GPU reservation conflicts with an existing allocation") from exc
+
+    def update(self, allocation: DistributedGpuAllocation) -> None:
+        payload = json.dumps(_allocation_json(allocation), sort_keys=True)
+        with sqlite3.connect(self.path) as connection:
+            connection.execute("PRAGMA foreign_keys = ON")
+            connection.execute("BEGIN IMMEDIATE")
+            connection.execute(
+                "UPDATE distributed_allocations SET payload = ? WHERE allocation_id = ?",
+                (payload, allocation.allocation_id),
+            )
+            if allocation.state is not DistributedGpuAllocationState.RESERVED:
+                connection.execute(
+                    "DELETE FROM distributed_gpu_reservations WHERE allocation_id = ?",
+                    (allocation.allocation_id,),
+                )
+
+
+def _allocation_from_json(payload: dict) -> DistributedGpuAllocation:
+    return DistributedGpuAllocation(
+        allocation_id=payload["allocation_id"],
+        task_id=payload["task_id"],
+        worker_ids=tuple(payload["worker_ids"]),
+        gpus_by_worker=tuple((worker_id, tuple(gpus)) for worker_id, gpus in payload["gpus_by_worker"]),
+        ranks=tuple(RankAssignment(**item) for item in payload["ranks"]),
+        world_size=payload["world_size"],
+        node_count=payload["node_count"],
+        expires_at=payload["expires_at"],
+        fencing_epoch=payload["fencing_epoch"],
+        hardware_observation_digests=tuple(
+            (worker_id, digest) for worker_id, digest in payload["hardware_observation_digests"]
+        ),
+        topology_digests=tuple(
+            (worker_id, digest) for worker_id, digest in payload["topology_digests"]
+        ),
+        state=DistributedGpuAllocationState(payload["state"]),
+    )
 
 
 def _allocation_json(allocation: DistributedGpuAllocation) -> dict:
