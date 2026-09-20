@@ -103,6 +103,9 @@ class EngineVerificationRecord:
     runtime_output_sha256: str
     recorded_at: int
     source_revision: str | None = None
+    distributed_execution_verified: bool = False
+    distributed_launch_mode: str | None = None
+    distributed_runtime_output_sha256: str | None = None
 
     def __post_init__(self) -> None:
         required = {"engine_id": self.engine_id, "engine_version": self.engine_version, "executable": self.executable, "version_observation": self.version_observation, "checkpoint_path": self.checkpoint_path, "checkpoint_sha256": self.checkpoint_sha256, "license_source": self.license_source, "license_evidence": self.license_evidence, "runtime_output_sha256": self.runtime_output_sha256}
