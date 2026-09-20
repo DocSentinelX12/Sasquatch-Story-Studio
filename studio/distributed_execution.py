@@ -259,3 +259,45 @@ class DistributedWorkerExecutor:
         if state not in {"completed", "failed"}:
             raise RuntimeError("distributed worker returned an invalid execution state")
         return response
+
+class DistributedExecutionCoordinator:
+    """Launch every allocation member concurrently and close the allocation atomically."""
+
+    def __init__(self, allocator, lease_issuers: Mapping[str, Any], executors: Mapping[str, DistributedWorkerExecutor]):
+        self.allocator = allocator
+        self.lease_issuers = dict(lease_issuers)
+        self.executors = dict(executors)
+
+    def execute(self, allocation: DistributedGpuAllocation, spec: DistributedLaunchSpec, now: int) -> tuple[dict[str, Any], ...]:
+        from concurrent.futures import ThreadPoolExecutor, as_completed
+
+        if allocation.expires_at <= now:
+            raise RuntimeError("distributed allocation is expired")
+        if tuple(sorted(self.executors)) != allocation.worker_ids:
+            raise ValueError("distributed executors must cover every allocation worker exactly")
+        if tuple(sorted(self.lease_issuers)) != allocation.worker_ids:
+            raise ValueError("distributed lease issuers must cover every allocation worker exactly")
+
+        leases = {}
+        for worker_id in allocation.worker_ids:
+            leases[worker_id] = self.lease_issuers[worker_id](allocation, now)
+
+        results = {}
+        with ThreadPoolExecutor(max_workers=allocation.node_count) as pool:
+            futures = {
+                pool.submit(self.executors[worker_id].execute, allocation, leases[worker_id], spec): worker_id
+                for worker_id in allocation.worker_ids
+            }
+            for future in as_completed(futures):
+                worker_id = futures[future]
+                try:
+                    results[worker_id] = future.result()
+                except Exception as exc:
+                    results[worker_id] = {"state": "failed", "error": str(exc)}
+
+        ordered = tuple(results[worker_id] for worker_id in allocation.worker_ids)
+        if all(result.get('state') == 'completed' for result in ordered):
+            self.allocator.complete(allocation.allocation_id, allocation.fencing_epoch, max(now, allocation.expires_at - 1))
+        else:
+            self.allocator.fail(allocation.allocation_id, allocation.fencing_epoch, now)
+        return ordered
