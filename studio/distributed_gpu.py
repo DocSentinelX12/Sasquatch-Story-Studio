@@ -314,14 +314,24 @@ class DistributedGpuAllocator:
                     selected: dict[str, tuple[str, ...]] = {}
                     remaining = requirements.min_gpu_count
                     for worker_id, gpus in group:
-                        take = min(len(gpus), remaining)
-                        selected[worker_id] = gpus[:take]
-                        remaining -= take
-                        if remaining == 0:
+                        if remaining <= 0:
                             break
-                    if remaining:
+                        # MULTI_NODE allocations must place at least one GPU on
+                        # every participating worker. Reserve one first, then
+                        # distribute any remaining GPUs deterministically.
+                        selected[worker_id] = gpus[:1]
+                        remaining -= 1
+                    if remaining < 0:
                         continue
-                    if any(not gpus for gpus in selected.values()):
+                    for worker_id, gpus in group:
+                        if remaining <= 0:
+                            break
+                        already = len(selected[worker_id])
+                        additional = min(len(gpus) - already, remaining)
+                        if additional:
+                            selected[worker_id] = gpus[:already + additional]
+                            remaining -= additional
+                    if remaining:
                         continue
                     worker_ids = tuple(sorted(selected))
                     selected = {worker_id: selected[worker_id] for worker_id in worker_ids}
