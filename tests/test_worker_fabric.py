@@ -1,6 +1,10 @@
 from dataclasses import dataclass
 
 from studio.compute_broker import ComputeBroker, ProductionTask
+from studio.distributed_execution import DistributedLaunchSpec
+from studio.distributed_gpu import DistributedGpuAllocator
+from studio.gpu_infrastructure import GpuDeviceObservation, GpuHostObservation
+from studio.hardware_requirements import GpuPlacement, HardwareRequirements
 from studio.resources import ComputeResource
 from studio.scheduler import Job, JobRequirements, JobState, Scheduler
 from studio.worker import WorkerResult, WorkerResultState, WorkerTask
@@ -80,3 +84,114 @@ def test_missing_executor_requeues_without_fake_completion():
 
     assert result.state == DispatchState.REQUEUED
     assert scheduler.snapshot()[0].state == JobState.QUEUED
+
+
+class FakeDistributedCoordinator:
+    def __init__(self, output=True):
+        self.calls = []
+        self.output = output
+
+    def execute(self, allocation, launch_spec, now):
+        self.calls.append((allocation.allocation_id, allocation.worker_ids, now))
+        return tuple(
+            {
+                "state": "completed",
+                "output_refs": (
+                    ("sha256:" + "a" * 64,) if worker_id == allocation.worker_ids[0] and self.output else ()
+                ),
+            }
+            for worker_id in allocation.worker_ids
+        )
+
+
+def distributed_registry():
+    records = []
+    for worker_id, bus in (("A", "01"), ("B", "02")):
+        observation = GpuHostObservation(
+            worker_id=worker_id,
+            driver_version="test",
+            cuda_supported_version="13.0",
+            gpus=(GpuDeviceObservation(0, f"{worker_id}-GPU-0", "Test GPU", 8192, 0, f"0000:{bus}:00.0", "8.0"),),
+            topology_text="observed",
+            dcgm_available=False,
+            dcgm_version=None,
+            health_json=None,
+        )
+        records.append(
+            WorkerRecord(
+                worker_id,
+                ComputeResource(worker_id, 8, 16 * 1024**3, gpu_count=1, vram_bytes=8 * 1024**3, logical_slots=2),
+                WorkerState.VERIFIED_AVAILABLE,
+                observed_at=100,
+                observation_source="test",
+                hardware_observation=observation,
+            )
+        )
+    return WorkerRegistry(tuple(records))
+
+
+def test_distributed_dispatch_is_one_gang_and_returns_rank_zero_output():
+    registry = distributed_registry()
+    scheduler = Scheduler()
+    allocator = DistributedGpuAllocator(registry)
+    broker = ComputeBroker(scheduler, registry, distributed_allocator=allocator)
+    coordinator = FakeDistributedCoordinator()
+    fabric = WorkerFabric(broker, {}, distributed_coordinator=coordinator)
+    task = ProductionTask(
+        "task-distributed",
+        JobRequirements(
+            hardware=HardwareRequirements(
+                min_gpu_count=2,
+                min_vram_per_gpu_bytes=8 * 1024**3,
+                min_total_vram_bytes=16 * 1024**3,
+                placement=GpuPlacement.MULTI_NODE,
+                allow_multi_node=True,
+            )
+        ),
+    )
+    spec = DistributedLaunchSpec(
+        executable="torchrun",
+        command=("train.py", "--output", "{output}"),
+        rendezvous_id=task.id,
+        rendezvous_host="A",
+        rendezvous_port=29500,
+        output_path="/tmp/task-distributed.mp4",
+    )
+
+    result = fabric.dispatch_distributed(task, spec, now=100)
+
+    assert result.state == DispatchState.COMPLETED
+    assert result.output_refs == ("sha256:" + "a" * 64,)
+    assert len(coordinator.calls) == 1
+    assert coordinator.calls[0][1] == ("A", "B")
+    assert scheduler.snapshot() == ()
+
+
+def test_distributed_dispatch_fails_closed_without_coordinator():
+    registry = distributed_registry()
+    broker = ComputeBroker(Scheduler(), registry, distributed_allocator=DistributedGpuAllocator(registry))
+    fabric = WorkerFabric(broker, {})
+    task = ProductionTask(
+        "task-distributed",
+        JobRequirements(
+            hardware=HardwareRequirements(
+                min_gpu_count=2,
+                placement=GpuPlacement.MULTI_NODE,
+                allow_multi_node=True,
+            )
+        ),
+    )
+    spec = DistributedLaunchSpec(
+        executable="torchrun",
+        command=("train.py",),
+        rendezvous_id=task.id,
+        rendezvous_host="A",
+        rendezvous_port=29500,
+    )
+
+    try:
+        fabric.dispatch_distributed(task, spec, now=100)
+    except RuntimeError as exc:
+        assert "execution coordinator" in str(exc)
+    else:
+        raise AssertionError("distributed dispatch must not proceed without its coordinator")
