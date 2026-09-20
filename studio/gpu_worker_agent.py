@@ -53,6 +53,24 @@ class GpuWorkerAgent:
                 for gpu in observation.gpus
             ],
             "topology_text": observation.topology_text,
+            "dcgm_available": observation.dcgm_available,
+            "dcgm_version": observation.dcgm_version,
+            "topology_evidence": None if observation.topology_evidence is None else {
+                "gpu_uuids": observation.topology_evidence.gpu_uuids,
+                "gpu_matrix": observation.topology_evidence.gpu_matrix,
+                "cpu_affinity": observation.topology_evidence.cpu_affinity,
+                "nic_paths": observation.topology_evidence.nic_paths,
+                "raw_text_sha256": observation.topology_evidence.raw_text_sha256,
+            },
+            "nccl_evidence": None if observation.nccl_evidence is None else {
+                "executable": observation.nccl_evidence.executable,
+                "executable_sha256": observation.nccl_evidence.executable_sha256,
+                "command": observation.nccl_evidence.command,
+                "exit_code": observation.nccl_evidence.exit_code,
+                "output_sha256": observation.nccl_evidence.output_sha256,
+                "gpu_uuids": observation.nccl_evidence.gpu_uuids,
+                "topology_digest": observation.nccl_evidence.topology_digest,
+            },
         }
         return hashlib.sha256(json.dumps(identity, sort_keys=True, separators=(",", ":")).encode("utf-8")).hexdigest()
 
