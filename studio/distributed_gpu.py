@@ -86,7 +86,7 @@ class DistributedNCCLEvidence:
 @dataclass(frozen=True)
 class GpuDirectNetworkEvidence:
     worker_pairs: tuple[tuple[str, str], ...]
-    gpu_pairs: tuple[tuple[str, str], ...]
+    gpu_pairs: tuple[tuple[str, str, str, str], ...]
     transport: str
     command: tuple[str, ...]
     exit_code: int
@@ -102,6 +102,15 @@ class GpuDirectNetworkEvidence:
             raise ValueError("GPU-direct worker pairs must be unique")
         if not self.gpu_pairs:
             raise ValueError("GPU-direct evidence must identify observed GPU peer pairs")
+        for left_worker, left_gpu, right_worker, right_gpu in self.gpu_pairs:
+            if not left_worker.strip() or not right_worker.strip() or not left_gpu.strip() or not right_gpu.strip():
+                raise ValueError("GPU-direct GPU peer evidence requires worker and GPU identity")
+            if left_worker >= right_worker:
+                raise ValueError("GPU-direct GPU peer worker endpoints must be canonical and ordered")
+            if left_worker == right_worker:
+                raise ValueError("GPU-direct GPU peer evidence must cross workers")
+            if left_gpu == right_gpu:
+                raise ValueError("GPU-direct GPU peer evidence must identify two distinct GPUs")
         if not self.transport.strip() or not self.command:
             raise ValueError("GPU-direct transport and command are required")
         if self.exit_code != 0:
@@ -153,7 +162,63 @@ class DistributedGpuAllocation:
     fencing_epoch: int
     hardware_observation_digests: tuple[tuple[str, str], ...]
     topology_digests: tuple[tuple[str, str], ...]
+    distributed_nccl: DistributedNCCLEvidence | None = None
+    gpu_direct_network: GpuDirectNetworkEvidence | None = None
     state: DistributedGpuAllocationState = DistributedGpuAllocationState.RESERVED
+
+    def __post_init__(self) -> None:
+        if not self.allocation_id.strip() or not self.task_id.strip():
+            raise ValueError("allocation identity is required")
+        if len(self.worker_ids) < 2 or tuple(sorted(self.worker_ids)) != self.worker_ids:
+            raise ValueError("allocation worker IDs must be sorted and contain at least two workers")
+        if len(set(self.worker_ids)) != len(self.worker_ids):
+            raise ValueError("allocation worker IDs must be unique")
+        mapping = dict(self.gpus_by_worker)
+        if tuple(sorted(mapping)) != self.worker_ids or len(mapping) != len(self.worker_ids):
+            raise ValueError("allocation GPU mapping must exactly match worker IDs")
+        if any(not gpus for gpus in mapping.values()):
+            raise ValueError("every allocated worker must own at least one GPU")
+        if self.world_size != sum(len(gpus) for gpus in mapping.values()):
+            raise ValueError("allocation world size must equal selected GPU count")
+        if self.node_count != len(self.worker_ids):
+            raise ValueError("allocation node count must equal worker count")
+        if self.world_size < 2:
+            raise ValueError("allocation world size must be at least two")
+        if self.expires_at < 0 or self.fencing_epoch < 1:
+            raise ValueError("allocation expiry and fencing epoch must be valid")
+        if len(self.ranks) != self.world_size:
+            raise ValueError("allocation rank count must equal world size")
+        expected_ranks = []
+        global_rank = 0
+        for node_rank, worker_id in enumerate(self.worker_ids):
+            for local_rank, gpu_uuid in enumerate(mapping[worker_id]):
+                expected_ranks.append((global_rank, node_rank, local_rank, worker_id, gpu_uuid))
+                global_rank += 1
+        actual_ranks = tuple((rank.global_rank, rank.node_rank, rank.local_rank, rank.worker_id, rank.gpu_uuid) for rank in self.ranks)
+        if actual_ranks != tuple(expected_ranks):
+            raise ValueError("allocation rank map is not canonical for the selected worker/GPU mapping")
+        observed = dict(self.hardware_observation_digests)
+        topology = dict(self.topology_digests)
+        if tuple(sorted(observed)) != self.worker_ids:
+            raise ValueError("allocation hardware observation digests must exactly match worker IDs")
+        if tuple(sorted(topology)) not in ((), self.worker_ids):
+            raise ValueError("allocation topology digests must be complete when present")
+        for digest in (*observed.values(), *topology.values()):
+            _sha256(digest, "allocation evidence digest")
+        if self.distributed_nccl is not None:
+            if self.distributed_nccl.worker_ids != self.worker_ids:
+                raise ValueError("allocation distributed NCCL worker identity does not match")
+            if self.distributed_nccl.gpu_uuids_by_worker != self.gpus_by_worker:
+                raise ValueError("allocation distributed NCCL GPU identity does not match")
+            if self.distributed_nccl.world_size != self.world_size:
+                raise ValueError("allocation distributed NCCL world size does not match")
+            if self.distributed_nccl.topology_digests != self.topology_digests:
+                raise ValueError("allocation distributed NCCL topology evidence does not match")
+        if self.gpu_direct_network is not None:
+            selected = {(worker_id, gpu_uuid) for worker_id, gpus in self.gpus_by_worker for gpu_uuid in gpus}
+            for left_worker, left_gpu, right_worker, right_gpu in self.gpu_direct_network.gpu_pairs:
+                if (left_worker, left_gpu) not in selected or (right_worker, right_gpu) not in selected:
+                    raise ValueError("allocation GPU-direct evidence references GPUs outside the allocation")
 
     @property
     def gpus_by_worker_map(self) -> dict[str, tuple[str, ...]]:
@@ -345,6 +410,8 @@ class DistributedGpuAllocator:
                 fencing_epoch=epoch,
                 hardware_observation_digests=plan.hardware_observation_digests,
                 topology_digests=plan.topology_digests,
+                distributed_nccl=distributed_nccl if requirements.require_nccl else None,
+                gpu_direct_network=gpu_direct_network if requirements.require_gpu_direct_network else None,
             )
             for worker_id, gpus in plan.gpus_by_worker:
                 for gpu_uuid in gpus:
@@ -378,9 +445,15 @@ class DistributedGpuAllocator:
         required_pairs = set(itertools.combinations(plan.worker_ids, 2))
         if not required_pairs.issubset(set(evidence.worker_pairs)):
             raise RuntimeError("GPU-direct evidence does not cover every selected worker pair")
-        selected_gpus = {gpu_uuid for _, gpus in plan.gpus_by_worker for gpu_uuid in gpus}
-        if any(left not in selected_gpus or right not in selected_gpus for left, right in evidence.gpu_pairs):
-            raise RuntimeError("GPU-direct evidence references GPUs outside the exact allocation")
+        selected = {(worker_id, gpu_uuid) for worker_id, gpus in plan.gpus_by_worker for gpu_uuid in gpus}
+        for left_worker, left_gpu, right_worker, right_gpu in evidence.gpu_pairs:
+            if (left_worker, left_gpu) not in selected or (right_worker, right_gpu) not in selected:
+                raise RuntimeError("GPU-direct evidence references GPUs outside the exact allocation")
+            if (left_worker, right_worker) not in required_pairs:
+                raise RuntimeError("GPU-direct evidence references a non-selected worker pair")
+        covered_pairs = {(left_worker, right_worker) for left_worker, _, right_worker, _ in evidence.gpu_pairs}
+        if not required_pairs.issubset(covered_pairs):
+            raise RuntimeError("GPU-direct evidence must identify at least one selected GPU peer pair for every selected worker pair")
         if evidence.exit_code != 0:
             raise RuntimeError("GPU-direct network evidence is not successful")
 
@@ -495,6 +568,26 @@ class SQLiteDistributedGpuAllocationStore:
 
 
 def _allocation_from_json(payload: dict) -> DistributedGpuAllocation:
+    nccl_payload = payload.get("distributed_nccl")
+    distributed_nccl = None if nccl_payload is None else DistributedNCCLEvidence(
+        worker_ids=tuple(nccl_payload["worker_ids"]),
+        gpu_uuids_by_worker=tuple((worker_id, tuple(gpus)) for worker_id, gpus in nccl_payload["gpu_uuids_by_worker"]),
+        world_size=int(nccl_payload["world_size"]),
+        command=tuple(nccl_payload["command"]),
+        exit_code=int(nccl_payload["exit_code"]),
+        output_sha256=str(nccl_payload["output_sha256"]),
+        rendezvous_id=str(nccl_payload["rendezvous_id"]),
+        topology_digests=tuple((worker_id, digest) for worker_id, digest in nccl_payload["topology_digests"]),
+    )
+    direct_payload = payload.get("gpu_direct_network")
+    gpu_direct_network = None if direct_payload is None else GpuDirectNetworkEvidence(
+        worker_pairs=tuple(tuple(item) for item in direct_payload["worker_pairs"]),
+        gpu_pairs=tuple(tuple(item) for item in direct_payload["gpu_pairs"]),
+        transport=str(direct_payload["transport"]),
+        command=tuple(direct_payload["command"]),
+        exit_code=int(direct_payload["exit_code"]),
+        output_sha256=str(direct_payload["output_sha256"]),
+    )
     return DistributedGpuAllocation(
         allocation_id=payload["allocation_id"],
         task_id=payload["task_id"],
@@ -511,6 +604,8 @@ def _allocation_from_json(payload: dict) -> DistributedGpuAllocation:
         topology_digests=tuple(
             (worker_id, digest) for worker_id, digest in payload["topology_digests"]
         ),
+        distributed_nccl=distributed_nccl,
+        gpu_direct_network=gpu_direct_network,
         state=DistributedGpuAllocationState(payload["state"]),
     )
 
@@ -528,5 +623,23 @@ def _allocation_json(allocation: DistributedGpuAllocation) -> dict:
         "fencing_epoch": allocation.fencing_epoch,
         "hardware_observation_digests": [list(item) for item in allocation.hardware_observation_digests],
         "topology_digests": [list(item) for item in allocation.topology_digests],
+        "distributed_nccl": None if allocation.distributed_nccl is None else {
+            "worker_ids": list(allocation.distributed_nccl.worker_ids),
+            "gpu_uuids_by_worker": [[worker_id, list(gpus)] for worker_id, gpus in allocation.distributed_nccl.gpu_uuids_by_worker],
+            "world_size": allocation.distributed_nccl.world_size,
+            "command": list(allocation.distributed_nccl.command),
+            "exit_code": allocation.distributed_nccl.exit_code,
+            "output_sha256": allocation.distributed_nccl.output_sha256,
+            "rendezvous_id": allocation.distributed_nccl.rendezvous_id,
+            "topology_digests": [list(item) for item in allocation.distributed_nccl.topology_digests],
+        },
+        "gpu_direct_network": None if allocation.gpu_direct_network is None else {
+            "worker_pairs": [list(item) for item in allocation.gpu_direct_network.worker_pairs],
+            "gpu_pairs": [list(item) for item in allocation.gpu_direct_network.gpu_pairs],
+            "transport": allocation.gpu_direct_network.transport,
+            "command": list(allocation.gpu_direct_network.command),
+            "exit_code": allocation.gpu_direct_network.exit_code,
+            "output_sha256": allocation.gpu_direct_network.output_sha256,
+        },
         "state": allocation.state.value,
     }
