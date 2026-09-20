@@ -257,7 +257,7 @@ def test_gpu_direct_evidence_must_cover_each_selected_worker_pair_with_bound_gpu
         worker_pairs=(("A", "B"), ("A", "C"), ("B", "C")),
         gpu_pairs=(
             ("A", planned.gpus_by_worker_map["A"][0], "B", planned.gpus_by_worker_map["B"][0]),
-            ("A", planned.gpus_by_worker_map["A"][0], "C", "C-GPU-0"),
+            ("A", planned.gpus_by_worker_map["A"][0], "C", planned.gpus_by_worker_map["C"][0]),
         ),
         transport="RDMA",
         command=("peer-memory-test",),
