@@ -6,11 +6,14 @@ fabric. Credentials are supplied out of band and are never persisted here.
 """
 from __future__ import annotations
 
+import hashlib
 import json
 from dataclasses import replace
 from typing import Any, Mapping
 
 from .gpu_infrastructure import GpuDeviceObservation, GpuHostObservation, classify_dcgm_health
+from .gpu_topology import GpuTopologyEvidence
+from .nccl_evidence import NCCLTestEvidence
 from .remote_worker import WorkerAccess, WorkerLifecycleAuthority
 from .worker_registry import WorkerRecord, WorkerRegistry, WorkerState
 
@@ -30,6 +33,35 @@ class WorkerControlPlane:
         gpus = raw.get("gpus")
         if not isinstance(gpus, (list, tuple)):
             raise ValueError("worker GPU inventory is required")
+
+        topology_payload = raw.get("topology_evidence")
+        topology_evidence = None
+        if topology_payload is not None:
+            if not isinstance(topology_payload, Mapping):
+                raise ValueError("worker topology evidence must be an object")
+            topology_evidence = GpuTopologyEvidence(
+                gpu_uuids=tuple(topology_payload["gpu_uuids"]),
+                gpu_matrix=tuple(tuple(row) for row in topology_payload["gpu_matrix"]),
+                cpu_affinity=tuple(tuple(item) for item in topology_payload["cpu_affinity"]),
+                nic_paths=tuple(tuple(item) for item in topology_payload["nic_paths"]),
+                raw_text_sha256=topology_payload["raw_text_sha256"],
+            )
+
+        nccl_payload = raw.get("nccl_evidence")
+        nccl_evidence = None
+        if nccl_payload is not None:
+            if not isinstance(nccl_payload, Mapping):
+                raise ValueError("worker NCCL evidence must be an object")
+            nccl_evidence = NCCLTestEvidence(
+                executable=str(nccl_payload["executable"]),
+                executable_sha256=str(nccl_payload["executable_sha256"]),
+                command=tuple(nccl_payload["command"]),
+                exit_code=int(nccl_payload["exit_code"]),
+                output_sha256=str(nccl_payload["output_sha256"]),
+                gpu_uuids=tuple(nccl_payload["gpu_uuids"]),
+                topology_digest=str(nccl_payload["topology_digest"]),
+            )
+
         observation = GpuHostObservation(
             worker_id=str(raw["worker_id"]),
             driver_version=str(raw["driver_version"]),
@@ -39,6 +71,8 @@ class WorkerControlPlane:
             dcgm_available=bool(raw["dcgm_available"]),
             dcgm_version=raw.get("dcgm_version"),
             health_json=raw.get("health_json"),
+            nccl_evidence=nccl_evidence,
+            topology_evidence=topology_evidence,
         )
         if observation.digest() != payload.get("hardware_observation_digest"):
             raise PermissionError("worker hardware observation digest does not match payload")
@@ -62,7 +96,7 @@ class WorkerControlPlane:
             ],
             "topology_text": observation.topology_text,
         }
-        return __import__("hashlib").sha256(
+        return hashlib.sha256(
             json.dumps(identity, sort_keys=True, separators=(",", ":")).encode("utf-8")
         ).hexdigest()
 
