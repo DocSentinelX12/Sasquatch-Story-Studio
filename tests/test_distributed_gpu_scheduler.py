@@ -28,3 +28,16 @@ def test_distributed_scheduler_allocates_across_workers_only_with_explicit_multi
     )
     assert allocation.world_size == 2
     assert allocation.gpus_by_worker == (("worker-a", ("GPU-A",)), ("worker-b", ("GPU-B",)))
+
+
+def test_distributed_scheduler_applies_total_vram_after_cross_worker_selection():
+    scheduler = DistributedGpuScheduler((worker("worker-a", "GPU-A"), worker("worker-b", "GPU-B")))
+    allocation = scheduler.allocate(
+        HardwareRequirements(
+            min_gpu_count=2,
+            min_total_vram_bytes=160 * 1024**3,
+            placement=GpuPlacement.MULTI_NODE,
+            allow_multi_node=True,
+        )
+    )
+    assert allocation.world_size == 2
