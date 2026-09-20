@@ -154,3 +154,48 @@ def test_overlapping_gpu_allocation_is_rejected_by_scheduler():
 
     assert scheduler.choose_on_worker("gpu", resource, 0, now=1, gpu_uuids=("GPU-0",), job_id="first") is not None
     assert scheduler.choose_on_worker("gpu", resource, 0, now=1, gpu_uuids=("GPU-0",), job_id="second") is None
+
+
+def test_multi_node_task_uses_authoritative_distributed_allocator():
+    from studio.distributed_gpu import DistributedGpuAllocator
+
+    def gpu_record(worker_id):
+        hardware = GpuHostObservation(
+            worker_id=worker_id,
+            driver_version="580.00",
+            cuda_supported_version="13.0",
+            gpus=(
+                GpuDeviceObservation(0, f"{worker_id}-GPU-0", "Observed GPU", 96 * 1024, 0, f"0000:{worker_id == 'A' and '01' or '02'}:00.0", "10.0"),
+            ),
+            topology_text="GPU0 GPU0",
+            dcgm_available=False,
+            dcgm_version=None,
+            health_json=None,
+        )
+        return record(worker_id, vram=96 * 1024**3, hardware=hardware)
+
+    registry = WorkerRegistry((gpu_record("A"), gpu_record("B")))
+    allocator = DistributedGpuAllocator(registry)
+    broker = ComputeBroker(Scheduler(), registry, distributed_allocator=allocator)
+    task = ProductionTask(
+        "distributed-task",
+        JobRequirements(
+            hardware=HardwareRequirements(
+                min_gpu_count=2,
+                min_vram_per_gpu_bytes=80 * 1024**3,
+                min_total_vram_bytes=160 * 1024**3,
+                placement=GpuPlacement.MULTI_NODE,
+                allow_multi_node=True,
+            )
+        ),
+    )
+
+    allocation = broker.reserve_distributed(task, now=100, lease_seconds=60)
+
+    assert allocation.task_id == task.id
+    assert allocation.worker_ids == ("A", "B")
+    assert allocation.world_size == 2
+    assert allocation.gpus_by_worker == (
+        ("A", ("A-GPU-0",)),
+        ("B", ("B-GPU-0",)),
+    )
