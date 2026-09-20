@@ -189,7 +189,7 @@ def test_nccl_requirement_requires_exact_distributed_collective_evidence():
     planned = allocator.plan("task-1", requirement(nccl=True), now=100, lease_seconds=60)
     evidence = distributed_nccl(
         planned.worker_ids,
-        tuple((worker_id, tuple(gpu.uuid for gpu in planned.gpus_by_worker[worker_id])) for worker_id in planned.worker_ids),
+        tuple((worker_id, tuple(gpu.uuid for gpu in planned.gpus_by_worker_map[worker_id])) for worker_id in planned.worker_ids),
     )
     allocation = allocator.reserve("task-1", requirement(nccl=True), now=100, lease_seconds=60, distributed_nccl=evidence)
     assert allocation.state is DistributedGpuAllocationState.RESERVED
@@ -203,7 +203,7 @@ def test_gpu_direct_requirement_requires_explicit_peer_evidence_for_every_worker
     planned = allocator.plan("task-1", requirement(direct=True), now=100, lease_seconds=60)
     evidence = GpuDirectNetworkEvidence(
         worker_pairs=(("A", "B"),),
-        gpu_pairs=(("A", planned.gpus_by_worker["A"][0], "B", planned.gpus_by_worker["B"][0]),),
+        gpu_pairs=(("A", planned.gpus_by_worker_map["A"][0], "B", planned.gpus_by_worker_map["B"][0]),),
         transport="RDMA",
         command=("peer-memory-test",),
         exit_code=0,
@@ -256,8 +256,8 @@ def test_gpu_direct_evidence_must_cover_each_selected_worker_pair_with_bound_gpu
     evidence = GpuDirectNetworkEvidence(
         worker_pairs=(("A", "B"), ("A", "C"), ("B", "C")),
         gpu_pairs=(
-            ("A", planned.gpus_by_worker["A"][0], "B", planned.gpus_by_worker["B"][0]),
-            ("A", planned.gpus_by_worker["A"][0], "C", planned.gpus_by_worker["C"][0]),
+            ("A", planned.gpus_by_worker_map["A"][0], "B", planned.gpus_by_worker_map["B"][0]),
+            ("A", planned.gpus_by_worker_map["A"][0], "C", planned.gpus_by_worker_map["C"][0]),
         ),
         transport="RDMA",
         command=("peer-memory-test",),
@@ -317,7 +317,7 @@ def test_required_distributed_evidence_survives_sqlite_reload(tmp_path):
     planned = allocator.plan("task-1", requirement(nccl=True, direct=True), now=100, lease_seconds=60)
     direct = GpuDirectNetworkEvidence(
         worker_pairs=(("A", "B"),),
-        gpu_pairs=(("A", planned.gpus_by_worker["A"][0], "B", planned.gpus_by_worker["B"][0]),),
+        gpu_pairs=(("A", planned.gpus_by_worker_map["A"][0], "B", planned.gpus_by_worker_map["B"][0]),),
         transport="RDMA",
         command=("peer-memory-test",),
         exit_code=0,
