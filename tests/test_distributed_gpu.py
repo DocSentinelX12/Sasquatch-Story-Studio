@@ -119,6 +119,8 @@ def test_multi_node_reservation_is_atomic_and_builds_complete_rank_map():
     allocation = allocator.reserve("task-1", requirement(), now=100, lease_seconds=60)
 
     assert allocation.state is DistributedGpuAllocationState.RESERVED
+    assert allocation.gpu_direct_network is not None
+    assert allocation.gpu_direct_network.gpu_pairs == (("A", "A-GPU-0", "B", "B-GPU-0"),)
     assert allocation.worker_ids == ("A", "B")
     assert allocation.world_size == 8
     assert allocation.node_count == 2
@@ -203,7 +205,7 @@ def test_gpu_direct_requirement_requires_explicit_peer_evidence_for_every_worker
     planned = allocator.plan("task-1", requirement(direct=True), now=100, lease_seconds=60)
     evidence = GpuDirectNetworkEvidence(
         worker_pairs=(("A", "B"),),
-        gpu_pairs=((planned.gpus_by_worker["A"][0].uuid, planned.gpus_by_worker["B"][0].uuid),),
+        gpu_pairs=(("A", planned.gpus_by_worker["A"][0], "B", planned.gpus_by_worker["B"][0]),),
         transport="RDMA",
         command=("peer-memory-test",),
         exit_code=0,
@@ -247,3 +249,85 @@ def test_sqlite_store_reloads_active_allocation_and_preserves_gpu_fencing(tmp_pa
     reloaded_again = DistributedGpuAllocator(registry("A", "B"), store)
     assert reloaded_again.get(allocation.allocation_id).state is DistributedGpuAllocationState.COMPLETED
     assert reloaded_again.try_reserve("task-2", requirement(2), now=102, lease_seconds=60) is not None
+
+
+def test_gpu_direct_evidence_must_cover_each_selected_worker_pair_with_bound_gpu_endpoints():
+    allocator = DistributedGpuAllocator(registry("A", "B", "C"))
+    planned = allocator.plan("task-1", requirement(3, direct=True), now=100, lease_seconds=60)
+    evidence = GpuDirectNetworkEvidence(
+        worker_pairs=(("A", "B"), ("A", "C"), ("B", "C")),
+        gpu_pairs=(
+            ("A", planned.gpus_by_worker["A"][0], "B", planned.gpus_by_worker["B"][0]),
+            ("A", planned.gpus_by_worker["A"][0], "C", planned.gpus_by_worker["C"][0]),
+        ),
+        transport="RDMA",
+        command=("peer-memory-test",),
+        exit_code=0,
+        output_sha256="f" * 64,
+    )
+    with pytest.raises(RuntimeError, match="every selected worker pair"):
+        allocator.reserve("task-1", requirement(3, direct=True), now=100, lease_seconds=60, gpu_direct_network=evidence)
+
+
+def test_required_distributed_evidence_survives_sqlite_reload(tmp_path):
+    store = SQLiteDistributedGpuAllocationStore(tmp_path / "gpu-allocations.sqlite3")
+    registry_value = registry("A", "B")
+    registry_value.update(
+        WorkerRecord(
+            "A",
+            registry_value.get("A").resource,
+            WorkerState.VERIFIED_AVAILABLE,
+            observed_at=100,
+            observation_source="test",
+            hardware_observation=GpuHostObservation(
+                worker_id="A",
+                driver_version="test-driver",
+                cuda_supported_version="12.9",
+                gpus=registry_value.get("A").hardware_observation.gpus,
+                topology_text="observed",
+                dcgm_available=False,
+                dcgm_version=None,
+                health_json=None,
+                nccl_evidence=local_nccl("A"),
+                topology_evidence=topology("A"),
+            ),
+        )
+    )
+    registry_value.update(
+        WorkerRecord(
+            "B",
+            registry_value.get("B").resource,
+            WorkerState.VERIFIED_AVAILABLE,
+            observed_at=100,
+            observation_source="test",
+            hardware_observation=GpuHostObservation(
+                worker_id="B",
+                driver_version="test-driver",
+                cuda_supported_version="12.9",
+                gpus=registry_value.get("B").hardware_observation.gpus,
+                topology_text="observed",
+                dcgm_available=False,
+                dcgm_version=None,
+                health_json=None,
+                nccl_evidence=local_nccl("B"),
+                topology_evidence=topology("B"),
+            ),
+        )
+    )
+    allocator = DistributedGpuAllocator(registry_value, store)
+    planned = allocator.plan("task-1", requirement(nccl=True, direct=True), now=100, lease_seconds=60)
+    direct = GpuDirectNetworkEvidence(
+        worker_pairs=(("A", "B"),),
+        gpu_pairs=(("A", planned.gpus_by_worker["A"][0], "B", planned.gpus_by_worker["B"][0]),),
+        transport="RDMA",
+        command=("peer-memory-test",),
+        exit_code=0,
+        output_sha256="e" * 64,
+    )
+    nccl = distributed_nccl(planned.worker_ids, planned.gpus_by_worker)
+    allocation = allocator.reserve("task-1", requirement(nccl=True, direct=True), now=100, lease_seconds=60, distributed_nccl=nccl, gpu_direct_network=direct)
+
+    reloaded = DistributedGpuAllocator(registry_value, store)
+    persisted = reloaded.get(allocation.allocation_id)
+    assert persisted.distributed_nccl == nccl
+    assert persisted.gpu_direct_network == direct
