@@ -6,6 +6,7 @@ from dataclasses import dataclass
 from typing import Any
 
 from .compute_broker import ProductionTask
+from .distributed_execution import DistributedLaunchSpec
 from .pipeline import RunState
 from .production import ProductionRequest, ProductionRouter
 from .scheduler import JobRequirements
@@ -44,6 +45,7 @@ class DistributedStageRunner:
     canonical_source_hash: str
     episode_id: str
     shot_id: str
+    distributed_launch_spec: DistributedLaunchSpec | None = None
 
     def run_stage(
         self,
@@ -62,6 +64,21 @@ class DistributedStageRunner:
         if len(self.canonical_source_hash) != 64:
             raise ValueError("canonical_source_hash must be a SHA-256 hex digest")
         production_task = ProductionTask(task_id, requirements, priority)
+        hardware = requirements.hardware
+        if hardware is not None and hardware.placement.value == "multi_node":
+            if self.distributed_launch_spec is None:
+                raise RuntimeError(
+                    "MULTI_NODE stage requires an explicit verified distributed launch specification"
+                )
+            record = self.fabric.dispatch_distributed(
+                production_task,
+                self.distributed_launch_spec,
+                now=now,
+            )
+            if record.state != DispatchState.COMPLETED or not record.output_refs:
+                raise RuntimeError(record.error or f"distributed stage {stage} did not complete")
+            return record.output_refs[0]
+
         self.fabric.broker.submit(production_task)
 
         def factory(task: ProductionTask, job, worker_id: str) -> WorkerTask:
