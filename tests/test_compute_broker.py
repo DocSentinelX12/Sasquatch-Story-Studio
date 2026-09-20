@@ -1,3 +1,5 @@
+import pytest
+
 from studio.compute_broker import ComputeBroker, ProductionTask
 from studio.gpu_infrastructure import GpuDeviceObservation, GpuHostObservation
 from studio.hardware_requirements import GpuPlacement, HardwareRequirements
