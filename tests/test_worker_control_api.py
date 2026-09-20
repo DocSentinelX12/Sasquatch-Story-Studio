@@ -20,10 +20,7 @@ def obs() -> GpuHostObservation:
 
 
 def identity(o: GpuHostObservation) -> str:
-    value = {"worker_id": o.worker_id, "driver_version": o.driver_version, "cuda_supported_version": o.cuda_supported_version,
-             "gpus": [{"uuid": g.uuid, "name": g.name, "pci_bus_id": g.pci_bus_id, "compute_capability": g.compute_capability, "memory_total_mib": g.memory_total_mib} for g in o.gpus],
-             "topology_text": o.topology_text}
-    return hashlib.sha256(json.dumps(value, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
+    return WorkerControlPlane._identity_digest(o)
 
 
 def payload(o: GpuHostObservation) -> dict:
