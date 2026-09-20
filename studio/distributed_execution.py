@@ -296,8 +296,15 @@ class DistributedExecutionCoordinator:
                     results[worker_id] = {"state": "failed", "error": str(exc)}
 
         ordered = tuple(results[worker_id] for worker_id in allocation.worker_ids)
+        finished_now = int(time.time())
         if all(result.get('state') == 'completed' for result in ordered):
-            self.allocator.complete(allocation.allocation_id, allocation.fencing_epoch, max(now, allocation.expires_at - 1))
+            if finished_now >= allocation.expires_at:
+                self.allocator.expire(finished_now)
+            else:
+                self.allocator.complete(allocation.allocation_id, allocation.fencing_epoch, finished_now)
         else:
-            self.allocator.fail(allocation.allocation_id, allocation.fencing_epoch, now)
+            if finished_now >= allocation.expires_at:
+                self.allocator.expire(finished_now)
+            else:
+                self.allocator.fail(allocation.allocation_id, allocation.fencing_epoch, finished_now)
         return ordered
