@@ -199,7 +199,7 @@ class WorkerLifecycleAuthority:
     def __init__(self, enrollment_tokens: Mapping[str, str]):
         self._enrollment_hashes = {worker_id: self._hash(token) for worker_id, token in enrollment_tokens.items()}
         self._access_hashes: dict[str, str] = {}
-        self._hardware_digests: dict[str, str] = {}
+        self._hardware_identity_digests: dict[str, str] = {}
         self._heartbeats: dict[str, int] = {}
         self._used_nonces: set[str] = set()
         self._leases: dict[str, RemoteLease] = {}
@@ -210,16 +210,16 @@ class WorkerLifecycleAuthority:
             raise ValueError("credential cannot be empty")
         return hashlib.sha256(value.encode("utf-8")).hexdigest()
 
-    def register(self, worker_id: str, enrollment_token: str, now: int, hardware_observation_digest: str | None = None) -> WorkerAccess:
+    def register(self, worker_id: str, enrollment_token: str, now: int, hardware_identity_digest: str | None = None) -> WorkerAccess:
         expected = self._enrollment_hashes.get(worker_id)
         if expected is None or not secrets.compare_digest(expected, self._hash(enrollment_token)):
             raise PermissionError("worker enrollment is not authorized")
-        if hardware_observation_digest is not None and len(hardware_observation_digest) != 64:
-            raise ValueError("hardware observation digest must be a SHA-256 digest")
+        if hardware_identity_digest is not None and len(hardware_identity_digest) != 64:
+            raise ValueError("hardware identity digest must be a SHA-256 digest")
         token = secrets.token_urlsafe(32)
         self._access_hashes[worker_id] = self._hash(token)
-        if hardware_observation_digest is not None:
-            self._hardware_digests[worker_id] = hardware_observation_digest
+        if hardware_identity_digest is not None:
+            self._hardware_identity_digests[worker_id] = hardware_identity_digest
         self._heartbeats[worker_id] = now
         return WorkerAccess(worker_id, token)
 
@@ -228,16 +228,16 @@ class WorkerLifecycleAuthority:
         if expected is None or not secrets.compare_digest(expected, self._hash(access.access_token)):
             raise PermissionError("worker access is not authorized")
 
-    def heartbeat(self, access: WorkerAccess, now: int, hardware_observation_digest: str | None = None) -> None:
+    def heartbeat(self, access: WorkerAccess, now: int, hardware_identity_digest: str | None = None) -> None:
         self.authorize(access)
-        expected = self._hardware_digests.get(access.worker_id)
-        if expected is not None and hardware_observation_digest != expected:
-            raise PermissionError("worker hardware observation does not match enrolled identity")
+        expected = self._hardware_identity_digests.get(access.worker_id)
+        if expected is not None and hardware_identity_digest != expected:
+            raise PermissionError("worker hardware identity does not match enrolled identity")
         self._heartbeats[access.worker_id] = now
 
     def revoke(self, worker_id: str) -> None:
         self._access_hashes.pop(worker_id, None)
-        self._hardware_digests.pop(worker_id, None)
+        self._hardware_identity_digests.pop(worker_id, None)
         self._heartbeats.pop(worker_id, None)
         for lease_id, lease in tuple(self._leases.items()):
             if lease.worker_id == worker_id:
@@ -338,5 +338,5 @@ class WorkerLifecycleAuthority:
         observed = self._heartbeats.get(worker_id)
         return None if observed is None else max(0, now - observed)
 
-    def hardware_observation_digest(self, worker_id: str) -> str | None:
-        return self._hardware_digests.get(worker_id)
+    def hardware_identity_digest(self, worker_id: str) -> str | None:
+        return self._hardware_identity_digests.get(worker_id)
