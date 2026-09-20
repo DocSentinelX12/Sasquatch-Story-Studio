@@ -6,6 +6,8 @@ from enum import StrEnum
 from typing import Callable, Mapping, Protocol
 
 from .compute_broker import ComputeBroker, ProductionTask
+from .distributed_execution import DistributedLaunchSpec
+from .distributed_gpu import DistributedGpuAllocation
 from .scheduler import Job
 from .worker import WorkerExecutor, WorkerResultState, WorkerTask
 from .worker_registry import WorkerState
@@ -38,6 +40,16 @@ class DispatchRecord:
     error: str | None = None
 
 
+@dataclass(frozen=True)
+class DistributedDispatchRecord:
+    task_id: str
+    allocation_id: str | None
+    state: DispatchState
+    output_refs: tuple[str, ...] = ()
+    worker_results: tuple[dict[str, object], ...] = ()
+    error: str | None = None
+
+
 class WorkerFabric:
     """Routes checkpointable tasks and recovers them when workers disappear.
 
@@ -51,10 +63,12 @@ class WorkerFabric:
         broker: ComputeBroker,
         executors: Mapping[str, WorkerExecutor],
         lease_provider: LeaseProvider | None = None,
+        distributed_coordinator=None,
     ):
         self.broker = broker
         self.executors = dict(executors)
         self.lease_provider = lease_provider
+        self.distributed_coordinator = distributed_coordinator
 
     def dispatch(
         self,
@@ -98,6 +112,84 @@ class WorkerFabric:
             return DispatchRecord(task.id, job.id, worker_id, DispatchState.REQUEUED, error=result.error)
         self.broker.scheduler.fail(job.id, worker_id)
         return DispatchRecord(task.id, job.id, worker_id, DispatchState.FAILED, error=result.error)
+
+    def dispatch_distributed(
+        self,
+        task: ProductionTask,
+        launch_spec: DistributedLaunchSpec,
+        now: int,
+        lease_seconds: int = 900,
+    ) -> DistributedDispatchRecord:
+        """Reserve and execute a real multi-worker allocation as one gang.
+
+        This path never invokes the single-worker scheduler. Allocation,
+        per-worker authenticated leases, concurrent launch, and allocation
+        lifecycle are owned by the distributed control plane.
+        """
+        hardware = task.requirements.hardware
+        if hardware is None or hardware.placement.value != "multi_node":
+            raise ValueError("distributed dispatch requires MULTI_NODE hardware requirements")
+        if self.broker.distributed_allocator is None:
+            raise RuntimeError("distributed GPU allocator is not configured")
+        if self.distributed_coordinator is None:
+            raise RuntimeError("distributed execution coordinator is not configured")
+
+        allocation = self.broker.reserve_distributed(
+            task,
+            now=now,
+            lease_seconds=lease_seconds,
+        )
+        try:
+            results = self.distributed_coordinator.execute(allocation, launch_spec, now)
+        except Exception as exc:
+            try:
+                self.broker.distributed_allocator.fail(
+                    allocation.allocation_id,
+                    allocation.fencing_epoch,
+                    now,
+                )
+            except (RuntimeError, PermissionError, ValueError):
+                pass
+            return DistributedDispatchRecord(
+                task.id,
+                allocation.allocation_id,
+                DispatchState.REQUEUED,
+                error=str(exc),
+            )
+
+        if not results:
+            return DistributedDispatchRecord(
+                task.id,
+                allocation.allocation_id,
+                DispatchState.FAILED,
+                error="distributed coordinator returned no worker results",
+            )
+        failed = tuple(result for result in results if result.get("state") != "completed")
+        if failed:
+            return DistributedDispatchRecord(
+                task.id,
+                allocation.allocation_id,
+                DispatchState.REQUEUED,
+                worker_results=results,
+                error=str(failed[0].get("error") or "distributed worker execution failed"),
+            )
+
+        rank_zero = next((result for result in results if result.get("output_refs")), None)
+        if rank_zero is None:
+            return DistributedDispatchRecord(
+                task.id,
+                allocation.allocation_id,
+                DispatchState.FAILED,
+                worker_results=results,
+                error="distributed execution completed without a rank-zero output artifact",
+            )
+        return DistributedDispatchRecord(
+            task.id,
+            allocation.allocation_id,
+            DispatchState.COMPLETED,
+            output_refs=tuple(str(ref) for ref in rank_zero["output_refs"]),
+            worker_results=results,
+        )
 
     def recover_expired(self, now: int) -> tuple[str, ...]:
         return self.broker.scheduler.recover_expired(now)
