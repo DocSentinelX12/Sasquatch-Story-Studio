@@ -4,6 +4,7 @@ from studio.distributed_gpu import (
     DistributedGpuAllocationState,
     DistributedGpuAllocator,
     DistributedNCCLEvidence,
+    SQLiteDistributedGpuAllocationStore,
     GpuDirectNetworkEvidence,
 )
 from studio.gpu_infrastructure import GpuDeviceObservation, GpuHostObservation
@@ -230,3 +231,19 @@ def test_completion_requires_fencing_epoch():
 
     allocator.complete(allocation.allocation_id, allocation.fencing_epoch, now=101)
     assert allocator.get(allocation.allocation_id).state is DistributedGpuAllocationState.COMPLETED
+
+
+def test_sqlite_store_reloads_active_allocation_and_preserves_gpu_fencing(tmp_path):
+    store = SQLiteDistributedGpuAllocationStore(tmp_path / "gpu-allocations.sqlite3")
+    allocator = DistributedGpuAllocator(registry("A", "B"), store)
+    allocation = allocator.reserve("task-1", requirement(), now=100, lease_seconds=60)
+
+    reloaded = DistributedGpuAllocator(registry("A", "B"), store)
+    persisted = reloaded.get(allocation.allocation_id)
+    assert persisted == allocation
+    assert reloaded.try_reserve("task-2", requirement(2), now=101, lease_seconds=60) is None
+
+    reloaded.complete(allocation.allocation_id, allocation.fencing_epoch, now=101)
+    reloaded_again = DistributedGpuAllocator(registry("A", "B"), store)
+    assert reloaded_again.get(allocation.allocation_id).state is DistributedGpuAllocationState.COMPLETED
+    assert reloaded_again.try_reserve("task-2", requirement(2), now=102, lease_seconds=60) is not None
