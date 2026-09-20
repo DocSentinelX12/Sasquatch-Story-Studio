@@ -60,23 +60,11 @@ def registry() -> WorkerRegistry:
 
 
 def payload(obs: GpuHostObservation) -> dict:
-    import hashlib
-    import json
-
-    identity = {
-        "worker_id": obs.worker_id,
-        "driver_version": obs.driver_version,
-        "cuda_supported_version": obs.cuda_supported_version,
-        "gpus": [
-            {"uuid": g.uuid, "name": g.name, "pci_bus_id": g.pci_bus_id, "compute_capability": g.compute_capability, "memory_total_mib": g.memory_total_mib}
-            for g in obs.gpus
-        ],
-        "topology_text": obs.topology_text,
-    }
+    identity_digest = WorkerControlPlane._identity_digest(obs)
     return {
         "worker_id": obs.worker_id,
         "hardware_observation_digest": obs.digest(),
-        "hardware_identity_digest": hashlib.sha256(json.dumps(identity, sort_keys=True, separators=(",", ":")).encode()).hexdigest(),
+        "hardware_identity_digest": identity_digest,
         "hardware_observation": json.loads(obs.canonical_json()),
     }
 
@@ -171,8 +159,16 @@ def test_heartbeat_rejects_hardware_evidence_change_even_when_inventory_identity
         topology_text=original.topology_text,
         dcgm_available=original.dcgm_available,
         dcgm_version=original.dcgm_version,
-        health_json="Overall Health: healthy\nNCCL evidence output changed",
-        nccl_evidence=original.nccl_evidence,
+        health_json="Overall Health: healthy",
+        nccl_evidence=NCCLTestEvidence(
+            executable=original.nccl_evidence.executable,
+            executable_sha256=original.nccl_evidence.executable_sha256,
+            command=original.nccl_evidence.command,
+            exit_code=original.nccl_evidence.exit_code,
+            output_sha256="d" * 64,
+            gpu_uuids=original.nccl_evidence.gpu_uuids,
+            topology_digest=original.nccl_evidence.topology_digest,
+        ),
         topology_evidence=original.topology_evidence,
     )
     try:
