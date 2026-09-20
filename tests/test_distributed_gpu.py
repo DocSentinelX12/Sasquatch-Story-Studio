@@ -252,7 +252,7 @@ def test_sqlite_store_reloads_active_allocation_and_preserves_gpu_fencing(tmp_pa
 
 def test_gpu_direct_evidence_must_cover_each_selected_worker_pair_with_bound_gpu_endpoints():
     allocator = DistributedGpuAllocator(registry("A", "B", "C"))
-    planned = allocator.plan("task-1", requirement(3, direct=True), now=100, lease_seconds=60)
+    planned = allocator.plan("task-1", requirement(9, direct=True), now=100, lease_seconds=60)
     evidence = GpuDirectNetworkEvidence(
         worker_pairs=(("A", "B"), ("A", "C"), ("B", "C")),
         gpu_pairs=(
@@ -265,7 +265,7 @@ def test_gpu_direct_evidence_must_cover_each_selected_worker_pair_with_bound_gpu
         output_sha256="f" * 64,
     )
     with pytest.raises(RuntimeError, match="every selected worker pair"):
-        allocator.reserve("task-1", requirement(3, direct=True), now=100, lease_seconds=60, gpu_direct_network=evidence)
+        allocator.reserve("task-1", requirement(9, direct=True), now=100, lease_seconds=60, gpu_direct_network=evidence)
 
 
 def test_required_distributed_evidence_survives_sqlite_reload(tmp_path):
