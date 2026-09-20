@@ -199,3 +199,54 @@ def test_multi_node_task_uses_authoritative_distributed_allocator():
         ("A", ("A-GPU-0",)),
         ("B", ("B-GPU-0",)),
     )
+
+
+def test_multi_node_task_never_falls_back_to_single_worker_lease():
+    hardware = GpuHostObservation(
+        worker_id="gpu",
+        driver_version="580.00",
+        cuda_supported_version="13.0",
+        gpus=(GpuDeviceObservation(0, "GPU-0", "Observed GPU", 96 * 1024, 0, "0000:01:00.0", "10.0"),),
+        topology_text="GPU0 GPU0",
+        dcgm_available=False,
+        dcgm_version=None,
+        health_json=None,
+    )
+    scheduler = Scheduler()
+    registry = WorkerRegistry((record("gpu", vram=96 * 1024**3, hardware=hardware),))
+    broker = ComputeBroker(scheduler, registry)
+    task = ProductionTask(
+        "distributed-task",
+        JobRequirements(
+            hardware=HardwareRequirements(
+                min_gpu_count=2,
+                placement=GpuPlacement.MULTI_NODE,
+                allow_multi_node=True,
+            )
+        ),
+    )
+    broker.submit(task)
+
+    decision, job = broker.lease(task, now=100, lease_seconds=60)
+
+    assert job is None
+    assert decision.selected_worker is None
+    assert "multi-node placement requires the distributed group scheduler" in dict(decision.rejected_workers)["gpu"]
+    assert scheduler.snapshot()[0].state is JobState.QUEUED
+
+
+def test_multi_node_reservation_requires_explicit_distributed_allocator():
+    broker = ComputeBroker(Scheduler(), WorkerRegistry())
+    task = ProductionTask(
+        "distributed-task",
+        JobRequirements(
+            hardware=HardwareRequirements(
+                min_gpu_count=2,
+                placement=GpuPlacement.MULTI_NODE,
+                allow_multi_node=True,
+            )
+        ),
+    )
+
+    with pytest.raises(RuntimeError, match="distributed GPU allocator is not configured"):
+        broker.reserve_distributed(task, now=100, lease_seconds=60)
