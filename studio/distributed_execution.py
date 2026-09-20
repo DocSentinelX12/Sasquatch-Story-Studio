@@ -29,6 +29,7 @@ class DistributedLaunchSpec:
     rendezvous_port: int
     timeout_seconds: int = 3600
     max_restarts: int = 0
+    output_path: str | None = None
 
     def __post_init__(self) -> None:
         if not self.executable.strip():
@@ -45,6 +46,8 @@ class DistributedLaunchSpec:
             raise ValueError("distributed execution timeout must be positive")
         if self.max_restarts < 0:
             raise ValueError("distributed max_restarts cannot be negative")
+        if self.output_path is not None and not self.output_path.strip():
+            raise ValueError("distributed output_path cannot be empty")
 
     @property
     def command_sha256(self) -> str:
@@ -73,7 +76,7 @@ class DistributedLaunchSpec:
             f"{self.rendezvous_host}:{self.rendezvous_port}",
             "--max-restarts",
             str(self.max_restarts),
-            *self.command,
+            *(str(self.output_path) if item == "{output}" and self.output_path is not None else item for item in self.command),
         )
 
 
@@ -192,6 +195,14 @@ class DistributedProcessExecutor:
 
         stdout = completed.stdout or b""
         stderr = completed.stderr or b""
+        output_refs: tuple[str, ...] = ()
+        if completed.returncode == 0 and self.spec.output_path is not None and lease.node_rank == 0:
+            output_path = os.path.abspath(self.spec.output_path)
+            if not os.path.isfile(output_path) or os.path.getsize(output_path) == 0:
+                raise RuntimeError("distributed rank-zero execution completed without the configured output artifact")
+            with open(output_path, "rb") as output_handle:
+                output_refs = ("sha256:" + hashlib.sha256(output_handle.read()).hexdigest(),)
+
         evidence = DistributedExecutionEvidence(
             allocation_id=lease.allocation_id,
             task_id=lease.task_id,
@@ -215,7 +226,7 @@ class DistributedProcessExecutor:
             }
         return {
             "state": "completed",
-            "output_refs": [],
+            "output_refs": list(output_refs),
             "execution_evidence": evidence.__dict__,
         }
 
@@ -249,6 +260,7 @@ class DistributedWorkerExecutor:
                     "rendezvous_port": spec.rendezvous_port,
                     "timeout_seconds": spec.timeout_seconds,
                     "max_restarts": spec.max_restarts,
+                    "output_path": spec.output_path,
                 },
             },
             bearer_token=self.access.access_token,
