@@ -5,9 +5,7 @@ from studio.artifact_bridge import ArtifactCommitter, ArtifactLineageStore
 from studio.artifacts import ContentAddressedStore
 from studio.compute_broker import ComputeBroker, ProductionTask
 from studio.distributed_execution import DistributedLaunchSpec
-from studio.distributed_gpu import DistributedGpuAllocation
-from studio.gpu_placement import GpuPlacement
-from studio.hardware_requirements import HardwareRequirements
+from studio.hardware_requirements import GpuPlacement, HardwareRequirements
 from studio.process_adapter import ProcessAdapter
 from studio.production_executor import ProductionWorkerExecutor
 from studio.resources import ComputeResource
