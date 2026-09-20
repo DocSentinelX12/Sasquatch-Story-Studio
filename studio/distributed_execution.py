@@ -103,8 +103,6 @@ class DistributedExecutionEvidence:
                 raise ValueError("execution evidence digests must be lowercase SHA-256 values")
         if self.finished_at < self.started_at:
             raise ValueError("execution evidence timestamps are invalid")
-        if self.exit_code != 0:
-            raise ValueError("successful execution evidence requires exit code zero")
 
 
 class DistributedWorkerTransport(Protocol):
