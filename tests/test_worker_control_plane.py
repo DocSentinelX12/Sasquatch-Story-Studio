@@ -154,3 +154,30 @@ def test_heartbeat_rejects_inventory_identity_change():
         pass
     else:
         raise AssertionError("changed physical GPU identity must be rejected")
+
+
+def test_heartbeat_rejects_hardware_evidence_change_even_when_inventory_identity_is_unchanged():
+    registry_value = registry()
+    authority = WorkerLifecycleAuthority({"worker-a": "enrollment-secret"})
+    control = WorkerControlPlane(registry_value, authority)
+    access = control.register(payload(evidence_observation()), "enrollment-secret", now=10)
+
+    original = evidence_observation()
+    changed = GpuHostObservation(
+        worker_id=original.worker_id,
+        driver_version=original.driver_version,
+        cuda_supported_version=original.cuda_supported_version,
+        gpus=original.gpus,
+        topology_text=original.topology_text,
+        dcgm_available=original.dcgm_available,
+        dcgm_version=original.dcgm_version,
+        health_json="Overall Health: healthy\nNCCL evidence output changed",
+        nccl_evidence=original.nccl_evidence,
+        topology_evidence=original.topology_evidence,
+    )
+    try:
+        control.heartbeat(payload(changed), access, now=40)
+    except PermissionError:
+        pass
+    else:
+        raise AssertionError("changed hardware evidence must be rejected even when physical inventory identity is unchanged")
