@@ -449,23 +449,6 @@ class SQLiteDistributedGpuAllocationStore:
                 "CREATE TABLE IF NOT EXISTS distributed_gpu_reservations (worker_id TEXT NOT NULL, gpu_uuid TEXT NOT NULL, allocation_id TEXT NOT NULL, PRIMARY KEY(worker_id, gpu_uuid), FOREIGN KEY(allocation_id) REFERENCES distributed_allocations(allocation_id))"
             )
 
-    def reserve(self, allocation: DistributedGpuAllocation) -> None:
-        payload = json.dumps(_allocation_json(allocation), sort_keys=True)
-        with sqlite3.connect(self.path) as connection:
-            connection.execute("PRAGMA foreign_keys = ON")
-            connection.execute("BEGIN IMMEDIATE")
-            try:
-                connection.execute(
-                    "INSERT INTO distributed_allocations(allocation_id,payload) VALUES (?,?)",
-                    (allocation.allocation_id, payload),
-                )
-                connection.executemany(
-                    "INSERT INTO distributed_gpu_reservations(worker_id,gpu_uuid,allocation_id) VALUES (?,?,?)",
-                    [(worker_id, gpu_uuid, allocation.allocation_id) for worker_id, gpus in allocation.gpus_by_worker for gpu_uuid in gpus],
-                )
-            except sqlite3.IntegrityError as exc:
-                raise RuntimeError("distributed GPU reservation conflicts with an existing allocation") from exc
-
     def load(self) -> tuple[DistributedGpuAllocation, ...]:
         with sqlite3.connect(self.path) as connection:
             rows = connection.execute(
