@@ -236,6 +236,7 @@ class DistributedGpuAllocator:
             raise ValueError("multi-node allocation requires at least two GPUs")
 
         with self._lock:
+            self.expire(now)
             available = self._available_workers(requirements)
             if len(available) < 2:
                 raise RuntimeError("distributed allocation requires at least two eligible workers")
