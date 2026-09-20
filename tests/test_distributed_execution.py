@@ -61,11 +61,12 @@ def test_launch_spec_builds_real_torchrun_multinode_argv():
 
     spec = DistributedLaunchSpec(
         executable="torchrun",
-        command=("train.py", "--steps", "10"),
+        command=("train.py", "--output", "{output}", "--steps", "10"),
         rendezvous_id="task-1",
         rendezvous_host="node-a.example",
         rendezvous_port=29400,
         max_restarts=1,
+        output_path="/var/lib/studio/task-1.mp4",
     )
 
     assert spec.argv(lease) == (
@@ -77,7 +78,7 @@ def test_launch_spec_builds_real_torchrun_multinode_argv():
         "--rdzv-backend", "c10d",
         "--rdzv-endpoint", "node-a.example:29400",
         "--max-restarts", "1",
-        "train.py", "--steps", "10",
+        "train.py", "--output", "/var/lib/studio/task-1.mp4", "--steps", "10",
     )
 
 
