@@ -3,12 +3,14 @@ from dataclasses import dataclass
 import pytest
 
 from studio.compute_broker import ComputeBroker, ProductionTask
-from studio.remote_worker import RemoteWorkerExecutor, WorkerAccess, WorkerLifecycleAuthority
+from studio.remote_worker import DistributedWorkerLease, RemoteWorkerExecutor, WorkerAccess, WorkerLifecycleAuthority
 from studio.resources import ComputeResource
 from studio.scheduler import JobRequirements, Scheduler
 from studio.worker import WorkerResultState, WorkerTask
 from studio.worker_fabric import DispatchState, WorkerFabric
 from studio.worker_registry import WorkerRecord, WorkerRegistry, WorkerState
+from studio.distributed_gpu import DistributedGpuAllocator
+from studio.gpu_infrastructure import GpuDeviceObservation, GpuHostObservation
 
 
 @dataclass
@@ -40,6 +42,36 @@ def task(worker_id: str = "worker-a") -> WorkerTask:
         ("GPU-0",),
     )
 
+
+
+def distributed_registry() -> WorkerRegistry:
+    records = []
+    for worker_id, offset in (("worker-a", 0), ("worker-b", 4)):
+        gpus = tuple(
+            GpuDeviceObservation(
+                index=index,
+                uuid=f"{worker_id}-GPU-{index}",
+                name="NVIDIA Test GPU",
+                memory_total_mib=80 * 1024,
+                memory_used_mib=0,
+                pci_bus_id=f"0000:{offset + index:02x}:00.0",
+                compute_capability="9.0",
+            )
+            for index in range(4)
+        )
+        observation = GpuHostObservation(
+            worker_id=worker_id,
+            driver_version="test-driver",
+            cuda_supported_version="12.9",
+            gpus=gpus,
+            topology_text="observed",
+            dcgm_available=False,
+            dcgm_version=None,
+            health_json=None,
+        )
+        resource = ComputeResource(worker_id, 64, 256 * 1024**3, gpu_count=4, vram_bytes=320 * 1024**3, logical_slots=4, scratch_bytes=1024**12, power_budget_watts=2000)
+        records.append(WorkerRecord(worker_id, resource, WorkerState.VERIFIED_AVAILABLE, observed_at=100, observation_source="test", hardware_observation=observation))
+    return WorkerRegistry(tuple(records))
 
 def test_lifecycle_authority_enrolls_heartbeats_and_rejects_replay():
     authority = WorkerLifecycleAuthority({"worker-a": "enrollment-secret"})
@@ -112,3 +144,30 @@ def test_worker_fabric_uses_control_plane_lease_provider_for_remote_executor():
     assert result.state == DispatchState.COMPLETED
     assert result.output_refs == ("sha256:output",)
     assert transport.path == "/v1/worker/execute"
+
+
+def test_lifecycle_authority_issues_exact_per_worker_distributed_lease():
+    registry = distributed_registry()
+    from studio.hardware_requirements import GpuPlacement, HardwareRequirements
+    allocator = DistributedGpuAllocator(registry)
+    requirements = HardwareRequirements(
+        min_gpu_count=8,
+        min_vram_per_gpu_bytes=80 * 1024**3,
+        min_total_vram_bytes=8 * 80 * 1024**3,
+        placement=GpuPlacement.MULTI_NODE,
+        allow_multi_node=True,
+    )
+    allocation = allocator.reserve("task-distributed", requirements, now=100, lease_seconds=60)
+    authority = WorkerLifecycleAuthority({"worker-a": "secret-a", "worker-b": "secret-b"})
+    access = authority.register("worker-a", "secret-a", now=100, hardware_observation_digest=registry.get("worker-a").hardware_observation.digest())
+    lease = authority.issue_distributed_lease(access, allocation, "task-distributed", now=101)
+
+    assert isinstance(lease, DistributedWorkerLease)
+    assert lease.worker_id == "worker-a"
+    assert lease.world_size == 8
+    assert lease.node_count == 2
+    assert lease.node_rank == 0
+    assert tuple(rank.local_rank for rank in lease.ranks) == (0, 1, 2, 3)
+    authority.authorize_distributed_execution(access, lease, allocation, now=102)
+    with pytest.raises(PermissionError, match="already been used"):
+        authority.authorize_distributed_execution(access, lease, allocation, now=103)
