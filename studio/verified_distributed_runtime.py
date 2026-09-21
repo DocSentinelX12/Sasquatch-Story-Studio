@@ -5,6 +5,7 @@ from pathlib import Path
 from typing import Any
 
 from .distributed_execution import DistributedLaunchSpec
+from .gpu_capabilities import CapabilityState
 from .engine_adapters import ProcessAdapter
 from .engine_registry import RuntimeEngineRegistry
 from .production import ProductionRequest
@@ -118,6 +119,19 @@ def build_verified_distributed_launch_spec(
         raise ValueError("distributed production requires at least two workers")
     if allocation.world_size < 2:
         raise ValueError("distributed production requires at least two processes")
+    for worker_id, gpu_uuids in allocation.gpus_by_worker:
+        worker = registry.worker_registry.get(worker_id) if hasattr(registry, "worker_registry") else None
+        if worker is not None:
+            capabilities = worker.gpu_capabilities
+            if capabilities is None:
+                raise RuntimeError(f"worker {worker_id} has no canonical GPU capability record")
+            by_uuid = {record.gpu_uuid: record for record in capabilities.records}
+            for gpu_uuid in gpu_uuids:
+                record = by_uuid.get(gpu_uuid)
+                if record is None:
+                    raise RuntimeError(f"worker {worker_id} lacks capability evidence for GPU {gpu_uuid}")
+                if record.base.state is not CapabilityState.VERIFIED or record.cuda_runtime.state is not CapabilityState.VERIFIED:
+                    raise RuntimeError(f"GPU {gpu_uuid} on worker {worker_id} is not production-eligible")
 
     if adapter.info.id == "wan2.2":
         if record.distributed_launch_mode != "torchrun_wan22":
