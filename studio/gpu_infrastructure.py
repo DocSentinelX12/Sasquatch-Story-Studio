@@ -351,7 +351,7 @@ def _probe_nvml(worker_id: str, nvml: Any, collected_at: int) -> GpuHostObservat
                 try:
                     value = value_factory()
                     telemetry_kwargs[name] = _observed(transform(value) if transform else value, "nvml", collected_at)
-                except (AttributeError, NotImplementedError, RuntimeError, TypeError, ValueError) as exc:
+                except Exception as exc:
                     status = TelemetryStatus.UNSUPPORTED if isinstance(exc, (AttributeError, NotImplementedError)) else TelemetryStatus.ERROR
                     telemetry_kwargs[name] = _unavailable("nvml", collected_at, status, str(exc) if status is TelemetryStatus.ERROR else None)
             optional("temperature_c", lambda: nvml.nvmlDeviceGetTemperature(handle, getattr(nvml, "NVML_TEMPERATURE_GPU", 0)))
