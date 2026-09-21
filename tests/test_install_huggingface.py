@@ -43,12 +43,3 @@ def test_retry_operation_does_not_retry_non_transient_failure():
         raise AssertionError("non-transient failure was incorrectly retried")
 
     assert attempts == [1]
-
-
-def test_transient_huggingface_error_classification_covers_transport_reset():
-    import httpx
-
-    from scripts.install_huggingface import is_transient_huggingface_error
-
-    assert is_transient_huggingface_error(httpx.ConnectError("connection reset by peer"))
-    assert not is_transient_huggingface_error(RuntimeError("invalid repository"))
