@@ -17,8 +17,9 @@ from enum import StrEnum
 from pathlib import Path
 import sqlite3
 
+from .gpu_capabilities import admit_gpu_workload, derive_gpu_capabilities
 from .gpu_infrastructure import GpuHostObservation
-from .hardware_requirements import HardwareRequirements, compute_capability_at_least
+from .hardware_requirements import GpuPlacement, HardwareRequirements
 from .nccl_evidence import validate_nccl_evidence
 from .worker_registry import WorkerRecord, WorkerRegistry, WorkerState
 
@@ -230,26 +231,32 @@ def _sha256(value: str, field: str) -> None:
         raise ValueError(f"{field} must be a SHA-256 hex digest")
 
 
-def _candidate_gpus(worker: WorkerRecord, requirements: HardwareRequirements, reserved: set[str]) -> tuple[str, ...]:
+def _candidate_gpus(worker: WorkerRecord, requirements: HardwareRequirements, reserved: set[str], now: int = 0) -> tuple[str, ...]:
     observation = worker.hardware_observation
     if observation is None:
         return ()
-    candidates = []
-    for gpu in sorted(observation.gpus, key=lambda item: (item.index, item.uuid)):
-        if gpu.uuid in reserved:
-            continue
-        if gpu.memory_total_mib * 1024**2 < requirements.min_vram_per_gpu_bytes:
-            continue
-        if requirements.min_compute_capability is not None:
-            try:
-                if not compute_capability_at_least(gpu.compute_capability, requirements.min_compute_capability):
-                    continue
-            except ValueError:
-                continue
-        if requirements.required_gpu_models and gpu.name not in requirements.required_gpu_models:
-            continue
-        candidates.append(gpu.uuid)
-    return tuple(candidates)
+    local = HardwareRequirements(
+        min_gpu_count=1,
+        min_vram_per_gpu_bytes=requirements.min_vram_per_gpu_bytes,
+        min_total_vram_bytes=0,
+        min_compute_capability=requirements.min_compute_capability,
+        required_gpu_models=requirements.required_gpu_models,
+        placement=GpuPlacement.ANY,
+        require_nccl=requirements.require_nccl,
+        allow_multi_node=False,
+        require_gpu_direct_network=False,
+    )
+    capabilities = derive_gpu_capabilities(observation, now)
+    capabilities = type(capabilities)(
+        records=tuple(record for record in capabilities.records if record.gpu_uuid not in reserved),
+        topology_evidence=capabilities.topology_evidence,
+        network_evidence=capabilities.network_evidence,
+        nccl_gpu_uuids=capabilities.nccl_gpu_uuids,
+        observation_digest=capabilities.observation_digest,
+        observed_at=capabilities.observed_at,
+    )
+    decision = admit_gpu_workload(local, capabilities, now)
+    return decision.gpu_uuids if decision.eligible else ()
 
 
 class DistributedGpuAllocator:
@@ -281,9 +288,12 @@ class DistributedGpuAllocator:
         for worker in self.registry.snapshot():
             if worker.state not in self._ACTIVE or not worker.resource.healthy:
                 continue
-            candidates = _candidate_gpus(worker, requirements, {
-                gpu_uuid for (worker_id, gpu_uuid) in self._reserved if worker_id == worker.id
-            })
+            candidates = _candidate_gpus(
+                worker,
+                requirements,
+                {gpu_uuid for (worker_id, gpu_uuid) in self._reserved if worker_id == worker.id},
+                now,
+            )
             if candidates:
                 result.append((worker.id, candidates))
         return result
