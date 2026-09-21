@@ -269,3 +269,16 @@ def test_lease_falls_back_to_next_eligible_worker_when_first_candidate_is_busy()
     assert leased.id == target.id
     assert leased.lease_owner == "B"
     assert decision.selected_worker == "B"
+
+def test_best_fit_prefers_smallest_sufficient_verified_worker():
+    registry = WorkerRegistry((
+        record("large", vram=48 * 1024**3),
+        record("small", vram=16 * 1024**3),
+    ))
+    broker = ComputeBroker(Scheduler(), registry)
+
+    decision = broker.select_worker(
+        ProductionTask("fit", JobRequirements(vram_bytes=8 * 1024**3))
+    )
+
+    assert decision.selected_worker == "small"
