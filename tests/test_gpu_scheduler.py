@@ -25,7 +25,7 @@ def host():
         gpu_matrix=(("X", "NV2", "SYS"), ("NV2", "X", "NV2"), ("SYS", "NV2", "X")),
         cpu_affinity=(("GPU-0", "0-31"), ("GPU-1", "0-31"), ("GPU-2", "0-31")),
         nic_paths=(),
-        raw_text_sha256="",
+        raw_text_sha256="a" * 64,
     )
     return GpuHostObservation(
         worker_id="worker-a",
