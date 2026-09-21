@@ -8,6 +8,10 @@ on:
         required: false
         default: true
         type: boolean
+      worker_id:
+        description: "Authenticated worker identity for physical verification"
+        required: true
+        type: string
       gpu_direct_command:
         description: "Optional explicit GPU-direct verification command"
         required: false
@@ -46,10 +50,10 @@ jobs:
           command -v nvidia-smi
           nvidia-smi --query-gpu=uuid,name --format=csv,noheader
       - name: Verify CUDA runtime
-        run: python scripts/verify_gpu_runtime.py
+        run: python scripts/verify_gpu_runtime.py --worker-id "${{ inputs.worker_id }}"
       - name: Verify NCCL runtime
         if: ${{ inputs.run_nccl }}
-        run: python scripts/verify_nccl_runtime.py
+        run: python scripts/verify_nccl_runtime.py --worker-id "${{ inputs.worker_id }}"
       - name: Verify GPU-direct runtime
         if: ${{ inputs.gpu_direct_command != '' }}
         env:
