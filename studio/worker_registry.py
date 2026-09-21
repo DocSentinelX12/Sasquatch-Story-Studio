@@ -7,7 +7,7 @@ from dataclasses import asdict, dataclass
 from enum import StrEnum
 from pathlib import Path
 
-from .gpu_infrastructure import GpuDeviceObservation, GpuHostObservation
+from .gpu_infrastructure import GpuDeviceObservation, GpuHostObservation, GpuTelemetryObservation, TelemetryEvidence, TelemetryStatus
 from .gpu_topology import GpuTopologyEvidence
 from .nccl_evidence import NCCLTestEvidence
 from .resources import ComputeResource
@@ -125,17 +125,48 @@ def _deserialize_observation(payload: dict | None) -> GpuHostObservation | None:
             gpu_uuids=tuple(nccl_payload["gpu_uuids"]),
             topology_digest=nccl_payload["topology_digest"],
         )
+    def telemetry(item: dict) -> GpuTelemetryObservation:
+        raw = item.get("telemetry")
+        if raw is None:
+            return GpuTelemetryObservation.unavailable()
+        fields = {}
+        for name, value in raw.items():
+            if name == "collector_identity":
+                continue
+            fields[name] = TelemetryEvidence(
+                status=TelemetryStatus(value["status"]),
+                value=value.get("value"),
+                source=value["source"],
+                collected_at=int(value.get("collected_at", 0)),
+                error=value.get("error"),
+            )
+        return GpuTelemetryObservation(**fields, collector_identity=raw["collector_identity"])
+
     return GpuHostObservation(
         worker_id=payload["worker_id"],
         driver_version=payload["driver_version"],
         cuda_supported_version=payload["cuda_supported_version"],
-        gpus=tuple(GpuDeviceObservation(**item) for item in payload["gpus"]),
+        gpus=tuple(
+            GpuDeviceObservation(
+                index=int(item["index"]),
+                uuid=item["uuid"],
+                name=item["name"],
+                memory_total_mib=int(item["memory_total_mib"]),
+                memory_used_mib=int(item["memory_used_mib"]),
+                pci_bus_id=item["pci_bus_id"],
+                compute_capability=item["compute_capability"],
+                telemetry=telemetry(item),
+            )
+            for item in payload["gpus"]
+        ),
         topology_text=payload.get("topology_text"),
         dcgm_available=payload["dcgm_available"],
         dcgm_version=payload.get("dcgm_version"),
         health_json=payload.get("health_json"),
         nccl_evidence=nccl_evidence,
         topology_evidence=topology_evidence,
+        observed_at=int(payload.get("observed_at", 0)),
+        collector_identity=payload.get("collector_identity", "legacy_observation"),
     )
 
 
