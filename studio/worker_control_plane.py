@@ -11,8 +11,8 @@ import json
 from dataclasses import replace
 from typing import Any, Mapping
 
-from .gpu_capabilities import CapabilityState, GpuVerificationContext, derive_gpu_capabilities
-from .gpu_infrastructure import GpuDeviceObservation, GpuHostObservation, GpuTelemetryObservation, TelemetryEvidence, TelemetryStatus, classify_dcgm_health
+from .gpu_capabilities import CapabilityState, derive_gpu_capabilities
+from .gpu_infrastructure import GpuDeviceObservation, GpuHostObservation, GpuTelemetryObservation, TelemetryEvidence, TelemetryStatus
 from .gpu_topology import GpuTopologyEvidence
 from .nccl_evidence import NCCLTestEvidence
 from .remote_worker import WorkerAccess, WorkerLifecycleAuthority
