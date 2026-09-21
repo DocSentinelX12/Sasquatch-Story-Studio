@@ -10,7 +10,7 @@ from dataclasses import dataclass
 from itertools import combinations
 
 from .compute_provider import ProviderResource, ProviderResourceState
-from .gpu_capabilities import derive_gpu_capabilities
+from .gpu_capabilities import GpuCapabilityName, derive_gpu_capabilities
 from .gpu_infrastructure import GpuHostObservation
 from .hardware_requirements import GpuPlacement, HardwareRequirements, compute_capability_at_least
 from .worker_registry import WorkerState
@@ -82,18 +82,9 @@ class FabricScheduler:
                     continue
                 if requirements.required_gpu_models and gpu.name not in requirements.required_gpu_models:
                     continue
-                if requirements.require_nccl and not any(
-                    record.state(name) == "verified" for name in []
-                ):
-                    # NCCL is checked explicitly below from the canonical record.
-                    if record.state.__self__ is None:
-                        raise AssertionError("unreachable")
+                if requirements.require_nccl and capabilities.get(gpu.uuid).state(GpuCapabilityName.NCCL).value != "verified":
+                    continue
                 selected.append(gpu.uuid)
-            if requirements.require_nccl:
-                selected = [
-                    uuid for uuid in selected
-                    if capabilities.get(uuid).state(__import__("studio.gpu_capabilities", fromlist=["GpuCapabilityName"]).GpuCapabilityName.NCCL).value == "verified"
-                ]
             if selected:
                 eligible.append((worker, tuple(selected)))
 
