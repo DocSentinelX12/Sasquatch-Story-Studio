@@ -14,11 +14,20 @@ def test_scheduler_accepts_nccl_requirement_only_with_matching_successful_eviden
             GpuDeviceObservation(0, "GPU-0", "NVIDIA Test GPU", 81920, 0, "00000000:17:00.0", "10.0"),
             GpuDeviceObservation(1, "GPU-1", "NVIDIA Test GPU", 81920, 0, "00000000:18:00.0", "10.0"),
         ),
-        topology_text="GPU0 GPU1\nGPU0 X NV2\nGPU1 NV2 X",
+        topology_text="GPU0 GPU1
+GPU0 X NV2
+GPU1 NV2 X",
         dcgm_available=True,
         dcgm_version="observed",
         health_json="Overall Health: Healthy",
-        topology_evidence=GpuTopologyEvidence(\n            gpu_uuids=("GPU-0", "GPU-1"),\n            gpu_matrix=(("X", "NV2"), ("NV2", "X")),\n            cpu_affinity=(("GPU-0", "0-31"), ("GPU-1", "32-63")),\n            nic_paths=(),\n            raw_text_sha256="c" * 64,\n        ),\n        nccl_evidence=NCCLTestEvidence(
+        topology_evidence=GpuTopologyEvidence(
+            gpu_uuids=("GPU-0", "GPU-1"),
+            gpu_matrix=(("X", "NV2"), ("NV2", "X")),
+            cpu_affinity=(("GPU-0", "0-31"), ("GPU-1", "32-63")),
+            nic_paths=(),
+            raw_text_sha256="c" * 64,
+        ),
+        nccl_evidence=NCCLTestEvidence(
             executable="all_reduce_perf",
             executable_sha256="a" * 64,
             command=("all_reduce_perf", "-g", "2"),
