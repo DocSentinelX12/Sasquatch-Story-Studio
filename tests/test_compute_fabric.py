@@ -91,7 +91,7 @@ def test_admission_populates_fabric_topology_when_explicit_topology_exists() -> 
         worker_id="worker-a",
         driver_version="580.0",
         cuda_supported_version="13.0",
-        gpus=obs_gpu := observation().gpus,
+        gpus=(obs_gpu := observation().gpus),
         topology_text="observed",
         dcgm_available=True,
         dcgm_version="4.0",
