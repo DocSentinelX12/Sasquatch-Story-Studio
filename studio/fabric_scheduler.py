@@ -155,6 +155,18 @@ class FabricScheduler:
             for size in range(2, len(ordered) + 1):
                 candidate = ranked_group(tuple(ordered[:size]))
                 if candidate is not None:
+                    if requirements.require_nccl or requirements.require_gpu_direct_network:
+                        if self.topology_registry is None:
+                            continue
+                        worker_ids = tuple(sorted(worker.hardware.worker_id for worker in candidate.workers))
+                        if not self.topology_registry.can_form_group(
+                            worker_ids,
+                            candidate.gpus_by_worker,
+                            now=now,
+                            require_nccl=requirements.require_nccl,
+                            require_gpu_direct=requirements.require_gpu_direct_network,
+                        ):
+                            continue
                     best = candidate
                     break
             if best is not None:
