@@ -16,9 +16,12 @@ from dataclasses import dataclass
 from enum import StrEnum
 from pathlib import Path
 import sqlite3
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from .fabric_scheduler import FabricPlacement
 
 from .gpu_capabilities import derive_gpu_capabilities
-from .fabric_scheduler import FabricPlacement
 from .gpu_infrastructure import GpuHostObservation
 from .hardware_requirements import HardwareRequirements, compute_capability_at_least
 from .nccl_evidence import validate_nccl_evidence
@@ -393,7 +396,7 @@ class DistributedGpuAllocator:
         self,
         task_id: str,
         requirements: HardwareRequirements,
-        placement: FabricPlacement,
+        placement: "FabricPlacement",
         now: int,
         lease_seconds: int,
         *,
