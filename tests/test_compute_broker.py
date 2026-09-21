@@ -252,3 +252,20 @@ def test_multi_node_reservation_requires_explicit_distributed_allocator():
 
     with pytest.raises(RuntimeError, match="distributed GPU allocator is not configured"):
         broker.reserve_distributed(task, now=100, lease_seconds=60)
+
+def test_lease_falls_back_to_next_eligible_worker_when_first_candidate_is_busy():
+    scheduler = Scheduler()
+    registry = WorkerRegistry((record("A", vram=24 * 1024**3), record("B", vram=24 * 1024**3)))
+    broker = ComputeBroker(scheduler, registry)
+
+    busy = broker.submit(ProductionTask("busy", JobRequirements()))
+    target = broker.submit(ProductionTask("target", JobRequirements()))
+    busy_job = scheduler.choose_on_worker("A", registry.get("A").resource, 500, now=10, lease_seconds=60, job_id=busy.id)
+    assert busy_job is not None
+
+    decision, leased = broker.lease(target, now=10, lease_seconds=60)
+
+    assert leased is not None
+    assert leased.id == target.id
+    assert leased.lease_owner == "B"
+    assert decision.selected_worker == "B"
