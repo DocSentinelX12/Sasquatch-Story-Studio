@@ -51,9 +51,9 @@ class FakeNvml:
             },
         )
 
-    def telemetry(self, index: int):
-        self.calls.append(f"telemetry:{index}")
-        return {
+    def field(self, index: int, name: str):
+        self.calls.append(f"field:{index}:{name}")
+        values = {
             "temperature_c": 61,
             "power_usage_w": 225.5,
             "power_state": "P0",
@@ -66,6 +66,9 @@ class FakeNvml:
             "pcie_link": {"generation": 5, "width": 16},
             "xid_errors": (),
         }
+        if name == "power_usage_w" and self.fail_power:
+            raise RuntimeError("NVML power query failed")
+        return values[name]
 
     def dcgm_evidence(self):
         self.calls.append("dcgm_evidence")
