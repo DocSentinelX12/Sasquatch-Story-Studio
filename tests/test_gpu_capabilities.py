@@ -61,6 +61,23 @@ def observation(*gpus, health=True, topology=None, nccl=None):
     )
 
 
+def test_topology_evidence_is_bound_into_capability_digest():
+    without_topology = derive_gpu_capabilities(observation(gpu("GPU-0")), now=NOW).digest()
+    topology = GpuTopologyEvidence(
+        gpu_uuids=("GPU-0",),
+        gpu_matrix=(("X",),),
+        cpu_affinity=(("GPU-0", "0-31"),),
+        nic_paths=(),
+        raw_text_sha256=SHA,
+    )
+    with_topology = derive_gpu_capabilities(
+        observation(gpu("GPU-0"), topology=topology),
+        now=NOW,
+    ).digest()
+
+    assert with_topology != without_topology
+
+
 def test_observed_gpu_is_identified_but_not_production_eligible():
     record = derive_gpu_capabilities(observation(gpu("GPU-0"), health=False), now=NOW).get("GPU-0")
 
