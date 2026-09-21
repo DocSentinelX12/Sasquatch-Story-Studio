@@ -367,22 +367,21 @@ def _probe_nvml(worker_id: str, nvml: Any, collected_at: int) -> GpuHostObservat
                 collector_identity="nvml",
             )
             gpus.append(GpuDeviceObservation(index, uuid, name, int(memory.total / 1024**2), int(memory.used / 1024**2), bus_id, compute_capability, telemetry))
-        topology_text = ""
-        try:
-            topology_text = _run_text(_default_runner, ("nvidia-smi", "topo", "-m"))
-            topology = parse_nvidia_smi_topology(topology_text, {gpu.index: gpu.uuid for gpu in gpus})
-        except (RuntimeError, ValueError):
-            topology = None
+        driver_raw = _nvml_optional_call(nvml, "nvmlSystemGetDriverVersion")
+        cuda_raw = _nvml_optional_call(nvml, "nvmlSystemGetCudaDriverVersion_v2")
+        driver_version = driver_raw.decode() if isinstance(driver_raw, bytes) else str(driver_raw)
+        cuda_version_number = int(cuda_raw)
+        cuda_version = f"{cuda_version_number // 1000}.{(cuda_version_number % 1000) // 10}"
         return GpuHostObservation(
             worker_id=worker_id,
-            driver_version=str(_run_text(_default_runner, ("nvidia-smi",)).split("Driver Version:", 1)[1].split()[0]),
-            cuda_supported_version=str(_run_text(_default_runner, ("nvidia-smi",)).split("CUDA Version:", 1)[1].split()[0]),
+            driver_version=driver_version,
+            cuda_supported_version=cuda_version,
             gpus=tuple(gpus),
-            topology_text=topology_text or None,
-            dcgm_available=bool(shutil.which("dcgmi")),
+            topology_text=None,
+            dcgm_available=False,
             dcgm_version=None,
             health_json=None,
-            topology_evidence=topology,
+            topology_evidence=None,
             observed_at=collected_at,
             collector_identity="nvml",
         )
