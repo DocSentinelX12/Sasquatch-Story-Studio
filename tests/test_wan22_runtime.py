@@ -41,7 +41,7 @@ def test_official_t2v_command_uses_real_studio_tokens(tmp_path: Path):
 
 
 def test_frame_contract_is_enforced(tmp_path: Path):
-    with pytest.raises(ValueError, match="4N\+1"):
+    with pytest.raises(ValueError, match=r"4N\+1"):
         build_wan22_command(
             python_executable="python",
             repository=tmp_path / "Wan2.2",
