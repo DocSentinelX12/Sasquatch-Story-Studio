@@ -254,3 +254,28 @@ def test_gpu_direct_capability_requires_exact_verified_gpu_set():
         selected_gpu_uuids=("GPU-0", "GPU-1"),
         now=NOW,
     ) == ("GPU-0", "GPU-1")
+
+
+
+def test_non_multi_node_admission_rejects_cross_worker_gpu_selection():
+    first = derive_gpu_capabilities(observation(gpu("GPU-0")), now=NOW)
+    second_obs = GpuHostObservation(
+        worker_id="worker-b",
+        driver_version="580.95.05",
+        cuda_supported_version="13.0",
+        gpus=(gpu("GPU-1"),),
+        topology_text=None,
+        dcgm_available=True,
+        dcgm_version="4.0",
+        health_json="Overall Health: Healthy",
+    )
+    second = derive_gpu_capabilities(second_obs, now=NOW)
+    from studio.gpu_capabilities import GpuCapabilitySet
+    combined = GpuCapabilitySet(first.records + second.records)
+
+    assert admit_gpu_workload(
+        HardwareRequirements(min_gpu_count=2),
+        combined,
+        selected_gpu_uuids=("GPU-0", "GPU-1"),
+        now=NOW,
+    ) == ()
