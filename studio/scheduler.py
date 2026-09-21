@@ -48,10 +48,13 @@ class Job:
     lease_owner: str | None = None
     lease_until: int | None = None
     allocated_gpu_uuids: tuple[str, ...] = ()
+    queued_at: int | None = None
 
 
 class Scheduler:
-    """Select work from a shared pool using observed resource capacity."""
+    """Select work using observed capacity with starvation-resistant queue aging."""
+
+    AGING_INTERVAL_SECONDS = 60
 
     def __init__(self, jobs: Iterable[Job] = ()):
         self._jobs = {job.id: job for job in jobs}
@@ -67,19 +70,22 @@ class Scheduler:
         recovered: list[str] = []
         for job in list(self._jobs.values()):
             if job.state == JobState.LEASED and job.lease_until is not None and job.lease_until <= now:
-                self._jobs[job.id] = Job(job.id, job.requirements, job.priority, JobState.QUEUED)
+                self._jobs[job.id] = Job(job.id, job.requirements, job.priority, JobState.QUEUED, queued_at=job.queued_at)
                 recovered.append(job.id)
         return tuple(sorted(recovered))
 
     def choose(self, worker_id: str, resources: ResourceSnapshot, now: int, lease_seconds: int = 900) -> Job | None:
         if not worker_id.strip() or lease_seconds < 1:
             raise ValueError("worker_id and positive lease duration are required")
-        candidates = sorted((j for j in self._jobs.values() if j.state == JobState.QUEUED), key=lambda j: (-j.priority, j.id))
+        for job in tuple(self._jobs.values()):
+            if job.state == JobState.QUEUED and job.queued_at is None:
+                self._jobs[job.id] = Job(job.id, job.requirements, job.priority, JobState.QUEUED, queued_at=now)
+        candidates = self._aged_candidates(now, (j for j in self._jobs.values() if j.state == JobState.QUEUED))
         reserved = tuple(job.requirements for job in self._jobs.values() if job.state == JobState.LEASED)
         for job in candidates:
             if not _fits(job.requirements, resources, reserved):
                 continue
-            leased = Job(job.id, job.requirements, job.priority, JobState.LEASED, worker_id, now + lease_seconds)
+            leased = Job(job.id, job.requirements, job.priority, JobState.LEASED, worker_id, now + lease_seconds, job.allocated_gpu_uuids, job.queued_at)
             self._jobs[job.id] = leased
             return leased
         return None
@@ -103,14 +109,10 @@ class Scheduler:
             raise ValueError("GPU allocation must contain unique non-empty UUIDs")
         if not worker_resource.healthy:
             return None
-        candidates = sorted(
-            (
-                j
-                for j in self._jobs.values()
-                if j.state == JobState.QUEUED and (job_id is None or j.id == job_id)
-            ),
-            key=lambda j: (-j.priority, j.id),
-        )
+        for job in tuple(self._jobs.values()):
+            if job.state == JobState.QUEUED and (job_id is None or job.id == job_id) and job.queued_at is None:
+                self._jobs[job.id] = Job(job.id, job.requirements, job.priority, JobState.QUEUED, queued_at=now)
+        candidates = self._aged_candidates(now, (j for j in self._jobs.values() if j.state == JobState.QUEUED and (job_id is None or j.id == job_id)))
         leased_jobs = tuple(job for job in self._jobs.values() if job.state == JobState.LEASED)
         reserved_pool_power = sum(job.requirements.power_watts for job in leased_jobs)
         reserved_on_worker = tuple(job.requirements for job in leased_jobs if job.lease_owner == worker_id)
@@ -128,7 +130,7 @@ class Scheduler:
                 continue
             if not _fits(job.requirements, worker_snapshot, reserved=reserved_on_worker, check_power=False):
                 continue
-            leased = Job(job.id, job.requirements, job.priority, JobState.LEASED, worker_id, now + lease_seconds, gpu_uuids)
+            leased = Job(job.id, job.requirements, job.priority, JobState.LEASED, worker_id, now + lease_seconds, gpu_uuids, job.queued_at)
             self._jobs[job.id] = leased
             return leased
         return None
@@ -137,7 +139,7 @@ class Scheduler:
         job = self._jobs[job_id]
         if job.state != JobState.LEASED or job.lease_owner != worker_id:
             raise RuntimeError("only the current lease owner can complete a job")
-        self._jobs[job.id] = Job(job.id, job.requirements, job.priority, JobState.COMPLETED)
+        self._jobs[job.id] = Job(job.id, job.requirements, job.priority, JobState.COMPLETED, queued_at=job.queued_at)
 
     def requeue(self, job_id: str, worker_id: str) -> None:
         job = self._jobs[job_id]
@@ -149,7 +151,17 @@ class Scheduler:
         job = self._jobs[job_id]
         if job.state != JobState.LEASED or job.lease_owner != worker_id:
             raise RuntimeError("only the current lease owner can fail a job")
-        self._jobs[job.id] = Job(job.id, job.requirements, job.priority, JobState.FAILED)
+        self._jobs[job.id] = Job(job.id, job.requirements, job.priority, JobState.FAILED, queued_at=job.queued_at)
+
+    @classmethod
+    def _aged_candidates(cls, now: int, jobs: Iterable[Job]) -> list[Job]:
+        ranked = []
+        for job in jobs:
+            queued_at = now if job.queued_at is None else job.queued_at
+            effective_priority = job.priority + max(0, now - queued_at) // cls.AGING_INTERVAL_SECONDS
+            ranked.append((job, effective_priority, queued_at))
+        ranked.sort(key=lambda item: (-item[1], item[2], item[0].id))
+        return [item[0] for item in ranked]
 
     def snapshot(self) -> tuple[Job, ...]:
         return tuple(self._jobs[key] for key in sorted(self._jobs))
@@ -185,7 +197,7 @@ class SQLiteSchedulerStore:
         self.path = Path(path)
         self.path.parent.mkdir(parents=True, exist_ok=True)
         with sqlite3.connect(self.path) as connection:
-            connection.execute("CREATE TABLE IF NOT EXISTS scheduler_jobs (id TEXT PRIMARY KEY, requirements_json TEXT NOT NULL, priority INTEGER NOT NULL, state TEXT NOT NULL, lease_owner TEXT, lease_until INTEGER, allocated_gpu_uuids_json TEXT NOT NULL DEFAULT '[]')")
+            connection.execute("CREATE TABLE IF NOT EXISTS scheduler_jobs (id TEXT PRIMARY KEY, requirements_json TEXT NOT NULL, priority INTEGER NOT NULL, state TEXT NOT NULL, lease_owner TEXT, lease_until INTEGER, allocated_gpu_uuids_json TEXT NOT NULL DEFAULT '[]', queued_at INTEGER)")
             columns = {row[1] for row in connection.execute("PRAGMA table_info(scheduler_jobs)")}
             if "allocated_gpu_uuids_json" not in columns:
                 connection.execute("ALTER TABLE scheduler_jobs ADD COLUMN allocated_gpu_uuids_json TEXT NOT NULL DEFAULT '[]'")
@@ -207,17 +219,17 @@ class SQLiteSchedulerStore:
                     "allow_multi_node": item.allow_multi_node,
                     "require_gpu_direct_network": item.require_gpu_direct_network,
                 }
-            rows.append((job.id, json.dumps({"slots": job.requirements.slots, "memory_bytes": job.requirements.memory_bytes, "vram_bytes": job.requirements.vram_bytes, "scratch_bytes": job.requirements.scratch_bytes, "power_watts": job.requirements.power_watts, "capabilities": job.requirements.capabilities, "engines": job.requirements.engines, "hardware": hardware}, sort_keys=True), job.priority, job.state.value, job.lease_owner, job.lease_until, json.dumps(job.allocated_gpu_uuids)))
+            rows.append((job.id, json.dumps({"slots": job.requirements.slots, "memory_bytes": job.requirements.memory_bytes, "vram_bytes": job.requirements.vram_bytes, "scratch_bytes": job.requirements.scratch_bytes, "power_watts": job.requirements.power_watts, "capabilities": job.requirements.capabilities, "engines": job.requirements.engines, "hardware": hardware}, sort_keys=True), job.priority, job.state.value, job.lease_owner, job.lease_until, json.dumps(job.allocated_gpu_uuids), job.queued_at))
         with sqlite3.connect(self.path) as connection:
             connection.execute("BEGIN IMMEDIATE")
             connection.execute("DELETE FROM scheduler_jobs")
-            connection.executemany("INSERT INTO scheduler_jobs (id, requirements_json, priority, state, lease_owner, lease_until, allocated_gpu_uuids_json) VALUES (?, ?, ?, ?, ?, ?, ?)", rows)
+            connection.executemany("INSERT INTO scheduler_jobs (id, requirements_json, priority, state, lease_owner, lease_until, allocated_gpu_uuids_json, queued_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)", rows)
 
     def load(self) -> Scheduler:
         with sqlite3.connect(self.path) as connection:
-            rows = connection.execute("SELECT id, requirements_json, priority, state, lease_owner, lease_until, allocated_gpu_uuids_json FROM scheduler_jobs ORDER BY id").fetchall()
+            rows = connection.execute("SELECT id, requirements_json, priority, state, lease_owner, lease_until, allocated_gpu_uuids_json, queued_at FROM scheduler_jobs ORDER BY id").fetchall()
         jobs = []
-        for job_id, requirements_json, priority, state, lease_owner, lease_until, allocated_gpu_uuids_json in rows:
+        for job_id, requirements_json, priority, state, lease_owner, lease_until, allocated_gpu_uuids_json, queued_at in rows:
             data = json.loads(requirements_json)
             hardware_data = data.get("hardware")
             hardware = None
@@ -235,5 +247,5 @@ class SQLiteSchedulerStore:
                     require_gpu_direct_network=hardware_data["require_gpu_direct_network"],
                 )
             requirements = JobRequirements(slots=data["slots"], memory_bytes=data["memory_bytes"], vram_bytes=data["vram_bytes"], scratch_bytes=data["scratch_bytes"], power_watts=data["power_watts"], capabilities=tuple(data["capabilities"]), engines=tuple(data["engines"]), hardware=hardware)
-            jobs.append(Job(job_id, requirements, priority, JobState(state), lease_owner, lease_until, tuple(json.loads(allocated_gpu_uuids_json))))
+            jobs.append(Job(job_id, requirements, priority, JobState(state), lease_owner, lease_until, tuple(json.loads(allocated_gpu_uuids_json)), queued_at))
         return Scheduler(jobs)
