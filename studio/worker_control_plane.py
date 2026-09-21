@@ -76,24 +76,27 @@ class WorkerControlPlane:
                     memory_used_mib=int(item["memory_used_mib"]),
                     pci_bus_id=item["pci_bus_id"],
                     compute_capability=item["compute_capability"],
-                    telemetry=GpuTelemetryObservation(
-                        **{
-                            field_name: TelemetryEvidence(
-                                status=TelemetryStatus(value[field_name]["status"]),
-                                value=value[field_name].get("value"),
-                                source=value[field_name]["source"],
-                                collected_at=int(value[field_name].get("collected_at", 0)),
-                                error=value[field_name].get("error"),
-                            )
-                            for field_name in (
-                                "temperature_c", "power_usage_w", "power_limit_w", "utilization_percent",
-                                "memory_utilization_percent", "ecc_errors", "mig_mode", "nvlink_state",
-                                "pcie_link_generation", "pcie_link_width", "pcie_tx_kb_s", "pcie_rx_kb_s",
-                                "xid_errors", "dcgm_health",
-                            )
-                        },
-                        collector_identity=item.get("telemetry", {}).get("collector_identity", "legacy_observation"),
-                    ) if item.get("telemetry") else GpuTelemetryObservation.unavailable(),
+                    telemetry=(
+                        GpuTelemetryObservation(
+                            **{
+                                field_name: TelemetryEvidence(
+                                    status=TelemetryStatus(item["telemetry"][field_name]["status"]),
+                                    value=item["telemetry"][field_name].get("value"),
+                                    source=item["telemetry"][field_name]["source"],
+                                    collected_at=int(item["telemetry"][field_name].get("collected_at", 0)),
+                                    error=item["telemetry"][field_name].get("error"),
+                                )
+                                for field_name in (
+                                    "temperature_c", "power_usage_w", "power_limit_w", "utilization_percent",
+                                    "memory_utilization_percent", "ecc_errors", "mig_mode", "nvlink_state",
+                                    "pcie_link_generation", "pcie_link_width", "pcie_tx_kb_s", "pcie_rx_kb_s",
+                                    "xid_errors", "dcgm_health",
+                                )
+                            },
+                            collector_identity=item["telemetry"]["collector_identity"],
+                        )
+                        if item.get("telemetry") else GpuTelemetryObservation.unavailable()
+                    ),
                 )
                 for item in gpus
             ),
