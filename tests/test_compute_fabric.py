@@ -145,3 +145,57 @@ def test_admission_rejects_unprovisioned_provider_resource() -> None:
 
     with pytest.raises(ValueError, match="provisioned"):
         ComputeFabricAdmission(ComputeResourceInventory()).admit(resource, worker, now=100)
+
+
+def test_fabric_scheduler_placement_is_reserved_exactly_without_replanning() -> None:
+    from studio.distributed_gpu import DistributedGpuAllocator
+    from studio.fabric_scheduler import FabricPlacement, FabricWorker
+    from studio.hardware_requirements import GpuPlacement, HardwareRequirements
+
+    observations = (observation("worker-a"), observation("worker-b"))
+    records = tuple(worker_record(item) for item in observations)
+    provider_resources = tuple(
+        ProviderResource(
+            provider_id="provider-a",
+            resource_id=f"provider-resource-{item.id}",
+            region="test",
+            cost_class=ResourceCostClass.FREE,
+            state=ProviderResourceState.AVAILABLE,
+            worker_id=item.id,
+        )
+        for item in records
+    )
+    placement_workers = tuple(
+        FabricWorker(
+            provider_id=resource.provider_id,
+            resource=resource,
+            hardware=record.hardware_observation,
+            worker_state=record.state,
+        )
+        for resource, record in zip(provider_resources, records)
+    )
+    placement = FabricPlacement(
+        workers=placement_workers,
+        gpus_by_worker=tuple(
+            (record.id, (record.hardware_observation.gpus[0].uuid,))
+            for record in records
+        ),
+    )
+    registry = __import__("studio.worker_registry", fromlist=["WorkerRegistry"]).WorkerRegistry(records)
+    allocator = DistributedGpuAllocator(registry)
+    requirements = HardwareRequirements(
+        min_gpu_count=2,
+        placement=GpuPlacement.MULTI_NODE,
+        allow_multi_node=True,
+    )
+
+    allocation = allocator.reserve_placement(
+        "task-placement",
+        requirements,
+        placement,
+        now=100,
+        lease_seconds=60,
+    )
+
+    assert allocation.worker_ids == ("worker-a", "worker-b")
+    assert allocation.gpus_by_worker == placement.gpus_by_worker
