@@ -19,7 +19,7 @@ def _worker() -> WorkerRecord:
         topology_text=None,
         dcgm_available=True,
         dcgm_version="4",
-        health_json="healthy",
+        health_json="Overall Health: Healthy",
     )
     capability_digest = derive_gpu_capabilities(observation, now=100).digest()
     resource = ComputeResource("worker-resource", 32, 128 * 1024**3, gpu_count=1, gpu_models=("NVIDIA Test",), vram_bytes=81920 * 1024**2)
