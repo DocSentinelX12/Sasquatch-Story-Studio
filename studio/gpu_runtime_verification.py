@@ -9,9 +9,33 @@ from __future__ import annotations
 import argparse
 import json
 import time
+from dataclasses import dataclass
 from pathlib import Path
 
 from .gpu_infrastructure import probe_nvidia_host
+
+
+@dataclass(frozen=True)
+class CUDARuntimeEvidence:
+    recorded_at: int
+    gpu_uuids: tuple[str, ...]
+    runtime_gpu_uuids: tuple[str, ...]
+    tensor_results: tuple[float, ...]
+    torch_version: str
+    torch_cuda_version: str
+    driver_version: str
+    cuda_supported_version: str
+
+    def __post_init__(self) -> None:
+        if self.recorded_at < 0:
+            raise ValueError("CUDA verification timestamp cannot be negative")
+        if not self.gpu_uuids or self.gpu_uuids != self.runtime_gpu_uuids:
+            raise ValueError("CUDA evidence must bind the runtime UUIDs to the observed GPU UUIDs")
+        if len(self.tensor_results) != len(self.gpu_uuids) or any(value != 3.0 for value in self.tensor_results):
+            raise ValueError("CUDA evidence must contain one successful tensor result per GPU")
+        if not self.torch_version.strip() or not self.torch_cuda_version.strip():
+            raise ValueError("CUDA evidence requires runtime version provenance")
+
 
 
 def validate_cuda_runtime(
@@ -51,14 +75,12 @@ def verify_cuda_runtime(*, output_path: str | Path) -> dict:
     observation = probe_nvidia_host("local-gpu-verifier")
     expected = observation.gpu_count
     actual = int(torch.cuda.device_count())
-    validate_cuda_runtime(
-        cuda_available=True,
-        device_count=actual,
-        expected_device_count=expected,
-        tensor_result=3.0 if expected else 0.0,
-    )
     if expected < 1:
         raise RuntimeError("real CUDA verification requires at least one visible NVIDIA GPU")
+    if actual != expected:
+        raise RuntimeError(
+            f"CUDA device count mismatch: observed {expected}, runtime {actual}"
+        )
 
     observed_uuids = [gpu.uuid for gpu in observation.gpus]
     runtime_uuids: list[str] = []
