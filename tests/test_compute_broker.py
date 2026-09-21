@@ -74,9 +74,9 @@ def test_hardware_requirements_are_enforced_from_observed_gpu_inventory():
         cuda_supported_version="13.0",
         gpus=(GpuDeviceObservation(0, "GPU-0", "Observed GPU", 96 * 1024, 0, "0000:01:00.0", "10.0"),),
         topology_text="GPU0 GPU0",
-        dcgm_available=False,
-        dcgm_version=None,
-        health_json=None,
+        dcgm_available=True,
+        dcgm_version="observed",
+        health_json='{"health":"pass"}',
     )
     registry = WorkerRegistry((record("gpu", vram=96 * 1024**3, hardware=hardware),))
     broker = ComputeBroker(Scheduler(), registry)
@@ -104,10 +104,11 @@ def test_topology_sensitive_hardware_is_rejected_without_verified_placement_evid
             GpuDeviceObservation(0, "GPU-0", "Observed GPU", 96 * 1024, 0, "0000:01:00.0", "10.0"),
             GpuDeviceObservation(1, "GPU-1", "Observed GPU", 96 * 1024, 0, "0000:02:00.0", "10.0"),
         ),
-        topology_text="GPU0 GPU1\nGPU1 GPU0",
-        dcgm_available=False,
-        dcgm_version=None,
-        health_json=None,
+        topology_text="GPU0 GPU1
+GPU1 GPU0",
+        dcgm_available=True,
+        dcgm_version="observed",
+        health_json='{"health":"pass"}',
     )
     registry = WorkerRegistry((record("gpu", vram=192 * 1024**3, hardware=hardware),))
     broker = ComputeBroker(Scheduler(), registry)
@@ -127,9 +128,9 @@ def test_lease_binds_the_requested_task_and_exact_gpu_allocation():
         cuda_supported_version="13.0",
         gpus=(GpuDeviceObservation(0, "GPU-0", "Observed GPU", 96 * 1024, 0, "0000:01:00.0", "10.0"),),
         topology_text="GPU0 GPU0",
-        dcgm_available=False,
-        dcgm_version=None,
-        health_json=None,
+        dcgm_available=True,
+        dcgm_version="observed",
+        health_json='{"health":"pass"}',
     )
     scheduler = Scheduler()
     registry = WorkerRegistry((record("gpu", vram=96 * 1024**3, hardware=hardware),))
@@ -170,9 +171,9 @@ def test_multi_node_task_uses_authoritative_distributed_allocator():
                 GpuDeviceObservation(0, f"{worker_id}-GPU-0", "Observed GPU", 96 * 1024, 0, f"0000:{worker_id == 'A' and '01' or '02'}:00.0", "10.0"),
             ),
             topology_text="GPU0 GPU0",
-            dcgm_available=False,
-            dcgm_version=None,
-            health_json=None,
+            dcgm_available=True,
+            dcgm_version="observed",
+            health_json='{"health":"pass"}',
         )
         return record(worker_id, vram=96 * 1024**3, hardware=hardware)
 
@@ -210,9 +211,9 @@ def test_multi_node_task_never_falls_back_to_single_worker_lease():
         cuda_supported_version="13.0",
         gpus=(GpuDeviceObservation(0, "GPU-0", "Observed GPU", 96 * 1024, 0, "0000:01:00.0", "10.0"),),
         topology_text="GPU0 GPU0",
-        dcgm_available=False,
-        dcgm_version=None,
-        health_json=None,
+        dcgm_available=True,
+        dcgm_version="observed",
+        health_json='{"health":"pass"}',
     )
     scheduler = Scheduler()
     registry = WorkerRegistry((record("gpu", vram=96 * 1024**3, hardware=hardware),))
