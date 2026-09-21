@@ -8,7 +8,7 @@ from studio.distributed_gpu import (
     GpuDirectNetworkEvidence,
 )
 from studio.gpu_infrastructure import GpuDeviceObservation, GpuHostObservation, GpuTelemetryEvidence, GpuTelemetryStatus, TelemetryValue
-from studio.gpu_topology import GpuTopologyEvidence
+from studio.gpu_topology import GpuTopologyEvidence, topology_digest
 from studio.hardware_requirements import GpuPlacement, HardwareRequirements
 from studio.nccl_evidence import NCCLTestEvidence
 from studio.resources import ComputeResource
@@ -108,7 +108,7 @@ def local_nccl(worker_id: str) -> NCCLTestEvidence:
         exit_code=0,
         output_sha256="b" * 64,
         gpu_uuids=tuple(f"{worker_id}-GPU-{index}" for index in range(4)),
-        topology_digest="c" * 64,
+        topology_digest=topology_digest(topology(worker_id)),
     )
 
 
@@ -121,7 +121,7 @@ def distributed_nccl(worker_ids: tuple[str, ...], allocation_gpu_uuids: tuple[tu
         exit_code=0,
         output_sha256="d" * 64,
         rendezvous_id="rdzv-test",
-        topology_digests=tuple((worker_id, "c" * 64) for worker_id in worker_ids),
+        topology_digests=tuple((worker_id, topology_digest(topology(worker_id))) for worker_id in worker_ids),
     )
 
 
