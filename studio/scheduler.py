@@ -145,7 +145,7 @@ class Scheduler:
         job = self._jobs[job_id]
         if job.state != JobState.LEASED or job.lease_owner != worker_id:
             raise RuntimeError("only the current lease owner can requeue a job")
-        self._jobs[job.id] = Job(job.id, job.requirements, job.priority, JobState.QUEUED)
+        self._jobs[job.id] = Job(job.id, job.requirements, job.priority, JobState.QUEUED, queued_at=job.queued_at)
 
     def fail(self, job_id: str, worker_id: str) -> None:
         job = self._jobs[job_id]
@@ -201,6 +201,8 @@ class SQLiteSchedulerStore:
             columns = {row[1] for row in connection.execute("PRAGMA table_info(scheduler_jobs)")}
             if "allocated_gpu_uuids_json" not in columns:
                 connection.execute("ALTER TABLE scheduler_jobs ADD COLUMN allocated_gpu_uuids_json TEXT NOT NULL DEFAULT '[]'")
+            if "queued_at" not in columns:
+                connection.execute("ALTER TABLE scheduler_jobs ADD COLUMN queued_at INTEGER")
 
     def save(self, scheduler: Scheduler) -> None:
         rows = []
