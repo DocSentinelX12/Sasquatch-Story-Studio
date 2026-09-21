@@ -58,6 +58,9 @@ class FabricScheduler:
         if now < 0:
             raise ValueError("now cannot be negative")
 
+        if requirements.require_nccl and len({worker.provider_id for worker in self.workers}) > 1:
+            raise RuntimeError("cross-provider distributed NCCL evidence is required before cross-provider allocation")
+
         eligible: list[tuple[FabricWorker, tuple[str, ...]]] = []
         for worker in self.workers:
             if worker.worker_state not in {WorkerState.VERIFIED_AVAILABLE, WorkerState.VERIFIED_LIMITED}:
@@ -166,7 +169,5 @@ class FabricScheduler:
                 break
 
         if best is None:
-            if requirements.require_nccl and len({worker.provider_id for worker, _ in eligible}) > 1:
-                raise RuntimeError("cross-provider distributed NCCL evidence is required before cross-provider allocation")
             raise RuntimeError("eligible providers cannot satisfy the distributed GPU requirement")
         return best
