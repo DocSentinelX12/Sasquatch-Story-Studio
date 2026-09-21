@@ -120,6 +120,7 @@ def _deserialize_capabilities(payload: dict | None) -> GpuCapabilitySet | None:
                 topology=evidence(raw["topology"]),
                 nccl=evidence(raw["nccl"]),
                 gpu_direct=evidence(raw["gpu_direct"]),
+                engine_runtime=evidence(raw["engine_runtime"]),
                 observation_digest=raw["observation_digest"],
                 observed_at=int(raw["observed_at"]),
             )
