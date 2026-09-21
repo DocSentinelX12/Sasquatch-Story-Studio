@@ -1,6 +1,7 @@
 import json
 from studio.compute_broker import ComputeBroker
 from studio.gpu_infrastructure import GpuDeviceObservation, GpuHostObservation
+from studio.gpu_capabilities import CapabilityState
 from studio.gpu_topology import GpuTopologyEvidence
 from studio.nccl_evidence import NCCLTestEvidence
 from studio.remote_worker import WorkerLifecycleAuthority
@@ -81,6 +82,8 @@ def test_registration_binds_inventory_and_heartbeat_updates_health():
     assert record.resource.gpu_count == 1
     assert record.resource.vram_bytes == 16384 * 1024 * 1024
     assert record.hardware_observation is not None
+    assert record.gpu_capabilities is not None
+    assert record.gpu_capabilities.records[0].base.state == CapabilityState.VERIFIED
 
     limited = observation("warning")
     heartbeat = control.heartbeat(payload(limited), access, now=20)
