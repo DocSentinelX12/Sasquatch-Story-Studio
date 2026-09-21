@@ -24,9 +24,9 @@ def _registry():
             cuda_supported_version="13.0",
             gpus=gpus,
             topology_text="observed",
-            dcgm_available=False,
-            dcgm_version=None,
-            health_json=None,
+            dcgm_available=True,
+            dcgm_version="test",
+            health_json="Overall Health: Healthy",
         )
         resource = ComputeResource(worker_id, 8, 16 * 1024**3, gpu_count=2, vram_bytes=16 * 1024**3, logical_slots=2)
         records.append(
@@ -134,9 +134,6 @@ def test_process_executor_requires_the_real_launcher_to_be_present():
         rendezvous_port=29501,
     )
     assert spec.command_sha256
-    # The executor is intentionally not invoked here because Python is not a
-    # torchrun-compatible launcher. Runtime GPU/NCCL execution belongs on a
-    # verified GPU worker, not in a CPU-only unit test.
     assert DistributedProcessExecutor(spec).spec == spec
 
 
