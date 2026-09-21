@@ -2,7 +2,7 @@
 
 This module never treats driver metadata or CUDA availability as proof of
 execution. The verification path performs a real CUDA tensor operation on every
-visible GPU and records the result for the caller.
+visible GPU and binds the runtime devices back to the physical GPU observation.
 """
 from __future__ import annotations
 
@@ -32,27 +32,50 @@ def validate_cuda_runtime(
     return True
 
 
+def _torch_device_uuid(torch, index: int) -> str:
+    value = getattr(torch.cuda.get_device_properties(index), "uuid", None)
+    if value is None:
+        raise RuntimeError(f"PyTorch did not expose a UUID for CUDA device {index}")
+    return str(value)
+
+
 def verify_cuda_runtime(*, output_path: str | Path) -> dict:
     try:
         import torch
     except ImportError as exc:
         raise RuntimeError("PyTorch is required for real CUDA runtime verification") from exc
 
+    if not bool(torch.cuda.is_available()):
+        raise RuntimeError("CUDA runtime is not available")
+
     observation = probe_nvidia_host("local-gpu-verifier")
     expected = observation.gpu_count
+    actual = int(torch.cuda.device_count())
+    validate_cuda_runtime(
+        cuda_available=True,
+        device_count=actual,
+        expected_device_count=expected,
+        tensor_result=3.0 if expected else 0.0,
+    )
+    if expected < 1:
+        raise RuntimeError("real CUDA verification requires at least one visible NVIDIA GPU")
+
+    observed_uuids = [gpu.uuid for gpu in observation.gpus]
+    runtime_uuids: list[str] = []
     results: list[float] = []
     for index in range(expected):
+        runtime_uuid = _torch_device_uuid(torch, index)
+        runtime_uuids.append(runtime_uuid)
         torch.cuda.set_device(index)
         value = torch.tensor([1.0], device=f"cuda:{index}") * 3.0
         torch.cuda.synchronize(index)
         results.append(float(value.item()))
 
-    validate_cuda_runtime(
-        cuda_available=bool(torch.cuda.is_available()),
-        device_count=int(torch.cuda.device_count()),
-        expected_device_count=expected,
-        tensor_result=results[0] if results else 0.0,
-    )
+    if runtime_uuids != observed_uuids:
+        raise RuntimeError(
+            "CUDA runtime device identity mismatch: "
+            f"observed {observed_uuids}, runtime {runtime_uuids}"
+        )
     if any(result != 3.0 for result in results):
         raise RuntimeError(f"CUDA verification returned inconsistent per-GPU results: {results}")
 
@@ -62,7 +85,8 @@ def verify_cuda_runtime(*, output_path: str | Path) -> dict:
         "torch_version": str(torch.__version__),
         "torch_cuda_version": str(torch.version.cuda),
         "device_count": expected,
-        "gpu_uuids": [gpu.uuid for gpu in observation.gpus],
+        "gpu_uuids": observed_uuids,
+        "runtime_gpu_uuids": runtime_uuids,
         "driver_version": observation.driver_version,
         "cuda_supported_version": observation.cuda_supported_version,
         "tensor_results": results,
