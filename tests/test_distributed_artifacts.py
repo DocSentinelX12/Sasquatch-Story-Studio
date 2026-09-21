@@ -11,9 +11,8 @@ def test_distributed_artifact_is_transferred_verified_and_committed(tmp_path: Pa
     source.write_bytes(b"0123456789" * 1000)
     plane = DataPlane(tmp_path / "transfer-state", chunk_size=97)
     reference = plane.reference_for(source)
-    plan = plane.plan(reference, source, "ignored-local-source", transfer_id="distributed-commit-1")
-
     destination = tmp_path / "materialized.bin"
+    plan = plane.plan(reference, source, destination, transfer_id="distributed-commit-1")
     plan = type(plan)(plan.transfer_id, plan.reference, "worker://worker-a/artifact", str(destination), plan.chunks)
     committer = ArtifactCommitter(
         ContentAddressedStore(tmp_path / "objects"),
