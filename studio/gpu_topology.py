@@ -7,6 +7,7 @@ not as an inferred fast path.
 from __future__ import annotations
 
 import hashlib
+import json
 import re
 from dataclasses import dataclass
 
@@ -36,6 +37,20 @@ class GpuTopologyEvidence:
         except ValueError:
             return None
         return self.gpu_matrix[i][j]
+
+def topology_digest(evidence: GpuTopologyEvidence) -> str:
+    """Return the canonical digest for structured GPU topology evidence."""
+    payload = {
+        "gpu_uuids": list(evidence.gpu_uuids),
+        "gpu_matrix": [list(row) for row in evidence.gpu_matrix],
+        "cpu_affinity": [list(item) for item in evidence.cpu_affinity],
+        "nic_paths": [list(item) for item in evidence.nic_paths],
+        "raw_text_sha256": evidence.raw_text_sha256,
+    }
+    return hashlib.sha256(
+        json.dumps(payload, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    ).hexdigest()
+
 
     def same_nvlink_domain(self, gpu_uuids: tuple[str, ...]) -> bool:
         if not gpu_uuids:
