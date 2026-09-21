@@ -180,3 +180,18 @@ def test_heartbeat_rejects_hardware_evidence_change_even_when_inventory_identity
         pass
     else:
         raise AssertionError("changed hardware evidence must be rejected even when physical inventory identity is unchanged")
+
+
+def test_control_plane_rejects_forged_gpu_capability_digest():
+    registry_value = registry()
+    authority = WorkerLifecycleAuthority({"worker-a": "enrollment-secret"})
+    control = WorkerControlPlane(registry_value, authority)
+    forged = payload(observation())
+    forged["gpu_capability_digest"] = "b" * 64
+
+    try:
+        control.register(forged, "enrollment-secret", now=10)
+    except PermissionError as exc:
+        assert "capability digest" in str(exc)
+    else:
+        raise AssertionError("forged GPU capability evidence must be rejected")
