@@ -238,8 +238,6 @@ def admit_gpu_workload(
         return GpuAdmissionDecision(False, (), "selected GPUs do not satisfy total VRAM")
 
     if requirements.require_nccl:
-        if capabilities.topology_evidence is None:
-            return GpuAdmissionDecision(False, (), "NCCL requires verified topology capability")
         if any(_freshness_failure(item.nccl, "NCCL", now, freshness.get("nccl")) for item in selected):
             return GpuAdmissionDecision(False, (), "NCCL capability is missing, failed, or stale")
         if capabilities.nccl_gpu_uuids != tuple(sorted(selected_uuids)):
