@@ -13,6 +13,21 @@ on:
         required: false
         default: ""
         type: string
+      gpu_direct_worker_pair:
+        description: "Worker IDs as worker-a,worker-b"
+        required: false
+        default: ""
+        type: string
+      gpu_direct_gpu_pair:
+        description: "GPU UUIDs as GPU-a,GPU-b"
+        required: false
+        default: ""
+        type: string
+      gpu_direct_interface:
+        description: "Verified network interface, for example ib0"
+        required: false
+        default: ""
+        type: string
 
 permissions:
   contents: read
@@ -39,7 +54,10 @@ jobs:
         if: ${{ inputs.gpu_direct_command != '' }}
         env:
           GPU_DIRECT_COMMAND: ${{ inputs.gpu_direct_command }}
-        run: python scripts/verify_gpu_direct.py --command "$GPU_DIRECT_COMMAND"
+          GPU_DIRECT_WORKER_PAIR: ${{ inputs.gpu_direct_worker_pair }}
+          GPU_DIRECT_GPU_PAIR: ${{ inputs.gpu_direct_gpu_pair }}
+          GPU_DIRECT_INTERFACE: ${{ inputs.gpu_direct_interface }}
+        run: python scripts/verify_gpu_direct.py --command "$GPU_DIRECT_COMMAND" --worker-pair "$GPU_DIRECT_WORKER_PAIR" --gpu-pair "$GPU_DIRECT_GPU_PAIR" --interface "$GPU_DIRECT_INTERFACE"
       - name: Publish physical verification evidence
         uses: actions/upload-artifact@v6
         with:
