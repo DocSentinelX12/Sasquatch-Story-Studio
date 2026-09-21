@@ -427,8 +427,6 @@ class DistributedGpuAllocator:
                     raise RuntimeError("fabric placement references an unknown worker") from exc
                 if registered.state not in self._ACTIVE or not registered.resource.healthy:
                     raise RuntimeError("fabric placement references a worker that is no longer active")
-                if registered.resource.state.value != "available":
-                    raise RuntimeError("fabric placement references a provider resource that is no longer available")
                 observation = registered.hardware_observation
                 if observation is None or observation.digest() != fabric_worker.hardware.digest():
                     raise RuntimeError("fabric placement hardware observation changed before reservation")
