@@ -3,6 +3,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, replace
 
+from .gpu_capabilities import GpuCapabilityName, derive_gpu_capabilities
 from .gpu_infrastructure import GpuHostObservation
 from .gpu_scheduler import select_gpus
 from .hardware_requirements import GpuPlacement, HardwareRequirements
@@ -36,6 +37,29 @@ class DistributedGpuScheduler:
         if any(not worker.network.rdma for worker in self.workers):
             raise RuntimeError("every participating worker must expose RDMA evidence")
 
+        capability_sets = {
+            worker.worker_id: derive_gpu_capabilities(
+                worker.hardware,
+                now=max(
+                    (
+                        gpu.telemetry.collected_at
+                        for gpu in worker.hardware.gpus
+                        if gpu.telemetry is not None
+                    ),
+                    default=0,
+                ),
+            )
+            for worker in self.workers
+        }
+        if any(
+            not all(
+                capability_sets[worker.worker_id].get(gpu.uuid).production_eligible
+                for gpu in worker.hardware.gpus
+            )
+            for worker in self.workers
+        ):
+            raise RuntimeError("every participating GPU must satisfy canonical capability admission")
+
         local_requirement = replace(
             requirements,
             placement=GpuPlacement.ANY,
@@ -50,7 +74,13 @@ class DistributedGpuScheduler:
         for worker in self.workers:
             if sum(len(gpus) for gpus in allocation.values()) >= requirements.min_gpu_count:
                 break
-            if requirements.require_nccl and worker.hardware.nccl_evidence is None:
+            if requirements.require_nccl and (
+                worker.hardware.nccl_evidence is None
+                or any(
+                    capability_sets[worker.worker_id].get(gpu.uuid).state(GpuCapabilityName.NCCL).value != "verified"
+                    for gpu in worker.hardware.gpus
+                )
+            ):
                 continue
             try:
                 selected = select_gpus(worker.hardware, local_requirement, used_gpu_uuids=set())
