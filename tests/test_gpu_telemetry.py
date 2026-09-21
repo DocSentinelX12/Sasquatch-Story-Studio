@@ -170,3 +170,61 @@ def test_telemetry_freshness_rejects_stale_evidence():
     )
     assert not telemetry.is_fresh(200, 50, ["temperature_c"])
     assert telemetry.is_fresh(120, 50, ["temperature_c"])
+
+def test_probe_falls_back_as_a_whole_when_nvml_cannot_supply_required_identity():
+    calls = []
+
+    class IncompleteNvml:
+        def nvmlInit(self):
+            calls.append("nvmlInit")
+
+        def nvmlDeviceGetCount(self):
+            return 1
+
+        def nvmlDeviceGetHandleByIndex(self, index):
+            return "handle"
+
+        def nvmlDeviceGetUUID(self, handle):
+            return "GPU-aaa"
+
+        def nvmlDeviceGetName(self, handle):
+            return "NVIDIA Test GPU"
+
+        def nvmlDeviceGetMemoryInfo(self, handle):
+            return types.SimpleNamespace(total=81920 * 1024**2, used=0)
+
+        def nvmlDeviceGetPciInfo(self, handle):
+            return types.SimpleNamespace(busId=b"00000000:17:00.0")
+
+        def nvmlDeviceGetCudaComputeCapability(self, handle):
+            return (10, 0)
+
+        def nvmlShutdown(self):
+            calls.append("nvmlShutdown")
+
+    outputs = {
+        ("nvidia-smi",): "NVIDIA-SMI 580.95.05 Driver Version: 580.95.05 CUDA Version: 13.0",
+        ("nvidia-smi", "--query-gpu=index,uuid,name,memory.total,memory.used,pci.bus_id,compute_cap", "--format=csv,noheader,nounits"):
+            "0, GPU-bbb, NVIDIA Test GPU, 81920, 1024, 00000000:17:00.0, 10.0",
+        ("nvidia-smi", "--query-gpu=index,temperature.gpu,power.draw,power.limit,utilization.gpu,utilization.memory,ecc.errors.uncorrected.aggregate,mig.mode.current,pcie.link.gen.current,pcie.link.width.current,pcie.tx_util,pcie.rx_util", "--format=csv,noheader,nounits"):
+            "0, 55, 250, 700, 17, 23, 0, Disabled, 4, 16, 100, 120",
+        ("nvidia-smi", "topo", "-m"): "GPU0 CPU Affinity NUMA Affinity\nGPU0 X 0-3 0",
+    }
+
+    monkeypatch = __import__("pytest").MonkeyPatch()
+    try:
+        monkeypatch.setattr(gpu_infrastructure.shutil, "which", lambda command: "/usr/bin/nvidia-smi" if command == "nvidia-smi" else None)
+        def runner(command):
+            class Result:
+                returncode = 0
+                stderr = ""
+            Result.stdout = outputs[tuple(command)]
+            return Result()
+        observation = gpu_infrastructure.probe_nvidia_host(
+            "worker-a", runner=runner, now=100, nvml_loader=lambda: IncompleteNvml()
+        )
+    finally:
+        monkeypatch.undo()
+    assert observation.collector_identity == "nvidia-smi"
+    assert observation.gpus[0].uuid == "GPU-bbb"
+    assert "nvmlInit" in calls
