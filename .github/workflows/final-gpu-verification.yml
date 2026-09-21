@@ -3,7 +3,7 @@ name: Final GPU Architecture Verification
 on:
   push:
     branches:
-      - gpu-capability-architecture
+      - elastic-multi-provider-compute-fabric-impl
 
 permissions:
   contents: read
