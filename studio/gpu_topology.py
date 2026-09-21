@@ -38,6 +38,19 @@ class GpuTopologyEvidence:
             return None
         return self.gpu_matrix[i][j]
 
+    def same_nvlink_domain(self, gpu_uuids: tuple[str, ...]) -> bool:
+        if not gpu_uuids:
+            return False
+        if any(uuid not in self.gpu_uuids for uuid in gpu_uuids):
+            return False
+        for i, left in enumerate(gpu_uuids):
+            for right in gpu_uuids[i + 1 :]:
+                relation = self.relationship(left, right)
+                if relation is None or not re.fullmatch(r"NV\d+", relation):
+                    return False
+        return True
+
+
 def topology_digest(evidence: GpuTopologyEvidence) -> str:
     """Return the canonical digest for structured GPU topology evidence."""
     payload = {
@@ -50,19 +63,6 @@ def topology_digest(evidence: GpuTopologyEvidence) -> str:
     return hashlib.sha256(
         json.dumps(payload, sort_keys=True, separators=(",", ":")).encode("utf-8")
     ).hexdigest()
-
-
-    def same_nvlink_domain(self, gpu_uuids: tuple[str, ...]) -> bool:
-        if not gpu_uuids:
-            return False
-        if any(uuid not in self.gpu_uuids for uuid in gpu_uuids):
-            return False
-        for i, left in enumerate(gpu_uuids):
-            for right in gpu_uuids[i + 1 :]:
-                relation = self.relationship(left, right)
-                if relation is None or not re.fullmatch(r"NV\d+", relation):
-                    return False
-        return True
 
 
 def parse_nvidia_smi_topology(output: str, gpu_uuids_by_index: dict[int, str]) -> GpuTopologyEvidence:
