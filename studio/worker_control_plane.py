@@ -11,7 +11,8 @@ import json
 from dataclasses import replace
 from typing import Any, Mapping
 
-from .gpu_infrastructure import GpuDeviceObservation, GpuHostObservation, classify_dcgm_health
+from .gpu_capabilities import CapabilityState, GpuVerificationContext, derive_gpu_capabilities
+from .gpu_infrastructure import GpuDeviceObservation, GpuHostObservation, GpuTelemetryObservation, TelemetryEvidence, TelemetryStatus, classify_dcgm_health
 from .gpu_topology import GpuTopologyEvidence
 from .nccl_evidence import NCCLTestEvidence
 from .remote_worker import WorkerAccess, WorkerLifecycleAuthority
@@ -66,7 +67,36 @@ class WorkerControlPlane:
             worker_id=str(raw["worker_id"]),
             driver_version=str(raw["driver_version"]),
             cuda_supported_version=str(raw["cuda_supported_version"]),
-            gpus=tuple(GpuDeviceObservation(**dict(item)) for item in gpus),
+            gpus=tuple(
+                GpuDeviceObservation(
+                    index=int(item["index"]),
+                    uuid=item["uuid"],
+                    name=item["name"],
+                    memory_total_mib=int(item["memory_total_mib"]),
+                    memory_used_mib=int(item["memory_used_mib"]),
+                    pci_bus_id=item["pci_bus_id"],
+                    compute_capability=item["compute_capability"],
+                    telemetry=GpuTelemetryObservation(
+                        **{
+                            field_name: TelemetryEvidence(
+                                status=TelemetryStatus(value[field_name]["status"]),
+                                value=value[field_name].get("value"),
+                                source=value[field_name]["source"],
+                                collected_at=int(value[field_name].get("collected_at", 0)),
+                                error=value[field_name].get("error"),
+                            )
+                            for field_name in (
+                                "temperature_c", "power_usage_w", "power_limit_w", "utilization_percent",
+                                "memory_utilization_percent", "ecc_errors", "mig_mode", "nvlink_state",
+                                "pcie_link_generation", "pcie_link_width", "pcie_tx_kb_s", "pcie_rx_kb_s",
+                                "xid_errors", "dcgm_health",
+                            )
+                        },
+                        collector_identity=item.get("telemetry", {}).get("collector_identity", "legacy_observation"),
+                    ) if item.get("telemetry") else GpuTelemetryObservation.unavailable(),
+                )
+                for item in gpus
+            ),
             topology_text=raw.get("topology_text"),
             dcgm_available=bool(raw["dcgm_available"]),
             dcgm_version=raw.get("dcgm_version"),
@@ -120,12 +150,12 @@ class WorkerControlPlane:
 
     @staticmethod
     def _state(observation: GpuHostObservation) -> WorkerState:
-        health = classify_dcgm_health(observation.health_json)
-        if health == "failure":
+        capabilities = derive_gpu_capabilities(observation, now=observation.observed_at)
+        if any(record.base.state is CapabilityState.FAILED for record in capabilities.records):
+            return WorkerState.UNVERIFIED
+        if any(record.health.state is CapabilityState.FAILED for record in capabilities.records):
             return WorkerState.TEMPORARILY_UNAVAILABLE
-        if health == "warning" or not observation.dcgm_available:
-            return WorkerState.VERIFIED_LIMITED
-        if health == "healthy":
+        if capabilities.records and all(record.base.state is CapabilityState.VERIFIED and record.cuda_runtime.state is CapabilityState.VERIFIED and record.health.state is CapabilityState.VERIFIED for record in capabilities.records):
             return WorkerState.VERIFIED_AVAILABLE
         return WorkerState.VERIFIED_LIMITED
 
@@ -133,6 +163,7 @@ class WorkerControlPlane:
         record = self.registry.get(worker_id)
         if observation.worker_id != worker_id:
             raise PermissionError("worker identity does not match registry identity")
+        capabilities = derive_gpu_capabilities(observation, now=now)
         state = self._state(observation)
         resource = replace(
             record.resource,
@@ -149,6 +180,7 @@ class WorkerControlPlane:
             observation_source="authenticated_gpu_worker_agent",
             quota_note="" if state != WorkerState.TEMPORARILY_UNAVAILABLE else "DCGM health failure",
             hardware_observation=observation,
+            gpu_capabilities=capabilities,
         )
         self.registry.update(updated)
         return updated
