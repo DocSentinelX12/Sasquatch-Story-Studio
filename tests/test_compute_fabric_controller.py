@@ -88,7 +88,6 @@ def test_fabric_controller_keeps_failed_resources_out_of_available_capacity() ->
 
     assert snapshot.available == 0
     assert snapshot.failed == (("provider-a", "resource-a", "resource is not acquired"),)
-\n
 def test_fabric_controller_can_close_the_loop_from_acquisition_to_verified_capacity() -> None:
     from studio.compute_capacity_controller import ComputeCapacityController
     from studio.compute_fabric_controller import ComputeFabricController
