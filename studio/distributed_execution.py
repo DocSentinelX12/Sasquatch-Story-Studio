@@ -15,6 +15,7 @@ from dataclasses import dataclass
 from typing import Any, Mapping, Protocol
 
 from .distributed_gpu import DistributedGpuAllocation
+from .gpu_capabilities import CapabilityState
 from .remote_worker import DistributedWorkerLease, WorkerAccess
 
 
@@ -289,6 +290,21 @@ class DistributedExecutionCoordinator:
             raise ValueError("distributed executors must cover every allocation worker exactly")
         if tuple(sorted(self.lease_issuers)) != allocation.worker_ids:
             raise ValueError("distributed lease issuers must cover every allocation worker exactly")
+        registry = getattr(self.allocator, "registry", None)
+        if registry is None:
+            raise RuntimeError("distributed execution requires the authoritative worker registry")
+        for worker_id, gpu_uuids in allocation.gpus_by_worker:
+            worker = registry.get(worker_id)
+            capabilities = worker.gpu_capabilities
+            if capabilities is None:
+                raise RuntimeError(f"worker {worker_id} has no canonical GPU capability record")
+            by_uuid = {record.gpu_uuid: record for record in capabilities.records}
+            for gpu_uuid in gpu_uuids:
+                record = by_uuid.get(gpu_uuid)
+                if record is None:
+                    raise RuntimeError(f"worker {worker_id} lacks capability evidence for GPU {gpu_uuid}")
+                if record.base.state is not CapabilityState.VERIFIED or record.cuda_runtime.state is not CapabilityState.VERIFIED:
+                    raise RuntimeError(f"GPU {gpu_uuid} on worker {worker_id} is not production-eligible")
 
         leases = {}
         for worker_id in allocation.worker_ids:
