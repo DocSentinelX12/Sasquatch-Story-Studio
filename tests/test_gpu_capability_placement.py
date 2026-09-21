@@ -188,3 +188,30 @@ def test_distributed_scheduler_preserves_distinct_worker_mapping_through_capabil
     )
     assert allocation.world_size == 2
     assert tuple(worker for worker, _ in allocation.gpus_by_worker) == ("worker-a", "worker-b")
+
+
+
+def test_gpu_aware_scheduler_uses_scheduler_lease_state_across_instances():
+    observation = host_with_topology()
+    resource = ComputeResource(
+        "resource-a",
+        16,
+        64 * 1024**3,
+        gpu_count=3,
+        vram_bytes=240 * 1024**3,
+        logical_slots=3,
+    )
+    registry = WorkerRegistry((
+        WorkerRecord("worker-a", resource, WorkerState.VERIFIED_AVAILABLE, hardware_observation=observation),
+    ))
+    scheduler = Scheduler((
+        Job("job-a", JobRequirements(slots=1, hardware=HardwareRequirements(min_gpu_count=1))),
+        Job("job-b", JobRequirements(slots=1, hardware=HardwareRequirements(min_gpu_count=1))),
+    ))
+    first = GpuAwareScheduler(scheduler, registry)
+    second = GpuAwareScheduler(scheduler, registry)
+
+    assert first.choose_on_worker("worker-a", now=NOW) is not None
+    assert second.choose_on_worker("worker-a", now=NOW) is not None
+    leased = scheduler.snapshot()
+    assert {job.allocated_gpu_uuids for job in leased if job.state.value == "leased"} == {("GPU-0",), ("GPU-1",)}
