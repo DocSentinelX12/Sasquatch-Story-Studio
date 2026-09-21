@@ -49,8 +49,7 @@ def is_transient_huggingface_error(exc: Exception) -> bool:
     # huggingface_hub uses httpx for its network transport. Keep the dependency
     # import local so this script remains importable before installation.
     try:
-        import httpx
-        from huggingface_hub.utils import HfHubHTTPError
+        from huggingface_hub.utils import HfHubHTTPError, httpx
     except ImportError:
         return False
     if isinstance(exc, httpx.RequestError):
