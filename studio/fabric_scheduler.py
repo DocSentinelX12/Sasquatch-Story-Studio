@@ -174,7 +174,7 @@ class FabricScheduler:
 
         if best is None:
             if (requirements.require_nccl or requirements.require_gpu_direct_network) and self.topology_registry is None:
-                if requirements.require_nccl and len({worker.provider_id for worker in eligible}) > 1:
+                if requirements.require_nccl and len({worker[0].provider_id for worker in eligible}) > 1:
                     raise RuntimeError("cross-provider distributed NCCL evidence is required before cross-provider allocation")
                 raise RuntimeError("verified fabric communication evidence is required before distributed allocation")
             if requirements.require_nccl or requirements.require_gpu_direct_network:
