@@ -90,7 +90,15 @@ class ComputeBroker:
                 placements[worker.id] = gpu_uuids
             else:
                 rejected.append((worker.id, reason))
-        selected = min(eligible) if eligible else None
+        ordered = sorted(
+            eligible,
+            key=lambda worker_id: self._placement_key(
+                task,
+                self.registry.get(worker_id),
+                placements[worker_id],
+            ),
+        )
+        selected = ordered[0] if ordered else None
         return BrokerDecision(
             task.id,
             tuple(eligible),
@@ -98,6 +106,36 @@ class ComputeBroker:
             selected,
             "eligible worker selected" if selected else "no verified eligible worker",
             placements.get(selected, ()) if selected else (),
+        )
+
+    @staticmethod
+    def _placement_key(
+        task: ProductionTask,
+        worker: WorkerRecord,
+        gpu_uuids: tuple[str, ...],
+    ) -> tuple[int, int, int, int, int, str]:
+        """Prefer the smallest verified worker that can satisfy the task.
+
+        Best-fit placement preserves larger workers for workloads that actually
+        need them. The worker ID remains the final deterministic tie-breaker.
+        """
+        req = task.requirements
+        resource = worker.resource
+
+        def normalized_excess(capacity: int, required: int) -> int:
+            if required <= 0:
+                return 0
+            return max(capacity - required, 0) * 1_000_000 // required
+
+        hardware_gpu_count = req.hardware.min_gpu_count if req.hardware is not None else 0
+        return (
+            normalized_excess(resource.logical_slots, req.slots),
+            normalized_excess(resource.memory_bytes, req.memory_bytes),
+            normalized_excess(resource.vram_bytes, req.vram_bytes),
+            normalized_excess(resource.scratch_bytes, req.scratch_bytes),
+            normalized_excess(resource.power_budget_watts or 0, req.power_watts),
+            max(resource.gpu_count - hardware_gpu_count, 0),
+            worker.id,
         )
 
     def reserve_distributed(
@@ -138,20 +176,67 @@ class ComputeBroker:
         decision = self.select_worker(task)
         if decision.selected_worker is None:
             return decision, None
-        worker = self.registry.get(decision.selected_worker)
-        power_budget = worker.resource.power_budget_watts or 0
-        job = self.scheduler.choose_on_worker(
-            worker.id,
-            worker.resource,
-            power_budget,
-            now,
-            lease_seconds,
-            job_id=task.id,
-            gpu_uuids=decision.selected_gpu_uuids,
+        ordered_workers = sorted(
+            decision.eligible_workers,
+            key=lambda worker_id: self._placement_key(
+                task,
+                self.registry.get(worker_id),
+                next(
+                    (
+                        gpu_uuids
+                        for candidate_id, gpu_uuids in ((
+                            worker_id,
+                            decision.selected_gpu_uuids,
+                        ),)
+                        if candidate_id == worker_id
+                    ),
+                    (),
+                ),
+            ),
         )
-        if job is None:
-            return BrokerDecision(task.id, decision.eligible_workers, decision.rejected_workers, None, "requested task is not currently leaseable", decision.selected_gpu_uuids), None
-        return decision, job
+        # Re-evaluate placement for every eligible worker so fallback uses the
+        # exact GPU identities that were admitted for that worker.
+        placements = {}
+        for worker_id in decision.eligible_workers:
+            ok, reason, gpu_uuids = self._fits(task, self.registry.get(worker_id), self.verified_engines)
+            if ok:
+                placements[worker_id] = gpu_uuids
+
+        for worker_id in sorted(
+            placements,
+            key=lambda candidate_id: self._placement_key(
+                task,
+                self.registry.get(candidate_id),
+                placements[candidate_id],
+            ),
+        ):
+            worker = self.registry.get(worker_id)
+            job = self.scheduler.choose_on_worker(
+                worker.id,
+                worker.resource,
+                worker.resource.power_budget_watts or 0,
+                now,
+                lease_seconds,
+                job_id=task.id,
+                gpu_uuids=placements[worker_id],
+            )
+            if job is not None:
+                return BrokerDecision(
+                    task.id,
+                    decision.eligible_workers,
+                    decision.rejected_workers,
+                    worker.id,
+                    "eligible worker selected",
+                    placements[worker.id],
+                ), job
+        return BrokerDecision(
+            task.id,
+            decision.eligible_workers,
+            decision.rejected_workers,
+            None,
+            "eligible workers are not currently leaseable",
+            (),
+        ), None
 
     def release_or_requeue(self, job_id: str, now: int) -> bool:
         return job_id in self.scheduler.recover_expired(now)
