@@ -1,0 +1,15 @@
+name: Elastic Capacity TDD
+on:
+  workflow_dispatch:
+jobs:
+  focused:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: elastic-multi-provider-compute-fabric-impl
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install -e .
+      - run: pytest -q tests/test_compute_fabric_controller.py::test_fabric_controller_can_close_the_loop_from_acquisition_to_verified_capacity
