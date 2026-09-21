@@ -7,7 +7,7 @@ from dataclasses import asdict, dataclass
 from enum import StrEnum
 from pathlib import Path
 
-from .gpu_infrastructure import GpuDeviceObservation, GpuHostObservation
+from .gpu_infrastructure import GpuDeviceObservation, GpuHostObservation, GpuTelemetryEvidence, TelemetryValue
 from .gpu_topology import GpuTopologyEvidence
 from .nccl_evidence import NCCLTestEvidence
 from .resources import ComputeResource
@@ -100,6 +100,46 @@ def _serialize_observation(observation: GpuHostObservation | None) -> dict | Non
     return payload
 
 
+def _deserialize_telemetry(payload: dict | None) -> GpuTelemetryEvidence | None:
+    if payload is None:
+        return None
+    fields_payload = payload.get("fields", [])
+    if isinstance(fields_payload, dict):
+        fields = tuple(
+            (
+                name,
+                TelemetryValue(
+                    status=value["status"],
+                    value=value.get("value"),
+                    source=value["source"],
+                    observed_at=int(value["observed_at"]),
+                    detail=value.get("detail", ""),
+                ),
+            )
+            for name, value in fields_payload.items()
+        )
+    else:
+        fields = tuple(
+            (
+                name,
+                TelemetryValue(
+                    status=value["status"],
+                    value=value.get("value"),
+                    source=value["source"],
+                    observed_at=int(value["observed_at"]),
+                    detail=value.get("detail", ""),
+                ),
+            )
+            for name, value in fields_payload
+        )
+    return GpuTelemetryEvidence(
+        source=str(payload["source"]),
+        collected_at=int(payload["collected_at"]),
+        collector=str(payload["collector"]),
+        fields=fields,
+    )
+
+
 def _deserialize_observation(payload: dict | None) -> GpuHostObservation | None:
     if payload is None:
         return None
@@ -129,7 +169,13 @@ def _deserialize_observation(payload: dict | None) -> GpuHostObservation | None:
         worker_id=payload["worker_id"],
         driver_version=payload["driver_version"],
         cuda_supported_version=payload["cuda_supported_version"],
-        gpus=tuple(GpuDeviceObservation(**item) for item in payload["gpus"]),
+        gpus=tuple(
+            GpuDeviceObservation(
+                **{key: value for key, value in item.items() if key != "telemetry"},
+                telemetry=_deserialize_telemetry(item.get("telemetry")),
+            )
+            for item in payload["gpus"]
+        ),
         topology_text=payload.get("topology_text"),
         dcgm_available=payload["dcgm_available"],
         dcgm_version=payload.get("dcgm_version"),
