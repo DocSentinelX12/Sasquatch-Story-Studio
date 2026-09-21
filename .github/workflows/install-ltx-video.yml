@@ -14,18 +14,32 @@ jobs:
     if: ${{ github.event.workflow_run.conclusion == 'success' }}
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           ref: ${{ github.event.workflow_run.head_sha }}
-      - uses: actions/setup-python@v5
+      - name: Verify triggering commit
+        env:
+          EXPECTED_SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          actual_sha="$(git rev-parse HEAD)"
+          if [ "$actual_sha" != "$EXPECTED_SHA" ]; then
+            echo "Triggering commit mismatch: expected $EXPECTED_SHA, checked out $actual_sha"
+            exit 1
+          fi
+      - uses: actions/setup-python@v6
         with:
           python-version: "3.11"
       - name: Install and verify source integration
         run: python scripts/install_ltx_video.py
       - name: Run targeted LTX-Video contract tests
-        run: python -m pip install pytest && python -m pytest -q tests/test_ltx_video_runtime.py tests/test_engine_adapters.py
+        run: |
+          python -m pip install --upgrade pip pytest
+          python -m pip install -e .
+          python -m pip check
+          python -m pytest -q tests/test_ltx_video_runtime.py tests/test_engine_adapters.py
       - name: Upload installation evidence
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: ltx-video-installation-evidence
           path: engine-installations/ltx-video/installation-evidence.json
+          if-no-files-found: error
