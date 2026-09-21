@@ -1,0 +1,246 @@
+"""Canonical, evidence-backed GPU capability state and workload admission."""
+from __future__ import annotations
+
+from dataclasses import dataclass
+from enum import StrEnum
+from typing import Mapping
+
+from .gpu_infrastructure import GpuHostObservation, TelemetryStatus
+from .gpu_topology import GpuTopologyEvidence
+from .hardware_requirements import GpuPlacement, HardwareRequirements, compute_capability_at_least
+from .nccl_evidence import validate_nccl_evidence
+from .network_evidence import NetworkFabricObservation
+
+
+class CapabilityState(StrEnum):
+    OBSERVED = "observed"
+    VERIFIED = "verified"
+    DEGRADED = "degraded"
+    STALE = "stale"
+    FAILED = "failed"
+    UNSUPPORTED = "unsupported"
+
+
+@dataclass(frozen=True)
+class CapabilityEvidence:
+    state: CapabilityState
+    reason: str
+    evidence_digest: str | None
+    verified_at: int | None
+    fresh_until: int | None
+
+    def is_admissible(self, now: int, freshness_seconds: int | None = None) -> bool:
+        if self.state is not CapabilityState.VERIFIED:
+            return False
+        if freshness_seconds is not None:
+            if self.verified_at is None or now - self.verified_at < 0 or now - self.verified_at > freshness_seconds:
+                return False
+        elif self.fresh_until is not None and now > self.fresh_until:
+            return False
+        return True
+
+
+@dataclass(frozen=True)
+class GpuCapabilityRecord:
+    worker_id: str
+    gpu_uuid: str
+    model: str
+    memory_total_mib: int
+    compute_capability: str
+    base: CapabilityEvidence
+    cuda_runtime: CapabilityEvidence
+    health: CapabilityEvidence
+    topology: CapabilityEvidence
+    nccl: CapabilityEvidence
+    gpu_direct: CapabilityEvidence
+    observation_digest: str
+    observed_at: int
+
+    def __post_init__(self) -> None:
+        if not self.worker_id.strip() or not self.gpu_uuid.strip() or not self.model.strip():
+            raise ValueError("GPU capability identity is required")
+        if self.memory_total_mib < 0:
+            raise ValueError("GPU memory cannot be negative")
+        if len(self.observation_digest) != 64 or any(c not in "0123456789abcdef" for c in self.observation_digest.lower()):
+            raise ValueError("observation_digest must be SHA-256")
+        if self.observed_at < 0:
+            raise ValueError("observed_at cannot be negative")
+
+
+@dataclass(frozen=True)
+class GpuVerificationContext:
+    network: NetworkFabricObservation | None = None
+    engine_verified: bool = False
+    engine_id: str | None = None
+
+
+@dataclass(frozen=True)
+class GpuCapabilitySet:
+    records: tuple[GpuCapabilityRecord, ...]
+    topology_evidence: GpuTopologyEvidence | None
+    network_evidence: NetworkFabricObservation | None
+    observation_digest: str
+    observed_at: int
+
+    def __post_init__(self) -> None:
+        uuids = tuple(record.gpu_uuid for record in self.records)
+        if len(set(uuids)) != len(uuids):
+            raise ValueError("GPU capability UUIDs must be unique")
+
+
+@dataclass(frozen=True)
+class GpuAdmissionDecision:
+    eligible: bool
+    gpu_uuids: tuple[str, ...]
+    reason: str
+
+
+def _evidence(state: CapabilityState, reason: str, digest: str | None, verified_at: int | None, freshness_seconds: int | None) -> CapabilityEvidence:
+    fresh_until = None if verified_at is None or freshness_seconds is None else verified_at + freshness_seconds
+    return CapabilityEvidence(state, reason, digest, verified_at, fresh_until)
+
+
+def _digest(value: str | None) -> str | None:
+    return value if value else None
+
+
+def derive_gpu_capabilities(
+    observation: GpuHostObservation,
+    now: int,
+    verification_context: GpuVerificationContext | None = None,
+) -> GpuCapabilitySet:
+    if now < 0:
+        raise ValueError("now cannot be negative")
+    context = verification_context or GpuVerificationContext()
+    records: list[GpuCapabilityRecord] = []
+    for gpu in observation.gpus:
+        base_ok = bool(gpu.uuid.strip() and gpu.name.strip() and gpu.memory_total_mib > 0)
+        try:
+            compute_ok = bool(gpu.compute_capability.strip())
+            compute_capability_at_least(gpu.compute_capability, gpu.compute_capability)
+        except ValueError:
+            compute_ok = False
+        base_state = CapabilityState.VERIFIED if base_ok and compute_ok else CapabilityState.FAILED
+        cuda_state = CapabilityState.VERIFIED if observation.cuda_supported_version.strip() and observation.driver_version.strip() else CapabilityState.FAILED
+
+        health_evidence = gpu.telemetry.dcgm_health
+        if health_evidence.status is TelemetryStatus.OBSERVED and health_evidence.value == "healthy":
+            health = _evidence(CapabilityState.VERIFIED, "DCGM reported healthy", observation.digest(), observation.observed_at, None)
+        elif health_evidence.status is TelemetryStatus.OBSERVED and health_evidence.value == "warning":
+            health = _evidence(CapabilityState.DEGRADED, "DCGM reported warning", observation.digest(), observation.observed_at, None)
+        elif health_evidence.status is TelemetryStatus.OBSERVED and health_evidence.value == "failure":
+            health = _evidence(CapabilityState.FAILED, "DCGM reported failure", observation.digest(), observation.observed_at, None)
+        else:
+            health = _evidence(CapabilityState.OBSERVED, "health evidence is not verified", None, None, None)
+
+        if observation.topology_evidence is not None and gpu.uuid in observation.topology_evidence.gpu_uuids:
+            topology = _evidence(CapabilityState.VERIFIED, "observed NVIDIA topology evidence covers GPU", observation.topology_evidence.raw_text_sha256, observation.observed_at, None)
+        else:
+            topology = _evidence(CapabilityState.UNSUPPORTED, "verified topology evidence is unavailable", None, None, None)
+
+        if observation.nccl_evidence is not None and gpu.uuid in observation.nccl_evidence.gpu_uuids:
+            try:
+                validate_nccl_evidence(observation.nccl_evidence)
+            except (ValueError, RuntimeError):
+                nccl = _evidence(CapabilityState.FAILED, "NCCL evidence is invalid", None, None, None)
+            else:
+                nccl = _evidence(CapabilityState.VERIFIED, "validated NCCL evidence covers GPU", observation.nccl_evidence.output_sha256, observation.observed_at, None)
+        else:
+            nccl = _evidence(CapabilityState.OBSERVED, "NCCL evidence does not cover GPU", None, None, None)
+
+        if context.network is not None and context.network.gpu_direct_rdma:
+            gpu_direct = _evidence(CapabilityState.VERIFIED, "explicit GPU-direct RDMA evidence is present", None, observation.observed_at, None)
+        else:
+            gpu_direct = _evidence(CapabilityState.OBSERVED, "GPU-direct evidence is not verified", None, None, None)
+
+        records.append(
+            GpuCapabilityRecord(
+                worker_id=observation.worker_id,
+                gpu_uuid=gpu.uuid,
+                model=gpu.name,
+                memory_total_mib=gpu.memory_total_mib,
+                compute_capability=gpu.compute_capability,
+                base=_evidence(base_state, "physical GPU identity and inventory observed" if base_state is CapabilityState.VERIFIED else "GPU base inventory is invalid", observation.digest(), observation.observed_at, None),
+                cuda_runtime=_evidence(cuda_state, "driver and CUDA versions observed" if cuda_state is CapabilityState.VERIFIED else "CUDA runtime evidence is incomplete", observation.digest(), observation.observed_at, None),
+                health=health,
+                topology=topology,
+                nccl=nccl,
+                gpu_direct=gpu_direct,
+                observation_digest=observation.digest(),
+                observed_at=observation.observed_at,
+            )
+        )
+    return GpuCapabilitySet(tuple(records), observation.topology_evidence, context.network, observation.digest(), observation.observed_at)
+
+
+def _freshness_failure(evidence: CapabilityEvidence, name: str, now: int, freshness_seconds: int | None) -> str | None:
+    if evidence.state is not CapabilityState.VERIFIED:
+        return f"{name} capability is {evidence.state.value}"
+    if not evidence.is_admissible(now, freshness_seconds):
+        return f"{name} capability is stale"
+    return None
+
+
+def admit_gpu_workload(
+    requirements: HardwareRequirements,
+    capabilities: GpuCapabilitySet,
+    now: int,
+    *,
+    freshness_seconds: Mapping[str, int] | None = None,
+) -> GpuAdmissionDecision:
+    freshness = freshness_seconds or {}
+    candidates: list[GpuCapabilityRecord] = []
+    for record in capabilities.records:
+        if record.memory_total_mib * 1024**2 < requirements.min_vram_per_gpu_bytes:
+            continue
+        try:
+            if requirements.min_compute_capability is not None and not compute_capability_at_least(record.compute_capability, requirements.min_compute_capability):
+                continue
+        except ValueError:
+            continue
+        if requirements.required_gpu_models and record.model not in requirements.required_gpu_models:
+            continue
+        for name in ("base", "cuda_runtime"):
+            failure = _freshness_failure(getattr(record, name), name, now, freshness.get(name))
+            if failure:
+                break
+        else:
+            candidates.append(record)
+    if len(candidates) < requirements.min_gpu_count:
+        return GpuAdmissionDecision(False, (), "no sufficient set of GPUs satisfies the canonical base capability contract")
+
+    if requirements.placement is GpuPlacement.SAME_NVLINK_DOMAIN:
+        if capabilities.topology_evidence is None:
+            return GpuAdmissionDecision(False, (), "topology capability is unavailable")
+        selected = None
+        from itertools import combinations
+        for group in combinations(candidates, requirements.min_gpu_count):
+            uuids = tuple(item.gpu_uuid for item in group)
+            if capabilities.topology_evidence.same_nvlink_domain(uuids):
+                selected = group
+                break
+        if selected is None:
+            return GpuAdmissionDecision(False, (), "topology capability cannot satisfy the requested NVLink domain")
+    else:
+        selected = tuple(candidates[: requirements.min_gpu_count])
+
+    selected_uuids = tuple(item.gpu_uuid for item in selected)
+    total_vram = sum(item.memory_total_mib * 1024**2 for item in selected)
+    if total_vram < requirements.min_total_vram_bytes:
+        return GpuAdmissionDecision(False, (), "selected GPUs do not satisfy total VRAM")
+
+    if requirements.require_nccl:
+        if capabilities.topology_evidence is None:
+            return GpuAdmissionDecision(False, (), "NCCL requires verified topology capability")
+        if any(_freshness_failure(item.health, "health", now, freshness.get("health")) for item in selected):
+            return GpuAdmissionDecision(False, (), "NCCL admission requires fresh verified health capability")
+        if any(_freshness_failure(item.nccl, "NCCL", now, freshness.get("nccl")) for item in selected):
+            return GpuAdmissionDecision(False, (), "NCCL capability is missing, failed, or stale")
+        if tuple(sorted(selected_uuids)) != tuple(sorted(uuid for uuid in capabilities.records[0:0])) and False:
+            pass
+
+    if requirements.require_gpu_direct_network:
+        if capabilities.network_evidence is None or not capabilities.network_evidence.gpu_direct_rdma:
+            return GpuAdmissionDecision(False, (), "GPU-direct capability is unavailable")
+
+    return GpuAdmissionDecision(True, selected_uuids, "eligible")
