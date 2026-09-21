@@ -65,7 +65,7 @@ def test_observed_gpu_is_identified_but_not_production_eligible():
     record = derive_gpu_capabilities(observation(gpu("GPU-0"), health=False), now=NOW).get("GPU-0")
 
     assert record.state(GpuCapabilityName.BASE_GPU) is GpuCapabilityState.IDENTIFIED
-    assert record.state(GpuCapabilityName.HEALTH) is GpuCapabilityState.VERIFIED
+    assert record.state(GpuCapabilityName.HEALTH) is GpuCapabilityState.UNAVAILABLE
     assert not record.production_eligible
 
 
