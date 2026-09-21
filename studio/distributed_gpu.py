@@ -358,7 +358,7 @@ class DistributedGpuAllocator:
                             if requirements.require_nccl:
                                 break
                         else:
-                            topology_digests.append((worker_id, observation.topology_evidence.raw_text_sha256))
+                            topology_digests.append((worker_id, topology_digest(observation.topology_evidence)))
                         if requirements.require_nccl:
                             if observation.nccl_evidence is None:
                                 break
