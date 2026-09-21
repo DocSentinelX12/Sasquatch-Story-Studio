@@ -127,3 +127,17 @@ def test_gpu_direct_requirement_requires_explicit_network_evidence():
     )
     assert not decision.eligible
     assert "GPU-direct" in decision.reason
+
+
+def test_engine_runtime_capability_requires_explicit_engine_evidence():
+    capabilities = derive_gpu_capabilities(
+        _host(),
+        now=100,
+        verification_context=GpuVerificationContext(
+            engine_verified=True,
+            engine_id="wan2.2",
+            engine_evidence_digest="d" * 64,
+        ),
+    )
+    assert capabilities.records[0].engine_runtime.state is CapabilityState.VERIFIED
+    assert capabilities.records[0].engine_runtime.evidence_digest == "d" * 64
