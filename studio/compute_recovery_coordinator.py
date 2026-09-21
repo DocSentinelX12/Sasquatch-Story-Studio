@@ -44,7 +44,7 @@ class ComputeRecoveryCoordinator:
             worker
             for worker in self.workers
             if worker.hardware.worker_id not in failed_worker_ids
-            and worker.hardware.worker_id not in allocation.worker_ids
+           
         )
         if len(candidates) < 2:
             raise RuntimeError("no replacement worker group is available")
