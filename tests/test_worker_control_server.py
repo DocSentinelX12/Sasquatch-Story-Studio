@@ -157,3 +157,43 @@ def test_artifact_chunk_rejects_other_worker_token(tmp_path):
             f"/v1/worker/artifacts/worker-b/{digest}/chunks/0?offset=0&size=7",
             f"Bearer {access.access_token}",
         )
+
+
+def test_artifact_chunk_rejects_oversized_requested_range(tmp_path):
+    service, _, authority = server()
+    source = tmp_path / "artifact.bin"
+    source.write_bytes(b"x" * (4 * 1024 * 1024 + 1))
+    access = authority.register("worker-a", "enrollment-secret", now=10)
+    digest = __import__("hashlib").sha256(source.read_bytes()).hexdigest()
+    service._artifact_provider = lambda worker_id, requested_digest: source
+
+    with pytest.raises(ValueError, match="artifact chunk range"):
+        service.get_artifact_chunk(
+            f"/v1/worker/artifacts/worker-a/{digest}/chunks/0?offset=0&size={4 * 1024 * 1024 + 1}",
+            f"Bearer {access.access_token}",
+        )
+
+
+def test_http_handler_returns_binary_artifact_response(tmp_path):
+    from studio.worker_control_server import WorkerControlHTTPHandler
+
+    service, _, authority = server()
+    source = tmp_path / "artifact.bin"
+    source.write_bytes(b"binary-payload")
+    access = authority.register("worker-a", "enrollment-secret", now=10)
+    digest = __import__("hashlib").sha256(source.read_bytes()).hexdigest()
+    service._artifact_provider = lambda worker_id, requested_digest: source
+    handler = WorkerControlHTTPHandler()
+    handler.service = service
+    handler.clock = lambda: 10
+
+    response = handler.handle(
+        "GET",
+        f"/v1/worker/artifacts/worker-a/{digest}/chunks/0?offset=0&size=14",
+        b"",
+        f"Bearer {access.access_token}",
+    )
+
+    assert response.status == 200
+    assert response.content_type == "application/octet-stream"
+    assert response.body == b"binary-payload"
