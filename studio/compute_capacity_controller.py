@@ -32,10 +32,10 @@ class ComputeCapacityController:
             minimum_nodes=self.target_nodes,
             now=now,
         )
-        return self.snapshot(resources)
+        return self.snapshot(resources, target_nodes=self.target_nodes)
 
     @staticmethod
-    def snapshot(resources: tuple[ProviderResource, ...]) -> CapacitySnapshot:
+    def snapshot(resources: tuple[ProviderResource, ...], *, target_nodes: int = MINIMUM_VERIFIED_NODES) -> CapacitySnapshot:
         verified = sum(
             1
             for resource in resources
@@ -44,7 +44,7 @@ class ComputeCapacityController:
             and resource.capability_digest
         )
         return CapacitySnapshot(
-            target_nodes=ComputeCapacityController.MINIMUM_VERIFIED_NODES,
+            target_nodes=target_nodes,
             acquired_nodes=len(resources),
             verified_nodes=verified,
         )
