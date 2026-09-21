@@ -1,16 +1,6 @@
 name: GPU Compute Fabric Verification
 
 on:
-  push:
-    branches: [elastic-multi-provider-compute-fabric-impl]
-    paths:
-      - "studio/**"
-      - "tests/**"
-      - "scripts/verify_gpu_runtime.py"
-      - "scripts/verify_nccl_runtime.py"
-      - "scripts/verify_gpu_direct.py"
-      - "pyproject.toml"
-      - ".github/workflows/gpu-runtime-verification.yml"
   workflow_run:
     workflows: ["Install All Studio Engines"]
     types: [completed]
