@@ -15,13 +15,14 @@ import shutil
 import subprocess
 import time
 from dataclasses import asdict, dataclass
+from enum import StrEnum
 from typing import Callable, Sequence
 
 from .gpu_topology import GpuTopologyEvidence, parse_nvidia_smi_topology
 from .nccl_evidence import NCCLTestEvidence
 
 
-class GpuTelemetryStatus(str):
+class GpuTelemetryStatus(StrEnum):
     OBSERVED = "observed"
     UNSUPPORTED = "unsupported"
     UNAVAILABLE = "unavailable"
