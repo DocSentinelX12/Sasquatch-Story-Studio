@@ -25,6 +25,7 @@ class GpuCapabilityName(StrEnum):
 class GpuCapabilityState(StrEnum):
     IDENTIFIED = "identified"
     VERIFIED = "verified"
+    DEGRADED = "degraded"
     PRODUCTION_ELIGIBLE = "production_eligible"
     STALE = "stale"
     FAILED = "failed"
@@ -165,7 +166,7 @@ def derive_gpu_capabilities(
     observed_at = _observation_timestamp(observation)
     health_state = {
         "healthy": GpuCapabilityState.VERIFIED,
-        "warning": GpuCapabilityState.FAILED,
+        "warning": GpuCapabilityState.DEGRADED,
         "failure": GpuCapabilityState.FAILED,
         "unknown": GpuCapabilityState.UNAVAILABLE,
     }[classify_dcgm_health(observation.health_json)]
