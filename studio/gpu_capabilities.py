@@ -102,6 +102,17 @@ class GpuCapabilitySet:
                     "name": record.name,
                     "compute_capability": record.compute_capability,
                     "capabilities": [asdict(capability) for capability in record.capabilities],
+                    "topology_evidence": (
+                        None
+                        if record.topology_evidence is None
+                        else {
+                            "gpu_uuids": list(record.topology_evidence.gpu_uuids),
+                            "gpu_matrix": [list(row) for row in record.topology_evidence.gpu_matrix],
+                            "cpu_affinity": [list(item) for item in record.topology_evidence.cpu_affinity],
+                            "nic_paths": [list(item) for item in record.topology_evidence.nic_paths],
+                            "raw_text_sha256": record.topology_evidence.raw_text_sha256,
+                        }
+                    ),
                     "nccl_gpu_sets": [list(group) for group in record.nccl_gpu_sets],
                     "gpu_direct_gpu_sets": [list(group) for group in record.gpu_direct_gpu_sets],
                 }
