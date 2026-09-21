@@ -48,7 +48,7 @@ def test_equal_priority_queue_prefers_the_oldest_waiting_job():
 
 def test_queue_pressure_reports_backlog_and_oldest_wait_without_inventing_capacity():
     scheduler = Scheduler()
-    scheduler.submit(Job("old", JobRequirements(slots=2), priority=0, queued_at=100))
+    scheduler.submit(Job("old", JobRequirements(slots=2), priority=0, queued_at=190))
     scheduler.submit(Job("new", JobRequirements(slots=1), priority=5, queued_at=190))
     scheduler.choose("worker", resources(), now=200, lease_seconds=100)
 
