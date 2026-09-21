@@ -13,7 +13,7 @@ from dataclasses import dataclass, replace
 from .compute_provider import ProviderResource, ProviderResourceState
 from .distributed_gpu import DistributedNCCLEvidence, GpuDirectNetworkEvidence
 from .gpu_infrastructure import GpuHostObservation
-from .gpu_topology import GpuTopologyEvidence
+from .gpu_topology import GpuTopologyEvidence, topology_digest
 
 
 @dataclass(frozen=True)
@@ -61,14 +61,7 @@ class FabricTopologyRecord:
 
     @property
     def topology_digest(self) -> str:
-        payload = {
-            "gpu_uuids": list(self.topology_evidence.gpu_uuids),
-            "gpu_matrix": [list(row) for row in self.topology_evidence.gpu_matrix],
-            "cpu_affinity": [list(item) for item in self.topology_evidence.cpu_affinity],
-            "nic_paths": [list(item) for item in self.topology_evidence.nic_paths],
-            "raw_text_sha256": self.topology_evidence.raw_text_sha256,
-        }
-        return hashlib.sha256(json.dumps(payload, sort_keys=True, separators=(",", ":")).encode("utf-8")).hexdigest()
+        return topology_digest(self.topology_evidence)
 
     def with_distributed_nccl(self, evidence: DistributedNCCLEvidence) -> "FabricTopologyRecord":
         return replace(self, distributed_nccl=self.distributed_nccl + (evidence,))
