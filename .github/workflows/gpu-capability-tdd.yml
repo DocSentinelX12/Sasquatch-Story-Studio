@@ -22,3 +22,5 @@ jobs:
         run: python -m pip install pytest
       - name: Run focused GPU telemetry tests
         run: python -m pytest -q tests/test_gpu_infrastructure.py tests/test_gpu_telemetry.py
+      - name: Run GPU worker persistence integration tests
+        run: python -m pytest -q tests/test_gpu_worker_agent.py tests/test_gpu_worker_agent_remote.py tests/test_worker_registry_gpu_persistence.py
