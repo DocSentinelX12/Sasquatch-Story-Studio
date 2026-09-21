@@ -83,7 +83,7 @@ def _smi_runner(command):
 
     if tuple(command) == ("nvidia-smi",):
         Result.stdout = "NVIDIA-SMI 580.95.05    Driver Version: 580.95.05    CUDA Version: 13.0"
-    elif command[1:] == ["--query-gpu=index,uuid,name,memory.total,memory.used,pci.bus_id,compute_cap", "--format=csv,noheader,nounits"]:
+    elif command[1:] == ("--query-gpu=index,uuid,name,memory.total,memory.used,pci.bus_id,compute_cap", "--format=csv,noheader,nounits"):
         Result.stdout = "0, GPU-aaa, NVIDIA Test GPU, 81920, 1024, 00000000:17:00.0, 10.0\n"
     elif tuple(command) == ("nvidia-smi", "topo", "-m"):
         Result.stdout = "GPU0\tX\n"
@@ -116,8 +116,8 @@ def test_nvml_field_failure_uses_explicit_nvidia_smi_fallback_provenance():
 
     def fallback_runner(command):
         result = _smi_runner(command)
-        if tuple(command) == ("nvidia-smi", "--query-gpu=power.draw", "--format=csv,noheader,nounits"):
-            result.stdout = "225.5\n"
+        if tuple(command) == ("nvidia-smi", "--query-gpu=index,power.draw", "--format=csv,noheader,nounits"):
+            result.stdout = "0, 225.5\n"
         return result
 
     observation = probe_nvidia_host("worker-a", runner=fallback_runner, nvml_loader=lambda: nvml)
