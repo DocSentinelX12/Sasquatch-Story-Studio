@@ -4,9 +4,9 @@ from __future__ import annotations
 import re
 from itertools import combinations
 
+from .gpu_capabilities import admit_gpu_workload, derive_gpu_capabilities
 from .gpu_infrastructure import GpuHostObservation
-from .hardware_requirements import GpuPlacement, HardwareRequirements, compute_capability_at_least
-from .nccl_evidence import validate_nccl_evidence
+from .hardware_requirements import GpuPlacement, HardwareRequirements
 
 
 def _topology_matrix(observation: GpuHostObservation) -> dict[tuple[str, str], str]:
@@ -55,37 +55,68 @@ def select_gpus(
     *,
     used_gpu_uuids: set[str] | None = None,
 ) -> tuple[str, ...]:
-    """Select physical GPU UUIDs; no topology or NCCL capability is inferred."""
+    """Select GPU UUIDs only after canonical capability eligibility is established."""
     if requirements.placement is GpuPlacement.MULTI_NODE:
         raise RuntimeError("select_gpus is single-worker only; multi-node allocation requires cluster coordination")
-    used = set(used_gpu_uuids or ())
-    candidates = _candidate_gpus(observation, requirements, used)
-    if len(candidates) < requirements.min_gpu_count:
-        raise RuntimeError("observed worker lacks enough free GPUs satisfying the hardware contract")
 
+    used = set(used_gpu_uuids or ())
+    now = max(
+        (
+            gpu.telemetry.collected_at
+            for gpu in observation.gpus
+            if gpu.telemetry is not None
+        ),
+        default=0,
+    )
+    capabilities = derive_gpu_capabilities(observation, now=now)
+    candidates = [
+        gpu for gpu in sorted(observation.gpus, key=lambda item: (item.index, item.uuid))
+        if gpu.uuid not in used
+        and capabilities.get(gpu.uuid).production_eligible
+        and gpu.memory_total_mib * 1024**2 >= requirements.min_vram_per_gpu_bytes
+        and (
+            requirements.min_compute_capability is None
+            or _compute_capability_at_least(gpu.compute_capability, requirements.min_compute_capability)
+        )
+        and (
+            not requirements.required_gpu_models
+            or gpu.name in requirements.required_gpu_models
+        )
+    ]
+
+    if len(candidates) < requirements.min_gpu_count:
+        raise RuntimeError("observed worker lacks enough free GPUs satisfying the canonical capability contract")
+
+    selected: tuple[str, ...] | None = None
     if requirements.placement is GpuPlacement.ANY:
-        selected = candidates[: requirements.min_gpu_count]
+        selected = tuple(gpu.uuid for gpu in candidates[: requirements.min_gpu_count])
     else:
-        matrix = _topology_matrix(observation)
+        topology = capabilities.get(candidates[0].uuid).topology_evidence
+        if topology is None:
+            raise RuntimeError("observed topology has no verified capability evidence")
         for group in combinations(candidates, requirements.min_gpu_count):
-            if all(matrix.get((f"GPU{a.index}", f"GPU{b.index}"), "").startswith("NV") for a, b in combinations(group, 2)):
-                selected = list(group)
+            group_uuids = tuple(gpu.uuid for gpu in group)
+            if topology.same_nvlink_domain(group_uuids):
+                selected = group_uuids
                 break
-        else:
+        if selected is None:
             raise RuntimeError("observed topology has no qualifying all-NVLink GPU group")
 
-    total_vram = sum(gpu.memory_total_mib * 1024**2 for gpu in selected)
-    if total_vram < requirements.min_total_vram_bytes:
-        raise RuntimeError("selected GPUs do not satisfy the total VRAM requirement")
+    admitted = admit_gpu_workload(
+        requirements,
+        capabilities,
+        selected_gpu_uuids=selected,
+        now=now,
+    )
+    if admitted != selected:
+        raise RuntimeError("selected GPUs do not satisfy canonical capability admission")
+    return admitted
 
-    selected_uuids = tuple(gpu.uuid for gpu in selected)
-    if requirements.require_nccl:
-        evidence = observation.nccl_evidence
-        if evidence is None:
-            raise RuntimeError("NCCL requirement has no observed NCCL test evidence")
-        validate_nccl_evidence(evidence)
-        if not set(selected_uuids).issubset(set(evidence.gpu_uuids)):
-            raise RuntimeError("NCCL evidence does not cover the selected GPU set")
-    if requirements.require_gpu_direct_network:
-        raise RuntimeError("GPU-direct network placement requires explicit network capability evidence")
-    return selected_uuids
+
+def _compute_capability_at_least(observed: str, required: str) -> bool:
+    try:
+        observed_parts = tuple(int(part) for part in observed.split("."))
+        required_parts = tuple(int(part) for part in required.split("."))
+    except ValueError:
+        return False
+    return observed_parts >= required_parts
