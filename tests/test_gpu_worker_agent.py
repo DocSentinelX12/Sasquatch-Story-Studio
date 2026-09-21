@@ -1,3 +1,4 @@
+from studio.gpu_capabilities import derive_gpu_capabilities
 from studio.gpu_infrastructure import GpuDeviceObservation, GpuHostObservation
 from studio.gpu_worker_agent import GpuWorkerAgent
 
@@ -18,6 +19,7 @@ def test_worker_agent_registration_payload_is_derived_from_observation():
     assert payload["worker_id"] == "worker-a"
     assert payload["hardware_observation_digest"] == observation.digest()
     assert payload["gpu_count"] == 1
+    assert payload["gpu_capability_digest"] == derive_gpu_capabilities(observation, now=0).digest()
 
 
 def test_worker_agent_does_not_claim_verified_health_without_dcgm_evidence():
