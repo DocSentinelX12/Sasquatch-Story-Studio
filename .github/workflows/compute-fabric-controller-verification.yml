@@ -1,0 +1,19 @@
+name: Compute Fabric Controller Focused Verification
+
+on:
+  push:
+    branches:
+      - elastic-multi-provider-compute-fabric-impl
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: elastic-multi-provider-compute-fabric-impl
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install pytest
+      - run: python -m pytest -q tests/test_compute_fabric_controller.py
