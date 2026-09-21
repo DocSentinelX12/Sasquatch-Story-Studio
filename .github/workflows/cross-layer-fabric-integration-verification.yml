@@ -1,7 +1,9 @@
 name: Cross-Layer Fabric Integration Verification
 
 on:
-  workflow_dispatch:
+  push:
+    branches:
+      - elastic-multi-provider-compute-fabric-impl
 
 jobs:
   verify:
