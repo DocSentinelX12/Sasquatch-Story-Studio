@@ -1,6 +1,6 @@
 import pytest
 
-from studio.gpu_infrastructure import GpuDeviceObservation, GpuHostObservation
+from studio.gpu_infrastructure import GpuDeviceObservation, GpuHostObservation, GpuTelemetryEvidence, GpuTelemetryStatus, TelemetryValue
 from studio.gpu_scheduler import select_gpus
 from studio.hardware_requirements import GpuPlacement, HardwareRequirements
 
@@ -13,18 +13,24 @@ GPU2   SYS   NV2   X
 
 
 def host():
+    telemetry = GpuTelemetryEvidence(
+        source="fixture",
+        collected_at=100,
+        collector="test",
+        fields={"temperature_c": TelemetryValue(GpuTelemetryStatus.OBSERVED, 60, "fixture", 100)},
+    )
     return GpuHostObservation(
         worker_id="worker-a",
         driver_version="580.95.05",
         cuda_supported_version="13.0",
         gpus=tuple(
-            GpuDeviceObservation(i, f"GPU-{i}", "NVIDIA Test GPU", 81920, 0, f"00000000:{17+i:02x}:00.0", "10.0")
+            GpuDeviceObservation(i, f"GPU-{i}", "NVIDIA Test GPU", 81920, 0, f"00000000:{17+i:02x}:00.0", "10.0", telemetry=telemetry)
             for i in range(3)
         ),
         topology_text=TOPOLOGY,
-        dcgm_available=False,
-        dcgm_version=None,
-        health_json=None,
+        dcgm_available=True,
+        dcgm_version="test",
+        health_json="Overall Health: Healthy",
     )
 
 
