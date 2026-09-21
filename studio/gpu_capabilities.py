@@ -73,11 +73,9 @@ class GpuCapabilityRecord:
 
     @property
     def production_eligible(self) -> bool:
-        if self.state(GpuCapabilityName.HEALTH) is not GpuCapabilityState.VERIFIED:
-            return False
-        return any(
-            capability.name is GpuCapabilityName.ENGINE_RUNTIME and capability.admissible
-            for capability in self.capabilities
+        return (
+            self.state(GpuCapabilityName.BASE_GPU) is GpuCapabilityState.IDENTIFIED
+            and self.state(GpuCapabilityName.HEALTH) is GpuCapabilityState.VERIFIED
         )
 
 
