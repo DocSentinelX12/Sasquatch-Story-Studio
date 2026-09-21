@@ -1,6 +1,7 @@
 import hashlib
 import json
 
+from studio.gpu_capabilities import derive_gpu_capabilities
 from studio.gpu_infrastructure import GpuDeviceObservation, GpuHostObservation
 from studio.remote_worker import WorkerLifecycleAuthority
 from studio.scheduler import JobRequirements
@@ -24,8 +25,13 @@ def identity(o: GpuHostObservation) -> str:
 
 
 def payload(o: GpuHostObservation) -> dict:
-    return {"worker_id": o.worker_id, "hardware_observation_digest": o.digest(), "hardware_identity_digest": identity(o),
-            "hardware_observation": json.loads(o.canonical_json())}
+    return {
+        "worker_id": o.worker_id,
+        "hardware_observation_digest": o.digest(),
+        "hardware_identity_digest": identity(o),
+        "gpu_capability_digest": derive_gpu_capabilities(o, now=10).digest(),
+        "hardware_observation": json.loads(o.canonical_json()),
+    }
 
 
 def setup():
@@ -68,7 +74,7 @@ def test_execute_rejects_replay():
     token = reg.body["access_token"]
     access = __import__("studio.remote_worker", fromlist=["WorkerAccess"]).WorkerAccess("worker-a", token)
     lease = authority.issue_lease(access, task, 100, 20)
-    body = {"worker_id": "worker-a", "lease": lease.__dict__, "task": {"task_id": task.task_id, "episode_id": "ep", "stage": "video", "shot_id": "shot", "input_refs": [], "input_hashes": [], "requirements": {"slots": 1, "memory_bytes": 0, "vram_bytes": 0, "scratch_bytes": 0, "power_watts": 0, "capabilities": [], "engines": [], "hardware": None}, "provenance_context": [], "canonical_source_hash": "", "payload_json": "", "gpu_uuids": ["GPU-0"]}}
+    body = {"worker_id": "worker-a", "lease": lease.__dict__, "task": {"task_id": task.task_id, "episode_id": "ep", "stage": "video", "shot_id": "shot", "input_refs": [], "input_hashes": [], "requirements": {"slots": 1, "memory_bytes": 0, "vram_bytes": 0, "scratch_bytes": 0, "power_watts": 0, "capabilities": [], "engines": [], "hardware": None}, "canonical_source_hash": "", "payload_json": "", "gpu_uuids": ["GPU-0"]}}
     headers = {"Authorization": f"Bearer {token}"}
     assert api.execute_lease(body, headers).status == 200
     assert api.execute_lease(body, headers).status == 403
