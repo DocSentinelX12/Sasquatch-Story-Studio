@@ -57,6 +57,9 @@ def _lease(payload: Mapping[str, Any]) -> RemoteLease:
         raise ValueError("invalid remote lease") from exc
 
 
+ARTIFACT_CHUNK_SIZE_BYTES = 4 * 1024 * 1024
+
+
 class WorkerControlServer:
     """HTTP-independent control service for worker lifecycle and execution."""
 
@@ -186,11 +189,10 @@ class WorkerControlServer:
             requested_offset = int(query["offset"][0])
         except ValueError as exc:
             raise ValueError("invalid artifact chunk range") from exc
-        chunk_size = 4 * 1024 * 1024
         if (
             requested_size <= 0
-            or requested_size > chunk_size
-            or requested_offset != chunk_index * chunk_size
+            or requested_size > ARTIFACT_CHUNK_SIZE_BYTES
+            or requested_offset != chunk_index * ARTIFACT_CHUNK_SIZE_BYTES
         ):
             raise ValueError("invalid artifact chunk range")
         access = WorkerAccess(worker_id, token)
@@ -201,7 +203,7 @@ class WorkerControlServer:
         source_path = Path(source).expanduser().resolve()
         if not source_path.is_file():
             raise FileNotFoundError(digest)
-        offset = chunk_index * chunk_size
+        offset = chunk_index * ARTIFACT_CHUNK_SIZE_BYTES
         with source_path.open("rb") as handle:
             handle.seek(0, 2)
             total = handle.tell()
