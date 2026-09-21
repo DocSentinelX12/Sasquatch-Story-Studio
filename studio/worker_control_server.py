@@ -10,6 +10,7 @@ import json
 import time
 from dataclasses import dataclass
 from pathlib import Path
+from urllib.parse import parse_qs, urlsplit
 from typing import Any, Callable, Mapping
 
 from .distributed_execution import DistributedLaunchSpec, DistributedProcessExecutor, _parse_lease as _parse_distributed_lease
@@ -22,6 +23,12 @@ class ControlResponse:
     status: int
     body: str
     content_type: str = "application/json"
+
+@dataclass(frozen=True)
+class BinaryControlResponse:
+    status: int
+    body: bytes
+    content_type: str = "application/octet-stream"
 
 
 def _bearer(value: str | None) -> str:
