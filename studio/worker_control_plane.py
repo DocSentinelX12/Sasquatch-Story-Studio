@@ -11,6 +11,7 @@ import json
 from dataclasses import replace
 from typing import Any, Mapping
 
+from .gpu_capabilities import GpuCapabilityName, GpuCapabilityState, derive_gpu_capabilities
 from .gpu_infrastructure import GpuDeviceObservation, GpuHostObservation, GpuTelemetryEvidence, TelemetryValue, classify_dcgm_health
 from .gpu_topology import GpuTopologyEvidence
 from .nccl_evidence import NCCLTestEvidence
@@ -161,13 +162,15 @@ class WorkerControlPlane:
         ).hexdigest()
 
     @staticmethod
-    def _state(observation: GpuHostObservation) -> WorkerState:
-        health = classify_dcgm_health(observation.health_json)
-        if health == "failure":
+    def _state(observation: GpuHostObservation, now: int) -> WorkerState:
+        capabilities = derive_gpu_capabilities(observation, now=now)
+        health_states = {
+            capabilities.get(gpu.uuid).state(GpuCapabilityName.HEALTH)
+            for gpu in observation.gpus
+        }
+        if GpuCapabilityState.FAILED in health_states:
             return WorkerState.TEMPORARILY_UNAVAILABLE
-        if health == "warning" or not observation.dcgm_available:
-            return WorkerState.VERIFIED_LIMITED
-        if health == "healthy":
+        if health_states == {GpuCapabilityState.VERIFIED}:
             return WorkerState.VERIFIED_AVAILABLE
         return WorkerState.VERIFIED_LIMITED
 
@@ -175,7 +178,7 @@ class WorkerControlPlane:
         record = self.registry.get(worker_id)
         if observation.worker_id != worker_id:
             raise PermissionError("worker identity does not match registry identity")
-        state = self._state(observation)
+        state = self._state(observation, now)
         resource = replace(
             record.resource,
             gpu_count=observation.gpu_count,
@@ -203,6 +206,9 @@ class WorkerControlPlane:
         identity_digest = payload.get("hardware_identity_digest")
         if identity_digest != self._identity_digest(observation):
             raise PermissionError("worker hardware identity digest does not match observed inventory")
+        capabilities = derive_gpu_capabilities(observation, now=now)
+        if payload.get("gpu_capability_digest") != capabilities.digest():
+            raise PermissionError("worker GPU capability digest does not match canonical derivation")
         access = self.authority.register(worker_id, enrollment_token, now, hardware_identity_digest=identity_digest)
         self._apply(worker_id, observation, now)
         return access
@@ -215,6 +221,9 @@ class WorkerControlPlane:
         identity_digest = payload.get("hardware_identity_digest")
         if identity_digest != self._identity_digest(observation):
             raise PermissionError("worker hardware identity digest does not match observed inventory")
+        capabilities = derive_gpu_capabilities(observation, now=now)
+        if payload.get("gpu_capability_digest") != capabilities.digest():
+            raise PermissionError("worker GPU capability digest does not match canonical derivation")
         self.authority.heartbeat(access, now, hardware_identity_digest=identity_digest)
         return self._apply(worker_id, observation, now)
 
