@@ -20,6 +20,15 @@ jobs:
       - uses: actions/checkout@v5
         with:
           ref: ${{ github.event.workflow_run.head_sha }}
+      - name: Verify triggering commit
+        env:
+          EXPECTED_SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          actual_sha="$(git rev-parse HEAD)"
+          if [ "$actual_sha" != "$EXPECTED_SHA" ]; then
+            echo "Triggering commit mismatch: expected $EXPECTED_SHA, checked out $actual_sha"
+            exit 1
+          fi
       - uses: actions/setup-python@v6
         with:
           python-version: "3.11"
