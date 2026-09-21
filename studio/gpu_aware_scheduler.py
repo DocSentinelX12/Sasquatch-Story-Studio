@@ -20,7 +20,7 @@ class GpuAwareScheduler:
         for job in candidates:
             hardware = job.requirements.hardware
             if hardware is None:
-                leased = self.scheduler.choose_on_worker(worker_id, worker.resource, 0, now, lease_seconds, gpu_uuids=selected)
+                leased = self.scheduler.choose_on_worker(worker_id, worker.resource, 0, now, lease_seconds, gpu_uuids=())
                 if leased is not None:
                     self._allocations[leased.id] = ()
                 return leased
@@ -36,7 +36,7 @@ class GpuAwareScheduler:
                 selected = select_gpus(worker.hardware_observation, hardware, used_gpu_uuids=used)
             except RuntimeError:
                 continue
-            leased = self.scheduler.choose_on_worker(worker_id, worker.resource, 0, now, lease_seconds)
+            leased = self.scheduler.choose_on_worker(worker_id, worker.resource, 0, now, lease_seconds, gpu_uuids=selected)
             if leased is not None:
                 self._allocations[leased.id] = selected
                 return leased
