@@ -401,15 +401,18 @@ def _probe_nvidia_smi(worker_id: str, runner: Runner, collected_at: int) -> GpuH
     base_gpus = parse_nvidia_smi_gpu_csv(gpu_csv)
     if not base_gpus:
         raise RuntimeError("nvidia-smi succeeded but reported no physical GPUs")
-    telemetry_csv = _run_text(
-        runner,
-        (
-            "nvidia-smi",
-            "--query-gpu=index,temperature.gpu,power.draw,power.limit,utilization.gpu,utilization.memory,ecc.errors.uncorrected.aggregate,mig.mode.current,pcie.link.gen.current,pcie.link.width.current,pcie.tx_util,pcie.rx_util",
-            "--format=csv,noheader,nounits",
-        ),
-    )
-    telemetry_by_index = _parse_nvidia_smi_telemetry_csv(telemetry_csv, collected_at)
+    try:
+        telemetry_csv = _run_text(
+            runner,
+            (
+                "nvidia-smi",
+                "--query-gpu=index,temperature.gpu,power.draw,power.limit,utilization.gpu,utilization.memory,ecc.errors.uncorrected.aggregate,mig.mode.current,pcie.link.gen.current,pcie.link.width.current,pcie.tx_util,pcie.rx_util",
+                "--format=csv,noheader,nounits",
+            ),
+        )
+        telemetry_by_index = _parse_nvidia_smi_telemetry_csv(telemetry_csv, collected_at)
+    except (RuntimeError, ValueError):
+        telemetry_by_index = {}
     topology = _run_text(runner, ("nvidia-smi", "topo", "-m"))
     topology_evidence = parse_nvidia_smi_topology(topology, {gpu.index: gpu.uuid for gpu in base_gpus})
     dcgm_available = shutil.which("dcgmi") is not None
