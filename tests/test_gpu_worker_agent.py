@@ -35,3 +35,18 @@ def test_worker_agent_does_not_claim_verified_health_without_dcgm_evidence():
     )
     agent = GpuWorkerAgent("worker-a", lambda: observation)
     assert agent.heartbeat_payload()["health_evidence"] == "nvidia_smi_inventory_only"
+
+
+def test_worker_agent_heartbeat_payload_binds_canonical_capability_digest():
+    observation = GpuHostObservation(
+        worker_id="worker-a",
+        driver_version="580.95.05",
+        cuda_supported_version="13.0",
+        gpus=(GpuDeviceObservation(0, "GPU-aaa", "NVIDIA Test GPU", 81920, 0, "00000000:17:00.0", "10.0"),),
+        topology_text="GPU0",
+        dcgm_available=False,
+        dcgm_version=None,
+        health_json=None,
+    )
+    agent = GpuWorkerAgent("worker-a", lambda: observation)
+    assert agent.heartbeat_payload()["gpu_capability_digest"] == derive_gpu_capabilities(observation, now=0).digest()
