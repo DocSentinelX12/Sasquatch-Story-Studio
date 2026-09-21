@@ -9,7 +9,8 @@ def _run(command, timeout=60):
     except FileNotFoundError as exc:
         raise RuntimeError(f"required executable is unavailable: {command[0]}") from exc
 
-def verify(output_path, *, now=None):
+def verify(output_path, *, worker_id, now=None):
+    if not worker_id.strip(): raise ValueError("worker identity is required")
     if shutil.which("nvidia-smi") is None:
         raise RuntimeError("physical NVIDIA verification requires nvidia-smi")
     smi = _run(["nvidia-smi", "--query-gpu=uuid", "--format=csv,noheader"])
@@ -22,7 +23,7 @@ def verify(output_path, *, now=None):
         detail = (runtime.stderr or runtime.stdout).strip()
         raise RuntimeError(f"CUDA runtime verification failed: {detail}")
     recorded_at = int(time.time()) if now is None else now
-    evidence = {"verification":"cuda_runtime","recorded_at":recorded_at,"command":command,"gpu_uuids":list(gpu_uuids),
+    evidence = {"verification":"cuda_runtime","recorded_at":recorded_at,"worker_id":worker_id,"command":command,"gpu_uuids":list(gpu_uuids),
                 "nvidia_smi_output_sha256":hashlib.sha256(smi.stdout.encode()).hexdigest(),
                 "runtime_output_sha256":hashlib.sha256(runtime.stdout.encode()).hexdigest(),
                 "cuda_runtime_output":runtime.stdout.strip()}
@@ -31,6 +32,6 @@ def verify(output_path, *, now=None):
     return evidence
 
 def main():
-    parser=argparse.ArgumentParser(); parser.add_argument("--output",default="gpu-runtime-evidence.json"); args=parser.parse_args()
-    verify(args.output); return 0
+    parser=argparse.ArgumentParser(); parser.add_argument("--output",default="gpu-runtime-evidence.json"); parser.add_argument("--worker-id",required=True); args=parser.parse_args()
+    verify(args.output,worker_id=args.worker_id); return 0
 if __name__=="__main__": raise SystemExit(main())
