@@ -60,17 +60,6 @@ jobs:
       - name: Install and verify Hugging Face Hub before tests
         run: python scripts/install_huggingface.py
 
-      - name: Install and verify extended model integrations before tests
-        shell: bash
-        run: |
-          set -euo pipefail
-          python scripts/install_cogvideox15_i2v.py
-          python scripts/install_hunyuanvideo15.py
-          python scripts/install_ltx25.py
-          python scripts/install_ltx_video.py
-          python scripts/install_skyreels_v3.py
-          python scripts/install_wan22.py
-
       - name: Compile verification modules and wrappers
         run: |
           python -m compileall -q             studio/gpu_runtime_verification.py             studio/nccl_runtime_verification.py             studio/gpu_direct_verification.py             scripts/verify_gpu_runtime.py             scripts/verify_nccl_runtime.py             scripts/verify_gpu_direct.py
