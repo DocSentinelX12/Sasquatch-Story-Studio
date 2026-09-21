@@ -6,6 +6,7 @@ import json
 from collections.abc import Callable
 from typing import Any, Protocol
 
+from .gpu_capabilities import derive_gpu_capabilities
 from .gpu_infrastructure import GpuHostObservation, classify_dcgm_health, probe_nvidia_host
 from .remote_worker import WorkerAccess
 
@@ -80,9 +81,29 @@ class GpuWorkerAgent:
 
     def registration_payload(self) -> dict[str, Any]:
         observation = self.observe()
+        capability_now = max(
+            (
+                gpu.telemetry.collected_at
+                for gpu in observation.gpus
+                if gpu.telemetry is not None
+            ),
+            default=0,
+        )
+        capabilities = derive_gpu_capabilities(observation, now=capability_now)
+        capability_now = max(
+            (
+                gpu.telemetry.collected_at
+                for gpu in observation.gpus
+                if gpu.telemetry is not None
+            ),
+            default=0,
+        )
+        capabilities = derive_gpu_capabilities(observation, now=capability_now)
         return {
             "worker_id": self.worker_id,
             "hardware_observation_digest": observation.digest(),
+            "gpu_capability_digest": capabilities.digest(),
+            "gpu_capability_digest": capabilities.digest(),
             "hardware_identity_digest": self._identity_digest(observation),
             "driver_version": observation.driver_version,
             "cuda_supported_version": observation.cuda_supported_version,
