@@ -116,3 +116,57 @@ def test_probe_prefers_nvml_before_nvidia_smi(monkeypatch):
     assert observation.gpus[0].telemetry.temperature_c.value == 55
     assert observation.gpus[0].telemetry.temperature_c.source == "nvml"
     assert "nvmlInit" in calls
+
+def test_probe_records_explicit_nvidia_smi_fallback_provenance(monkeypatch):
+    monkeypatch.setattr(gpu_infrastructure.shutil, "which", lambda command: "/usr/bin/nvidia-smi" if command == "nvidia-smi" else None)
+
+    outputs = {
+        ("nvidia-smi",): "NVIDIA-SMI 580.95.05 Driver Version: 580.95.05 CUDA Version: 13.0",
+        ("nvidia-smi", "--query-gpu=index,uuid,name,memory.total,memory.used,pci.bus_id,compute_cap", "--format=csv,noheader,nounits"):
+            "0, GPU-aaa, NVIDIA Test GPU, 81920, 1024, 00000000:17:00.0, 10.0",
+        ("nvidia-smi", "--query-gpu=index,temperature.gpu,power.draw,power.limit,utilization.gpu,utilization.memory,ecc.errors.uncorrected.aggregate,mig.mode.current,pcie.link.gen.current,pcie.link.width.current,pcie.tx_util,pcie.rx_util", "--format=csv,noheader,nounits"):
+            "0, 55, 250, 700, 17, 23, 0, Disabled, 4, 16, 100, 120",
+        ("nvidia-smi", "topo", "-m"): "GPU0 CPU Affinity NUMA Affinity\nGPU0 X 0-3 0",
+    }
+
+    def runner(command):
+        class Result:
+            returncode = 0
+            stderr = ""
+        Result.stdout = outputs[tuple(command)]
+        return Result()
+
+    observation = gpu_infrastructure.probe_nvidia_host(
+        "worker-a",
+        runner=runner,
+        now=100,
+        nvml_loader=lambda: None,
+    )
+    telemetry = observation.gpus[0].telemetry
+    assert observation.collector_identity == "nvidia-smi"
+    assert telemetry.collector_identity == "nvidia-smi"
+    assert telemetry.temperature_c.value == 55.0
+    assert telemetry.temperature_c.source == "nvidia-smi"
+
+
+def test_telemetry_freshness_rejects_stale_evidence():
+    telemetry = gpu_infrastructure.GpuTelemetryObservation(
+        **{
+            name: gpu_infrastructure.TelemetryEvidence(
+                gpu_infrastructure.TelemetryStatus.OBSERVED,
+                1,
+                "test",
+                100,
+            )
+            for name in (
+                "temperature_c", "power_usage_w", "power_limit_w", "utilization_percent",
+                "memory_utilization_percent", "ecc_errors", "mig_mode", "nvlink_state",
+                "pcie_link_generation", "pcie_link_width", "pcie_tx_kb_s", "pcie_rx_kb_s",
+            )
+        },
+        xid_errors=gpu_infrastructure.TelemetryEvidence(gpu_infrastructure.TelemetryStatus.UNSUPPORTED, None, "test", 100),
+        dcgm_health=gpu_infrastructure.TelemetryEvidence(gpu_infrastructure.TelemetryStatus.UNAVAILABLE, None, "test", 100),
+        collector_identity="test",
+    )
+    assert not telemetry.is_fresh(200, 50, ["temperature_c"])
+    assert telemetry.is_fresh(120, 50, ["temperature_c"])
