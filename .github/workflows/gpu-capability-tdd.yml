@@ -18,5 +18,7 @@ jobs:
           python-version: "3.11"
       - name: Install package
         run: python -m pip install -e .
+      - name: Install test runner
+        run: python -m pip install pytest
       - name: Run focused GPU telemetry tests
         run: python -m pytest -q tests/test_gpu_infrastructure.py tests/test_gpu_telemetry.py
