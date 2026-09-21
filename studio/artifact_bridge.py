@@ -62,21 +62,48 @@ class ArtifactCommitter:
         self.store = store
         self.lineage = lineage
 
+    def commit_file(
+        self,
+        path: str | Path,
+        *,
+        stage: str,
+        adapter_id: str,
+        source_hash: str,
+        provenance: dict[str, object],
+    ) -> str:
+        """Commit one already-materialized production output into CAS and lineage."""
+        if provenance.get("canonical_source_hash") != source_hash:
+            raise RuntimeError("artifact provenance does not match canonical source hash")
+        output_path = Path(path).expanduser().resolve()
+        if not output_path.is_file() or output_path.stat().st_size == 0:
+            raise RuntimeError(f"production output is not a real non-empty file: {path}")
+        ref = self.store.put_file(output_path)
+        lineage = ArtifactLineage(
+            ref.digest,
+            ref.size_bytes,
+            stage,
+            adapter_id,
+            source_hash,
+            dict(provenance),
+        )
+        self.lineage.record(lineage)
+        return f"sha256:{ref.digest}"
+
     def commit(self, response: ProductionResponse, *, stage: str, source_hash: str) -> tuple[str, ...]:
         if not response.output_refs:
             raise RuntimeError("cannot commit an adapter response with no outputs")
         if response.provenance.get("canonical_source_hash") != source_hash:
             raise RuntimeError("adapter provenance does not match canonical source hash")
-        committed: list[str] = []
-        for raw in response.output_refs:
-            path = Path(raw).expanduser().resolve()
-            if not path.is_file() or path.stat().st_size == 0:
-                raise RuntimeError(f"adapter output is not a real non-empty file: {raw}")
-            ref: ArtifactRef = self.store.put_file(path)
-            lineage = ArtifactLineage(ref.digest, ref.size_bytes, stage, response.adapter_id, source_hash, dict(response.provenance))
-            self.lineage.record(lineage)
-            committed.append(f"sha256:{ref.digest}")
-        return tuple(committed)
+        return tuple(
+            self.commit_file(
+                raw,
+                stage=stage,
+                adapter_id=response.adapter_id,
+                source_hash=source_hash,
+                provenance=dict(response.provenance),
+            )
+            for raw in response.output_refs
+        )
 
     def resolve(self, address: str) -> ArtifactRef:
         prefix = "sha256:"
