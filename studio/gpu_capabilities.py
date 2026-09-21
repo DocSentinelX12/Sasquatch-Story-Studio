@@ -52,6 +52,9 @@ class GpuCapabilityRecord:
     gpu_uuid: str
     observation_digest: str
     capabilities: tuple[GpuCapability, ...]
+    memory_total_mib: int
+    name: str
+    compute_capability: str
     topology_evidence: object | None = None
     nccl_gpu_sets: tuple[tuple[str, ...], ...] = ()
     gpu_direct_gpu_sets: tuple[tuple[str, ...], ...] = ()
@@ -70,12 +73,11 @@ class GpuCapabilityRecord:
 
     @property
     def production_eligible(self) -> bool:
-        return all(
-            self.state(name) in {
-                GpuCapabilityState.VERIFIED,
-                GpuCapabilityState.PRODUCTION_ELIGIBLE,
-            }
-            for name in (GpuCapabilityName.BASE_GPU, GpuCapabilityName.HEALTH)
+        if self.state(GpuCapabilityName.HEALTH) is not GpuCapabilityState.VERIFIED:
+            return False
+        return any(
+            capability.name is GpuCapabilityName.ENGINE_RUNTIME and capability.admissible
+            for capability in self.capabilities
         )
 
 
@@ -271,6 +273,9 @@ def derive_gpu_capabilities(
                 gpu_uuid=gpu.uuid,
                 observation_digest=observation_digest,
                 capabilities=capabilities,
+                memory_total_mib=gpu.memory_total_mib,
+                name=gpu.name,
+                compute_capability=gpu.compute_capability,
                 topology_evidence=observation.topology_evidence,
                 nccl_gpu_sets=(
                     (tuple(observation.nccl_evidence.gpu_uuids),)
@@ -285,10 +290,18 @@ def derive_gpu_capabilities(
 
 
 def _requirements_match_gpu(requirements: HardwareRequirements, record: GpuCapabilityRecord) -> bool:
-    gpu = record
-    if not gpu.production_eligible:
+    if not record.production_eligible:
         return False
-    if gpu.state(GpuCapabilityName.CUDA_RUNTIME) is GpuCapabilityState.FAILED:
+    if record.state(GpuCapabilityName.CUDA_RUNTIME) is GpuCapabilityState.FAILED:
+        return False
+    if record.memory_total_mib * 1024 * 1024 < requirements.min_vram_per_gpu_bytes:
+        return False
+    if requirements.min_compute_capability is not None and not compute_capability_at_least(
+        record.compute_capability,
+        requirements.min_compute_capability,
+    ):
+        return False
+    if requirements.required_gpu_models and record.name not in requirements.required_gpu_models:
         return False
     return True
 
@@ -314,18 +327,7 @@ def admit_gpu_workload(
     if any(not _requirements_match_gpu(requirements, record) for record in records):
         return ()
 
-    if any(record.capability(GpuCapabilityName.HEALTH).state is GpuCapabilityState.STALE for record in records):
-        return ()
-    if any(
-        requirements.min_vram_per_gpu_bytes > record.capability(GpuCapabilityName.BASE_GPU).state == GpuCapabilityState.UNAVAILABLE
-        for record in records
-    ):
-        return ()
-
-    total_vram = 0
-    for uuid in selected_gpu_uuids:
-        total_vram += capabilities.get(uuid).capability(GpuCapabilityName.BASE_GPU).evidence_digest == ""
-    if requirements.min_compute_capability is not None:
+    if sum(record.memory_total_mib * 1024 * 1024 for record in records) < requirements.min_total_vram_bytes:
         return ()
 
     if required_engine_id is not None:
@@ -343,6 +345,10 @@ def admit_gpu_workload(
         if topology is None or not topology.same_nvlink_domain(selected_gpu_uuids):
             return ()
 
+    if requirements.placement is GpuPlacement.MULTI_NODE:
+        if len({record.worker_id for record in records}) < 2:
+            return ()
+
     if requirements.require_nccl:
         if not all(record.state(GpuCapabilityName.NCCL) is GpuCapabilityState.VERIFIED for record in records):
             return ()
@@ -351,13 +357,6 @@ def admit_gpu_workload(
 
     if requirements.require_gpu_direct_network:
         if not any(set(group) == set(selected_gpu_uuids) for group in records[0].gpu_direct_gpu_sets):
-            return ()
-
-    if requirements.required_gpu_models:
-        if any(
-            not any(model == requirements.required_gpu_models[0] for model in [getattr(record, "gpu_uuid", "")])
-            for record in records
-        ):
             return ()
 
     return selected_gpu_uuids
