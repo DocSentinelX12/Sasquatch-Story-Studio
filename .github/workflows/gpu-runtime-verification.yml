@@ -1,0 +1,48 @@
+name: GPU Runtime Verification
+
+on:
+  workflow_dispatch:
+    inputs:
+      run_nccl:
+        description: "Run the physical NCCL collective verification"
+        required: false
+        default: true
+        type: boolean
+      gpu_direct_command:
+        description: "Optional explicit GPU-direct verification command"
+        required: false
+        default: ""
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: [self-hosted, linux, nvidia-gpu]
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+      - name: Require physical NVIDIA hardware
+        run: |
+          command -v nvidia-smi
+          nvidia-smi --query-gpu=uuid,name --format=csv,noheader
+      - name: Verify CUDA runtime
+        run: python scripts/verify_gpu_runtime.py
+      - name: Verify NCCL runtime
+        if: ${{ inputs.run_nccl }}
+        run: python scripts/verify_nccl_runtime.py
+      - name: Verify GPU-direct runtime
+        if: ${{ inputs.gpu_direct_command != '' }}
+        env:
+          GPU_DIRECT_COMMAND: ${{ inputs.gpu_direct_command }}
+        run: python scripts/verify_gpu_direct.py --command "$GPU_DIRECT_COMMAND"
+      - name: Publish physical verification evidence
+        uses: actions/upload-artifact@v6
+        with:
+          name: gpu-runtime-verification-evidence
+          path: "*-runtime-evidence.json"
+          if-no-files-found: error
