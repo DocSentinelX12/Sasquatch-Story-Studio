@@ -1,0 +1,19 @@
+name: Elastic Fabric Provisioning Verification
+on:
+  push:
+    branches:
+      - elastic-multi-provider-compute-fabric-impl
+permissions:
+  contents: read
+jobs:
+  focused:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+      - run: |
+          python -m pip install -e .
+          python -m pip install pytest
+      - run: python -m pytest -q tests/test_compute_provisioning.py tests/test_compute_resources.py tests/test_provider_adapters.py
