@@ -254,7 +254,7 @@ class SQLiteWorkerRegistryStore:
                 payload["resource"]["capabilities"] = list(record.resource.capabilities)
                 payload["resource"]["installed_engines"] = list(record.resource.installed_engines)
                 payload["hardware_observation"] = _serialize_observation(record.hardware_observation)
-        payload["gpu_capabilities"] = _serialize_capabilities(record.gpu_capabilities)
+                payload["gpu_capabilities"] = _serialize_capabilities(record.gpu_capabilities)
                 connection.execute("INSERT INTO workers VALUES (?, ?)", (record.id, json.dumps(payload, sort_keys=True)))
 
     def load(self) -> WorkerRegistry:
