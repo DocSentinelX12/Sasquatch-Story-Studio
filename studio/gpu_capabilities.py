@@ -79,6 +79,7 @@ class GpuCapabilitySet:
     records: tuple[GpuCapabilityRecord, ...]
     topology_evidence: GpuTopologyEvidence | None
     network_evidence: NetworkFabricObservation | None
+    nccl_gpu_uuids: tuple[str, ...]
     observation_digest: str
     observed_at: int
 
@@ -170,7 +171,14 @@ def derive_gpu_capabilities(
                 observed_at=observation.observed_at,
             )
         )
-    return GpuCapabilitySet(tuple(records), observation.topology_evidence, context.network, observation.digest(), observation.observed_at)
+    return GpuCapabilitySet(
+        tuple(records),
+        observation.topology_evidence,
+        context.network,
+        tuple(sorted(observation.nccl_evidence.gpu_uuids)) if observation.nccl_evidence is not None else (),
+        observation.digest(),
+        observation.observed_at,
+    )
 
 
 def _freshness_failure(evidence: CapabilityEvidence, name: str, now: int, freshness_seconds: int | None) -> str | None:
@@ -232,12 +240,10 @@ def admit_gpu_workload(
     if requirements.require_nccl:
         if capabilities.topology_evidence is None:
             return GpuAdmissionDecision(False, (), "NCCL requires verified topology capability")
-        if any(_freshness_failure(item.health, "health", now, freshness.get("health")) for item in selected):
-            return GpuAdmissionDecision(False, (), "NCCL admission requires fresh verified health capability")
         if any(_freshness_failure(item.nccl, "NCCL", now, freshness.get("nccl")) for item in selected):
             return GpuAdmissionDecision(False, (), "NCCL capability is missing, failed, or stale")
-        if tuple(sorted(selected_uuids)) != tuple(sorted(uuid for uuid in capabilities.records[0:0])) and False:
-            pass
+        if capabilities.nccl_gpu_uuids != tuple(sorted(selected_uuids)):
+            return GpuAdmissionDecision(False, (), "NCCL evidence does not exactly cover the selected GPU set")
 
     if requirements.require_gpu_direct_network:
         if capabilities.network_evidence is None or not capabilities.network_evidence.gpu_direct_rdma:
