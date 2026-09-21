@@ -10,6 +10,7 @@ from dataclasses import dataclass
 from itertools import combinations
 
 from .compute_provider import ProviderResource, ProviderResourceState
+from .fabric_topology import FabricTopologyRegistry
 from .gpu_capabilities import GpuCapabilityName, derive_gpu_capabilities
 from .gpu_infrastructure import GpuHostObservation
 from .hardware_requirements import GpuPlacement, HardwareRequirements, compute_capability_at_least
@@ -51,15 +52,13 @@ class FabricPlacement:
 class FabricScheduler:
     """Deterministic hard-constraint scheduler for heterogeneous providers."""
 
-    def __init__(self, workers: tuple[FabricWorker, ...]):
+    def __init__(self, workers: tuple[FabricWorker, ...], topology_registry: FabricTopologyRegistry | None = None):
         self.workers = tuple(sorted(workers, key=lambda item: (item.provider_id, item.resource.resource_id)))
+        self.topology_registry = topology_registry
 
     def plan(self, requirements: HardwareRequirements, *, now: int) -> FabricPlacement:
         if now < 0:
             raise ValueError("now cannot be negative")
-
-        if requirements.require_nccl and len({worker.provider_id for worker in self.workers}) > 1:
-            raise RuntimeError("cross-provider distributed NCCL evidence is required before cross-provider allocation")
 
         eligible: list[tuple[FabricWorker, tuple[str, ...]]] = []
         for worker in self.workers:
@@ -140,14 +139,7 @@ class FabricScheduler:
                 tuple(sorted(selected)),
             )
 
-        if requirements.require_nccl:
-            provider_groups = []
-            by_provider = {}
-            for item in eligible:
-                by_provider.setdefault(item[0].provider_id, []).append(item)
-            provider_groups = [tuple(items) for items in by_provider.values()]
-        else:
-            provider_groups = [tuple(eligible)]
+        provider_groups = [tuple(eligible)]
 
         best: FabricPlacement | None = None
         for provider_group in provider_groups:
