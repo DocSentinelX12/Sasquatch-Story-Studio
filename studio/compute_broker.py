@@ -113,7 +113,7 @@ class ComputeBroker:
         task: ProductionTask,
         worker: WorkerRecord,
         gpu_uuids: tuple[str, ...],
-    ) -> tuple[int, int, int, int, int, str]:
+    ) -> tuple[int, int, int, int, int, int, str]:
         """Prefer the smallest verified worker that can satisfy the task.
 
         Best-fit placement preserves larger workers for workloads that actually
@@ -176,24 +176,6 @@ class ComputeBroker:
         decision = self.select_worker(task)
         if decision.selected_worker is None:
             return decision, None
-        ordered_workers = sorted(
-            decision.eligible_workers,
-            key=lambda worker_id: self._placement_key(
-                task,
-                self.registry.get(worker_id),
-                next(
-                    (
-                        gpu_uuids
-                        for candidate_id, gpu_uuids in ((
-                            worker_id,
-                            decision.selected_gpu_uuids,
-                        ),)
-                        if candidate_id == worker_id
-                    ),
-                    (),
-                ),
-            ),
-        )
         # Re-evaluate placement for every eligible worker so fallback uses the
         # exact GPU identities that were admitted for that worker.
         placements = {}
