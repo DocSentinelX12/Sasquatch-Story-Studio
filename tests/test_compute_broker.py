@@ -77,7 +77,7 @@ def test_hardware_requirements_are_enforced_from_observed_gpu_inventory():
         topology_text="GPU0 GPU0",
         dcgm_available=True,
         dcgm_version="observed",
-        health_json='{"health":"pass"}',
+        health_json="Overall Health: Healthy",
     )
     registry = WorkerRegistry((record("gpu", vram=96 * 1024**3, hardware=hardware),))
     broker = ComputeBroker(Scheduler(), registry)
