@@ -159,13 +159,10 @@ class WorkerControlServer:
         if self._artifact_provider is None:
             raise RuntimeError("artifact service is not configured")
         parts = path.split("/")
-        if len(parts) != 7 or parts[:4] != ["", "v1", "worker", "artifacts"] or parts[5] != "chunks":
-            raise ValueError("invalid artifact endpoint")
-        worker_id, digest, chunk_text = parts[4], parts[6], parts[6]
-        digest = parts[4]
-        worker_id = parts[4]
         # Endpoint: /v1/worker/artifacts/<worker_id>/<digest>/chunks/<index>
-        worker_id, digest, chunk_text = parts[4], parts[5], parts[6]
+        if len(parts) != 8 or parts[:4] != ["", "v1", "worker", "artifacts"] or parts[6] != "chunks":
+            raise ValueError("invalid artifact endpoint")
+        worker_id, digest, chunk_text = parts[4], parts[5], parts[7]
         if not worker_id.strip() or len(digest) != 64 or any(c not in "0123456789abcdef" for c in digest):
             raise ValueError("invalid artifact identity")
         try: chunk_index = int(chunk_text)
