@@ -44,3 +44,19 @@ def test_equal_priority_queue_prefers_the_oldest_waiting_job():
 
     assert first is not None
     assert first.id == "older"
+
+
+def test_queue_pressure_reports_backlog_and_oldest_wait_without_inventing_capacity():
+    scheduler = Scheduler()
+    scheduler.submit(Job("old", JobRequirements(slots=2), priority=0, queued_at=100))
+    scheduler.submit(Job("new", JobRequirements(slots=1), priority=5, queued_at=190))
+    scheduler.choose("worker", resources(), now=200, lease_seconds=100)
+
+    pressure = scheduler.queue_pressure(now=200, resources=resources())
+
+    assert pressure.queued_jobs == 1
+    assert pressure.leased_jobs == 1
+    assert pressure.queued_slots == 1
+    assert pressure.oldest_wait_seconds == 10
+    assert pressure.capacity_slots == 1
+    assert pressure.slot_pressure == 1.0
