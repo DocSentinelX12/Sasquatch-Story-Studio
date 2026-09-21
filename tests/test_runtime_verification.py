@@ -54,7 +54,7 @@ def test_verification_rejects_missing_output_placeholder(tmp_path: Path) -> None
     checkpoint = tmp_path / "checkpoint.bin"
     checkpoint.write_bytes(b"checkpoint")
     engine = EngineSpec("verification-harness", "harness", "local verification harness", "test-only", ("animation",), (sys.executable,), "verification")
-    with pytest.raises(ValueError, match="\{output\}"):
+    with pytest.raises(ValueError, match=r"\{output\}"):
         verify_engine_runtime(
             engine=engine,
             version_command=(sys.executable, "-c", "print('runtime')"),
