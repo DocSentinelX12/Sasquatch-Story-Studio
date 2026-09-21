@@ -26,11 +26,14 @@ class GpuAwareScheduler:
                 return leased
             if worker.hardware_observation is None:
                 continue
+            # Scheduler leases are the authoritative GPU reservation state.
+            # Read them directly so separate aware-scheduler instances and
+            # reloaded schedulers cannot allocate an already-leased GPU.
             used = {
                 gpu_uuid
-                for job_id, gpu_uuids in self._allocations.items()
-                if self._job_is_leased(job_id)
-                for gpu_uuid in gpu_uuids
+                for leased_job in self.scheduler.snapshot()
+                if leased_job.state.value == "leased" and leased_job.lease_owner == worker_id
+                for gpu_uuid in leased_job.allocated_gpu_uuids
             }
             try:
                 selected = select_gpus(worker.hardware_observation, hardware, used_gpu_uuids=used)
