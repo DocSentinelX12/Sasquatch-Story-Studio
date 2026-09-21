@@ -175,6 +175,14 @@ class WorkerControlServer:
         try: chunk_index = int(chunk_text)
         except ValueError as exc: raise ValueError("invalid artifact chunk index") from exc
         if chunk_index < 0: raise ValueError("invalid artifact chunk index")
+        query = parse_qs(urlsplit(path).query)
+        try:
+            requested_size = int(query.get("size", ["0"])[0])
+            requested_offset = int(query.get("offset", ["-1"])[0])
+        except ValueError as exc:
+            raise ValueError("invalid artifact chunk range") from exc
+        if requested_size <= 0 or requested_offset != chunk_index * (4 * 1024 * 1024):
+            raise ValueError("invalid artifact chunk range")
         access = WorkerAccess(worker_id, token)
         self.control_plane.authority.authorize(access)
         source = self._artifact_provider(worker_id, digest)
@@ -186,7 +194,9 @@ class WorkerControlServer:
         with source_path.open("rb") as handle:
             handle.seek(0, 2); total = handle.tell()
             if offset >= total: raise ValueError("artifact chunk is outside the source object")
-            handle.seek(offset); return handle.read(chunk_size)
+            handle.seek(offset); data = handle.read(requested_size)
+            if len(data) != requested_size: raise IOError("artifact chunk could not be read at the requested size")
+            return data
     def dispatch(self, method: str, path: str, body: bytes, authorization: str | None, *, now: int | None = None) -> ControlResponse:
         if method.upper() != "POST":
             return self._json(405, {"error": "method not allowed"})
