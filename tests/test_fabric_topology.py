@@ -158,3 +158,29 @@ def test_registry_rejects_nccl_evidence_bound_to_different_worker_or_gpu_mapping
         require_nccl=True,
         require_gpu_direct=False,
     )
+
+def test_registry_accepts_explicit_gpu_direct_evidence_for_every_selected_worker_pair():
+    from studio.distributed_gpu import GpuDirectNetworkEvidence
+
+    record_a = record("provider-a", "worker-a", "GPU-A")
+    record_b = record("provider-b", "worker-b", "GPU-B")
+    evidence = GpuDirectNetworkEvidence(
+        worker_pairs=(("worker-a", "worker-b"),),
+        gpu_pairs=(("worker-a", "GPU-A", "worker-b", "GPU-B"),),
+        transport="RDMA",
+        command=("peer-memory-test",),
+        exit_code=0,
+        output_sha256="e" * 64,
+    )
+    registry = FabricTopologyRegistry((
+        record_a.with_gpu_direct_network(evidence),
+        record_b.with_gpu_direct_network(evidence),
+    ))
+
+    assert registry.can_form_group(
+        ("worker-a", "worker-b"),
+        (("worker-a", ("GPU-A",)), ("worker-b", ("GPU-B",))),
+        now=110,
+        require_nccl=False,
+        require_gpu_direct=True,
+    )
