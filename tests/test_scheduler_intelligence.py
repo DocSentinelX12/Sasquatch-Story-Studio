@@ -37,8 +37,8 @@ def test_queued_work_ages_and_eventually_precedes_repeated_newer_work():
 
 def test_equal_priority_queue_prefers_the_oldest_waiting_job():
     scheduler = Scheduler()
-    scheduler.submit(Job("older", JobRequirements()))
-    scheduler.submit(Job("newer", JobRequirements()))
+    scheduler.submit(Job("older", JobRequirements(), queued_at=90))
+    scheduler.submit(Job("newer", JobRequirements(), queued_at=100))
 
     first = scheduler.choose("worker", resources(), now=100, lease_seconds=1)
 
