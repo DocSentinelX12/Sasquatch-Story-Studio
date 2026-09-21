@@ -1,4 +1,5 @@
 import types
+import pytest
 
 import studio.gpu_infrastructure as gpu_infrastructure
 
@@ -211,7 +212,7 @@ def test_probe_falls_back_as_a_whole_when_nvml_cannot_supply_required_identity()
         ("nvidia-smi", "topo", "-m"): "GPU0 CPU Affinity NUMA Affinity\nGPU0 X 0-3 0",
     }
 
-    monkeypatch = __import__("pytest").MonkeyPatch()
+    monkeypatch = pytest.MonkeyPatch()
     try:
         monkeypatch.setattr(gpu_infrastructure.shutil, "which", lambda command: "/usr/bin/nvidia-smi" if command == "nvidia-smi" else None)
         def runner(command):
