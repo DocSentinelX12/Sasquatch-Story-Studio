@@ -324,6 +324,12 @@ def _nvml_optional_call(nvml: Any, name: str, *args: Any) -> Any:
     return function(*args)
 
 
+def _decode_nvml_text(value: Any) -> str:
+    if isinstance(value, bytes):
+        return value.decode("utf-8", errors="strict")
+    return str(value)
+
+
 def _probe_nvml(worker_id: str, nvml: Any, collected_at: int) -> GpuHostObservation:
     nvml.nvmlInit()
     try:
@@ -333,8 +339,8 @@ def _probe_nvml(worker_id: str, nvml: Any, collected_at: int) -> GpuHostObservat
         gpus: list[GpuDeviceObservation] = []
         for index in range(count):
             handle = nvml.nvmlDeviceGetHandleByIndex(index)
-            uuid = str(nvml.nvmlDeviceGetUUID(handle))
-            name = str(nvml.nvmlDeviceGetName(handle))
+            uuid = _decode_nvml_text(nvml.nvmlDeviceGetUUID(handle))
+            name = _decode_nvml_text(nvml.nvmlDeviceGetName(handle))
             memory = nvml.nvmlDeviceGetMemoryInfo(handle)
             pci = nvml.nvmlDeviceGetPciInfo(handle)
             bus_id = pci.busId.decode() if isinstance(pci.busId, bytes) else str(pci.busId)
