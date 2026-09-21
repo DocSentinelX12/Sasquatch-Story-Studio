@@ -51,6 +51,16 @@ class Job:
     queued_at: int | None = None
 
 
+@dataclass(frozen=True)
+class QueuePressure:
+    queued_jobs: int
+    leased_jobs: int
+    queued_slots: int
+    capacity_slots: int
+    oldest_wait_seconds: int
+    slot_pressure: float
+
+
 class Scheduler:
     """Select work using observed capacity with starvation-resistant queue aging."""
 
@@ -162,6 +172,28 @@ class Scheduler:
             ranked.append((job, effective_priority, queued_at))
         ranked.sort(key=lambda item: (-item[1], item[2], item[0].id))
         return [item[0] for item in ranked]
+
+    def queue_pressure(self, now: int, resources: ResourceSnapshot) -> QueuePressure:
+        if now < 0:
+            raise ValueError("now cannot be negative")
+        queued = tuple(job for job in self._jobs.values() if job.state == JobState.QUEUED)
+        leased = tuple(job for job in self._jobs.values() if job.state == JobState.LEASED)
+        waits = [
+            max(0, now - job.queued_at)
+            for job in queued
+            if job.queued_at is not None
+        ]
+        queued_slots = sum(job.requirements.slots for job in queued)
+        capacity_slots = resources.healthy_compute_slots
+        slot_pressure = queued_slots / capacity_slots if capacity_slots else (1.0 if queued_slots else 0.0)
+        return QueuePressure(
+            queued_jobs=len(queued),
+            leased_jobs=len(leased),
+            queued_slots=queued_slots,
+            capacity_slots=capacity_slots,
+            oldest_wait_seconds=max(waits, default=0),
+            slot_pressure=slot_pressure,
+        )
 
     def snapshot(self) -> tuple[Job, ...]:
         return tuple(self._jobs[key] for key in sorted(self._jobs))
