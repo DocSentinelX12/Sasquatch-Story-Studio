@@ -51,14 +51,10 @@ class DistributedGpuScheduler:
             )
             for worker in self.workers
         }
-        if any(
-            not all(
-                capability_sets[worker.worker_id].get(gpu.uuid).production_eligible
-                for gpu in worker.hardware.gpus
-            )
-            for worker in self.workers
-        ):
-            raise RuntimeError("every participating GPU must satisfy canonical capability admission")
+        # A worker may contain a mixture of eligible and unhealthy GPUs. The
+        # canonical single-worker selector is authoritative for choosing the
+        # eligible subset. Do not reject a usable worker because of an unrelated
+        # degraded or unavailable GPU.
 
         local_requirement = replace(
             requirements,
