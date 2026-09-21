@@ -407,24 +407,6 @@ def _run_nvidia_smi_field(runner: Runner, index: int, name: str):
     raise RuntimeError(f"nvidia-smi returned no telemetry for GPU {index}: {name}")
 
 
-def _build_nvml_observation(worker_id: str, provider, now: int) -> tuple[str, str, tuple[GpuDeviceObservation, ...]]:
-    provider.initialize()
-    try:
-        driver = provider.driver_version()
-        cuda = provider.cuda_version()
-        devices = []
-        for device in provider.devices():
-            fields = tuple(
-                (name, _telemetry_value(provider, _default_runner, int(device["index"]), name, now))
-                for name in _TELEMETRY_FIELDS
-            )
-            telemetry = GpuTelemetryEvidence("nvml", now, "pynvml", fields)
-            devices.append(GpuDeviceObservation(**device, telemetry=telemetry))
-        return driver, cuda, tuple(devices)
-    finally:
-        provider.shutdown()
-
-
 def probe_nvidia_host(
     worker_id: str,
     runner: Runner = _default_runner,
