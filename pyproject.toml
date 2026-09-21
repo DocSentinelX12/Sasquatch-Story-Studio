@@ -7,6 +7,9 @@ dependencies = [
   "huggingface_hub>=1.0,<2",
 ]
 
+[tool.setuptools]
+packages = ["studio"]
+
 [project.scripts]
 sasquatch-studio = "studio.cli:main"
 
