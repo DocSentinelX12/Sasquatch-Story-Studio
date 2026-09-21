@@ -212,5 +212,14 @@ class WorkerControlHTTPHandler:
     service: WorkerControlServer
     clock: Any
 
-    def handle(self, method: str, path: str, body: bytes, authorization: str | None) -> ControlResponse:
+    def handle(self, method: str, path: str, body: bytes, authorization: str | None) -> ControlResponse | BinaryControlResponse:
+        if method.upper() == "GET":
+            try:
+                return BinaryControlResponse(200, self.service.get_artifact_chunk(path, authorization))
+            except PermissionError as exc:
+                return ControlResponse(401, json.dumps({"error": str(exc)}, sort_keys=True))
+            except FileNotFoundError as exc:
+                return ControlResponse(404, json.dumps({"error": str(exc)}, sort_keys=True))
+            except (ValueError, RuntimeError) as exc:
+                return ControlResponse(400, json.dumps({"error": str(exc)}, sort_keys=True))
         return self.service.dispatch(method, path, body, authorization, now=int(self.clock()))
