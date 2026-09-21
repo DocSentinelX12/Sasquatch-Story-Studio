@@ -118,7 +118,7 @@ def test_topology_sensitive_hardware_is_rejected_without_verified_placement_evid
     )
     decision = broker.select_worker(task)
     assert decision.selected_worker is None
-    assert dict(decision.rejected_workers)["gpu"] == "verified NVIDIA topology evidence is missing"
+    assert dict(decision.rejected_workers)["gpu"] == "observed topology has no verified capability evidence"
 
 
 def test_lease_binds_the_requested_task_and_exact_gpu_allocation():
