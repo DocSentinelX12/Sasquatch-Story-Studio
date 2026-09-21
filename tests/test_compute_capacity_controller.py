@@ -23,14 +23,14 @@ class Adapter:
         return resource.transition(ProviderResourceState.RELEASED)
 
 
-def test_capacity_controller_uses_twelve_as_minimum_target_not_maximum():
+def test_capacity_controller_does_not_treat_acquired_capacity_as_verified():
     controller = ComputeCapacityController((Adapter("a", 20),))
 
     result = controller.ensure_minimum(now=10)
 
     assert result.target_nodes == 12
     assert result.acquired_nodes == 20
-    assert result.target_satisfied is True
+    assert result.target_satisfied is False
 
 
 def test_capacity_controller_distinguishes_acquired_from_verified_capacity():
