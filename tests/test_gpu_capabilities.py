@@ -5,6 +5,7 @@ from studio.gpu_capabilities import (
     GpuCapabilityState,
     admit_gpu_workload,
     derive_gpu_capabilities,
+    DEFAULT_GPU_EVIDENCE_FRESHNESS_SECONDS,
 )
 from studio.gpu_infrastructure import (
     GpuDeviceObservation,
@@ -279,3 +280,14 @@ def test_non_multi_node_admission_rejects_cross_worker_gpu_selection():
         selected_gpu_uuids=("GPU-0", "GPU-1"),
         now=NOW,
     ) == ()
+
+
+def test_default_freshness_window_marks_old_observation_stale():
+    capabilities = derive_gpu_capabilities(
+        observation(gpu("GPU-0")),
+        now=NOW + DEFAULT_GPU_EVIDENCE_FRESHNESS_SECONDS + 1,
+    )
+    record = capabilities.get("GPU-0")
+
+    assert record.state(GpuCapabilityName.HEALTH) is GpuCapabilityState.STALE
+    assert not record.production_eligible
