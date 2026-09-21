@@ -15,6 +15,8 @@ import time
 from pathlib import Path
 from typing import Sequence
 
+from .gpu_infrastructure import probe_nvidia_host
+
 
 def validate_gpu_direct_output(output: str, success_marker: str) -> bool:
     if not success_marker.strip():
@@ -55,6 +57,7 @@ def run_gpu_direct_probe(
         )
     validate_gpu_direct_output(output, success_marker)
 
+    observation = probe_nvidia_host("local-gpu-direct-verifier")
     return {
         "verification": "real_gpu_direct",
         "recorded_at": int(time.time()),
@@ -63,12 +66,18 @@ def run_gpu_direct_probe(
         "success_marker": success_marker,
         "output_sha256": hashlib.sha256(output.encode("utf-8")).hexdigest(),
         "output": output,
+        "gpu_uuids": [gpu.uuid for gpu in observation.gpus],
+        "hardware_observation": json.loads(observation.canonical_json()),
     }
 
 
 def main() -> int:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--command", required=True, help="Shell-style command for the configured physical GPU-direct probe")
+    parser.add_argument(
+        "--command",
+        required=True,
+        help="Shell-style command for the configured physical GPU-direct probe",
+    )
     parser.add_argument("--success-marker", default="GPU_DIRECT_VERIFIED")
     parser.add_argument("--timeout-seconds", type=int, default=300)
     parser.add_argument("--output", required=True)
