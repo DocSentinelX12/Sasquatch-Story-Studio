@@ -11,7 +11,7 @@ import json
 from dataclasses import replace
 from typing import Any, Mapping
 
-from .gpu_infrastructure import GpuDeviceObservation, GpuHostObservation, classify_dcgm_health
+from .gpu_infrastructure import GpuDeviceObservation, GpuHostObservation, GpuTelemetryEvidence, TelemetryValue, classify_dcgm_health
 from .gpu_topology import GpuTopologyEvidence
 from .nccl_evidence import NCCLTestEvidence
 from .remote_worker import WorkerAccess, WorkerLifecycleAuthority
@@ -24,6 +24,42 @@ class WorkerControlPlane:
     def __init__(self, registry: WorkerRegistry, authority: WorkerLifecycleAuthority):
         self.registry = registry
         self.authority = authority
+
+    @staticmethod
+    def _telemetry(payload: Any) -> GpuTelemetryEvidence | None:
+        if payload is None:
+            return None
+        if not isinstance(payload, Mapping):
+            raise ValueError("worker GPU telemetry must be an object")
+        raw_fields = payload.get("fields", [])
+        if isinstance(raw_fields, Mapping):
+            items = raw_fields.items()
+        elif isinstance(raw_fields, (list, tuple)):
+            items = raw_fields
+        else:
+            raise ValueError("worker GPU telemetry fields must be an object or list")
+        fields = []
+        for name, value in items:
+            if not isinstance(value, Mapping):
+                raise ValueError("worker GPU telemetry field must be an object")
+            fields.append(
+                (
+                    str(name),
+                    TelemetryValue(
+                        status=str(value["status"]),
+                        value=value.get("value"),
+                        source=str(value["source"]),
+                        observed_at=int(value["observed_at"]),
+                        detail=str(value.get("detail", "")),
+                    ),
+                )
+            )
+        return GpuTelemetryEvidence(
+            source=str(payload["source"]),
+            collected_at=int(payload["collected_at"]),
+            collector=str(payload["collector"]),
+            fields=tuple(fields),
+        )
 
     @staticmethod
     def _observation(payload: Mapping[str, Any]) -> GpuHostObservation:
@@ -66,7 +102,13 @@ class WorkerControlPlane:
             worker_id=str(raw["worker_id"]),
             driver_version=str(raw["driver_version"]),
             cuda_supported_version=str(raw["cuda_supported_version"]),
-            gpus=tuple(GpuDeviceObservation(**dict(item)) for item in gpus),
+            gpus=tuple(
+                GpuDeviceObservation(
+                    **{key: value for key, value in dict(item).items() if key != "telemetry"},
+                    telemetry=WorkerControlPlane._telemetry(item.get("telemetry")),
+                )
+                for item in gpus
+            ),
             topology_text=raw.get("topology_text"),
             dcgm_available=bool(raw["dcgm_available"]),
             dcgm_version=raw.get("dcgm_version"),
