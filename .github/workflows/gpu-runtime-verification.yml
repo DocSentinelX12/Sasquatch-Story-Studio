@@ -1,0 +1,263 @@
+name: GPU Compute Fabric Verification
+
+on:
+  push:
+    branches: [elastic-multi-provider-compute-fabric-impl]
+    paths:
+      - "studio/**"
+      - "tests/**"
+      - "scripts/verify_gpu_runtime.py"
+      - "scripts/verify_nccl_runtime.py"
+      - "scripts/verify_gpu_direct.py"
+      - "pyproject.toml"
+      - ".github/workflows/gpu-runtime-verification.yml"
+  workflow_run:
+    workflows: ["Install All Studio Engines"]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      run_physical:
+        description: "Run physical NVIDIA CUDA/NCCL verification on a self-hosted GPU runner"
+        required: true
+        default: false
+        type: boolean
+      verify_nccl:
+        description: "Run the real multi-GPU NCCL collective verification"
+        required: true
+        default: true
+        type: boolean
+      run_gpu_direct:
+        description: "Run the configured physical GPU-direct verification probe"
+        required: true
+        default: false
+        type: boolean
+      gpu_direct_command:
+        description: "Shell-style physical GPU-direct probe command. Do not include secrets."
+        required: false
+        default: ""
+        type: string
+      gpu_direct_success_marker:
+        description: "Exact marker the physical GPU-direct probe must emit on success"
+        required: false
+        default: "GPU_DIRECT_VERIFIED"
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: gpu-compute-fabric-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  PYTHONPATH: .
+
+jobs:
+  contracts:
+    name: GPU and elastic fabric contract verification
+    if: ${{ github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout triggering commit
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.sha }}
+
+      - name: Verify checkout identity
+        env:
+          EXPECTED_SHA: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.sha }}
+        run: |
+          set -euo pipefail
+          actual_sha="$(git rev-parse HEAD)"
+          if [ "$actual_sha" != "$EXPECTED_SHA" ]; then
+            echo "Triggering commit mismatch: expected $EXPECTED_SHA, checked out $actual_sha"
+            exit 1
+          fi
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+
+      - name: Install test tooling and project dependencies
+        run: |
+          python -m pip install --upgrade pip pytest
+          python -m pip install -e .
+          python -m pip check
+
+      - name: Run GPU, distributed, and elastic fabric contract suite
+        run: |
+          python -m pytest -q             tests/test_compute_acquisition.py             tests/test_compute_capacity_controller.py             tests/test_compute_fabric.py             tests/test_compute_fabric_controller.py             tests/test_compute_provider.py             tests/test_compute_provisioning.py             tests/test_compute_recovery.py             tests/test_compute_recovery_coordinator.py             tests/test_compute_resources.py             tests/test_distributed_gpu.py             tests/test_distributed_gpu_scheduler.py             tests/test_fabric_communication.py             tests/test_fabric_scheduler.py             tests/test_fabric_topology.py             tests/test_gpu_aware_scheduler.py             tests/test_gpu_capabilities.py             tests/test_gpu_capability_placement.py             tests/test_gpu_cluster.py             tests/test_gpu_infrastructure.py             tests/test_gpu_runtime_verification.py             tests/test_gpu_scheduler.py             tests/test_gpu_scheduler_nccl.py             tests/test_gpu_telemetry.py             tests/test_gpu_topology.py             tests/test_gpu_worker_agent.py             tests/test_gpu_worker_agent_remote.py             tests/test_nccl_evidence.py             tests/test_verified_distributed_runtime.py             tests/test_worker_fabric.py             tests/test_worker_hardware_observation.py             tests/test_worker_registry_gpu_evidence_persistence.py             tests/test_worker_registry_gpu_persistence.py
+
+  physical-cuda:
+    name: Physical CUDA runtime verification
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.run_physical }}
+    needs: contracts
+    runs-on: [self-hosted, linux, x64, gpu]
+    timeout-minutes: 45
+    steps:
+      - name: Checkout selected commit
+        uses: actions/checkout@v5
+
+      - name: Verify actual NVIDIA hardware before executing GPU code
+        shell: bash
+        run: |
+          set -euo pipefail
+          command -v nvidia-smi >/dev/null 2>&1 || {
+            echo "NVIDIA runner is missing nvidia-smi"
+            exit 1
+          }
+          gpu_count="$(nvidia-smi --query-gpu=index --format=csv,noheader | sed '/^[[:space:]]*$/d' | wc -l)"
+          if [ "$gpu_count" -lt 1 ]; then
+            echo "No NVIDIA GPU was exposed to the runner"
+            exit 1
+          fi
+          echo "Verified NVIDIA GPU count: $gpu_count"
+          nvidia-smi --query-gpu=uuid,name,driver_version,memory.total --format=csv
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+
+      - name: Install project package
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e .
+          python -m pip check
+
+      - name: Verify CUDA-capable PyTorch runtime is preinstalled
+        run: |
+          python - <<'PY'
+          import torch
+          if not torch.cuda.is_available():
+              raise SystemExit("PyTorch CUDA runtime is not available on the GPU runner")
+          print("torch_version=", torch.__version__)
+          print("torch_cuda_version=", torch.version.cuda)
+          print("cuda_device_count=", torch.cuda.device_count())
+          for index in range(torch.cuda.device_count()):
+              print(index, torch.cuda.get_device_name(index))
+          PY
+
+      - name: Verify real CUDA runtime and bind evidence to GPU UUIDs
+        run: python scripts/verify_gpu_runtime.py --output gpu-runtime-evidence.json
+
+      - name: Publish CUDA runtime evidence
+        uses: actions/upload-artifact@v6
+        with:
+          name: gpu-runtime-evidence-${{ github.run_id }}-${{ github.run_attempt }}
+          path: gpu-runtime-evidence.json
+          if-no-files-found: error
+          retention-days: 14
+
+  physical-nccl:
+    name: Physical NCCL collective verification
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.run_physical && inputs.verify_nccl }}
+    needs: physical-cuda
+    runs-on: [self-hosted, linux, x64, gpu]
+    timeout-minutes: 60
+    steps:
+      - name: Checkout selected commit
+        uses: actions/checkout@v5
+
+      - name: Verify at least two real NVIDIA GPUs before NCCL
+        shell: bash
+        run: |
+          set -euo pipefail
+          command -v nvidia-smi >/dev/null 2>&1 || {
+            echo "NVIDIA runner is missing nvidia-smi"
+            exit 1
+          }
+          gpu_count="$(nvidia-smi --query-gpu=index --format=csv,noheader | sed '/^[[:space:]]*$/d' | wc -l)"
+          if [ "$gpu_count" -lt 2 ]; then
+            echo "NCCL verification requires at least two visible NVIDIA GPUs; found $gpu_count"
+            exit 1
+          fi
+          echo "Verified NVIDIA GPU count for NCCL: $gpu_count"
+          nvidia-smi --query-gpu=uuid,name,driver_version,memory.total --format=csv
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+
+      - name: Install project package
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e .
+          python -m pip check
+
+      - name: Verify CUDA and NCCL support before collective
+        run: |
+          python - <<'PY'
+          import torch
+          import torch.distributed as dist
+          if not torch.cuda.is_available():
+              raise SystemExit("CUDA is not available")
+          if torch.cuda.device_count() < 2:
+              raise SystemExit("NCCL verification requires at least two CUDA devices")
+          if not dist.is_nccl_available():
+              raise SystemExit("PyTorch was not built with NCCL support")
+          print("torch_version=", torch.__version__)
+          print("torch_cuda_version=", torch.version.cuda)
+          print("cuda_device_count=", torch.cuda.device_count())
+          print("nccl_available=", dist.is_nccl_available())
+          PY
+
+      - name: Verify real NCCL collective and exact GPU identity binding
+        run: python scripts/verify_nccl_runtime.py --output nccl-runtime-evidence.json
+
+      - name: Publish NCCL runtime evidence
+        uses: actions/upload-artifact@v6
+        with:
+          name: nccl-runtime-evidence-${{ github.run_id }}-${{ github.run_attempt }}
+          path: nccl-runtime-evidence.json
+          if-no-files-found: error
+          retention-days: 14
+
+  physical-gpu-direct:
+    name: Physical GPU-direct verification
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.run_physical && inputs.verify_nccl && inputs.run_gpu_direct }}
+    needs: physical-nccl
+    runs-on: [self-hosted, linux, x64, gpu]
+    timeout-minutes: 45
+    steps:
+      - name: Require an explicit physical GPU-direct probe
+        env:
+          GPU_DIRECT_COMMAND: ${{ inputs.gpu_direct_command }}
+        run: |
+          set -euo pipefail
+          if [ -z "$GPU_DIRECT_COMMAND" ]; then
+            echo "run_gpu_direct=true requires gpu_direct_command"
+            exit 1
+          fi
+
+      - name: Checkout selected commit
+        uses: actions/checkout@v5
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+
+      - name: Install project package
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e .
+          python -m pip check
+
+      - name: Verify physical GPU-direct path
+        env:
+          GPU_DIRECT_COMMAND: ${{ inputs.gpu_direct_command }}
+          GPU_DIRECT_MARKER: ${{ inputs.gpu_direct_success_marker }}
+        run: >-
+          python scripts/verify_gpu_direct.py
+          --command "$GPU_DIRECT_COMMAND"
+          --success-marker "$GPU_DIRECT_MARKER"
+          --output gpu-direct-evidence.json
+
+      - name: Publish GPU-direct runtime evidence
+        uses: actions/upload-artifact@v6
+        with:
+          name: gpu-direct-evidence-${{ github.run_id }}-${{ github.run_attempt }}
+          path: gpu-direct-evidence.json
+          if-no-files-found: error
+          retention-days: 14
