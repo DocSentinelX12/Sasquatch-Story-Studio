@@ -113,9 +113,9 @@ def distributed_registry():
             cuda_supported_version="13.0",
             gpus=(GpuDeviceObservation(0, f"{worker_id}-GPU-0", "Test GPU", 8192, 0, f"0000:{bus}:00.0", "8.0"),),
             topology_text="observed",
-            dcgm_available=False,
-            dcgm_version=None,
-            health_json=None,
+            dcgm_available=True,
+            dcgm_version="test",
+            health_json="Overall Health: Healthy",
         )
         records.append(
             WorkerRecord(
