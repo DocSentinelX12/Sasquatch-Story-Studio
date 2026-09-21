@@ -10,6 +10,7 @@ from typing import Mapping
 from .gpu_infrastructure import GpuHostObservation, classify_dcgm_health
 from .hardware_requirements import GpuPlacement, HardwareRequirements, compute_capability_at_least
 from .nccl_evidence import validate_nccl_evidence
+from .gpu_runtime_verification import CUDARuntimeEvidence
 
 
 DEFAULT_GPU_EVIDENCE_FRESHNESS_SECONDS = 60
@@ -61,6 +62,7 @@ class GpuCapabilityRecord:
     name: str
     compute_capability: str
     topology_evidence: object | None = None
+    cuda_runtime_evidence: CUDARuntimeEvidence | None = None
     nccl_gpu_sets: tuple[tuple[str, ...], ...] = ()
     gpu_direct_gpu_sets: tuple[tuple[str, ...], ...] = ()
 
@@ -113,6 +115,20 @@ class GpuCapabilitySet:
                             "cpu_affinity": [list(item) for item in record.topology_evidence.cpu_affinity],
                             "nic_paths": [list(item) for item in record.topology_evidence.nic_paths],
                             "raw_text_sha256": record.topology_evidence.raw_text_sha256,
+                        }
+                    ),
+                    "cuda_runtime_evidence": (
+                        None
+                        if record.cuda_runtime_evidence is None
+                        else {
+                            "recorded_at": record.cuda_runtime_evidence.recorded_at,
+                            "gpu_uuids": list(record.cuda_runtime_evidence.gpu_uuids),
+                            "runtime_gpu_uuids": list(record.cuda_runtime_evidence.runtime_gpu_uuids),
+                            "tensor_results": list(record.cuda_runtime_evidence.tensor_results),
+                            "torch_version": record.cuda_runtime_evidence.torch_version,
+                            "torch_cuda_version": record.cuda_runtime_evidence.torch_cuda_version,
+                            "driver_version": record.cuda_runtime_evidence.driver_version,
+                            "cuda_supported_version": record.cuda_runtime_evidence.cuda_supported_version,
                         }
                     ),
                     "nccl_gpu_sets": [list(group) for group in record.nccl_gpu_sets],
@@ -172,6 +188,7 @@ def derive_gpu_capabilities(
     freshness_window_seconds: int | None = DEFAULT_GPU_EVIDENCE_FRESHNESS_SECONDS,
     engine_verifications: Mapping[str, object] | None = None,
     gpu_direct_gpu_sets: tuple[tuple[str, ...], ...] = (),
+    cuda_runtime_evidence: CUDARuntimeEvidence | None = None,
 ) -> GpuCapabilitySet:
     if now < 0:
         raise ValueError("now cannot be negative")
@@ -221,6 +238,20 @@ def derive_gpu_capabilities(
         freshness_window_seconds=freshness_window_seconds,
     )
 
+    cuda_state = GpuCapabilityState.UNAVAILABLE
+    if cuda_runtime_evidence is not None:
+        expected_uuids = tuple(gpu.uuid for gpu in observation.gpus)
+        if tuple(cuda_runtime_evidence.gpu_uuids) == expected_uuids:
+            cuda_state = GpuCapabilityState.VERIFIED
+        else:
+            cuda_state = GpuCapabilityState.FAILED
+        cuda_state = _state_for_timestamp(
+            cuda_state,
+            cuda_runtime_evidence.recorded_at,
+            now=now,
+            freshness_window_seconds=freshness_window_seconds,
+        )
+
     records = []
     for gpu in observation.gpus:
         engine_caps = []
@@ -259,11 +290,11 @@ def derive_gpu_capabilities(
             ),
             GpuCapability(
                 GpuCapabilityName.CUDA_RUNTIME,
-                GpuCapabilityState.IDENTIFIED,
+                cuda_state,
                 observation_digest,
-                observed_at,
-                None,
-                "driver and supported CUDA versions observed; runtime execution not inferred",
+                cuda_runtime_evidence.recorded_at if cuda_runtime_evidence is not None else observed_at,
+                cuda_runtime_evidence.recorded_at if cuda_state is GpuCapabilityState.VERIFIED else None,
+                "real CUDA runtime verification" if cuda_runtime_evidence is not None else "driver and supported CUDA versions observed; runtime execution not inferred",
             ),
             GpuCapability(
                 GpuCapabilityName.HEALTH,
@@ -313,6 +344,7 @@ def derive_gpu_capabilities(
                 name=gpu.name,
                 compute_capability=gpu.compute_capability,
                 topology_evidence=observation.topology_evidence,
+                cuda_runtime_evidence=cuda_runtime_evidence,
                 nccl_gpu_sets=(
                     (tuple(observation.nccl_evidence.gpu_uuids),)
                     if observation.nccl_evidence is not None and nccl_state is GpuCapabilityState.VERIFIED
