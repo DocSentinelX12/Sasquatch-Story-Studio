@@ -102,7 +102,7 @@ def test_missing_health_cannot_produce_production_eligibility():
 
 
 def test_missing_topology_cannot_satisfy_same_nvlink_requirement():
-    capabilities = derive_gpu_capabilities(observation(gpu("GPU-0"), gpu("GPU-1", 1)), now=NOW)
+    capabilities = derive_gpu_capabilities(observation(gpu("GPU-0"), gpu("GPU-1", 1)), now=NOW, engine_verifications={"test": NOW})
     requirements = HardwareRequirements(
         min_gpu_count=2,
         placement=GpuPlacement.SAME_NVLINK_DOMAIN,
@@ -117,7 +117,7 @@ def test_missing_topology_cannot_satisfy_same_nvlink_requirement():
 
 
 def test_missing_nccl_cannot_satisfy_multi_gpu_requirement():
-    capabilities = derive_gpu_capabilities(observation(gpu("GPU-0"), gpu("GPU-1", 1)), now=NOW)
+    capabilities = derive_gpu_capabilities(observation(gpu("GPU-0"), gpu("GPU-1", 1)), now=NOW, engine_verifications={"test": NOW})
     requirements = HardwareRequirements(min_gpu_count=2, require_nccl=True)
 
     assert admit_gpu_workload(
@@ -129,7 +129,7 @@ def test_missing_nccl_cannot_satisfy_multi_gpu_requirement():
 
 
 def test_missing_gpu_direct_evidence_cannot_satisfy_gpu_direct_requirement():
-    capabilities = derive_gpu_capabilities(observation(gpu("GPU-0")), now=NOW)
+    capabilities = derive_gpu_capabilities(observation(gpu("GPU-0")), now=NOW, engine_verifications={"test": NOW})
     requirements = HardwareRequirements(require_gpu_direct_network=True)
 
     assert admit_gpu_workload(
@@ -174,6 +174,7 @@ def test_multi_gpu_nccl_evidence_must_cover_exact_selected_gpu_set():
     capabilities = derive_gpu_capabilities(
         observation(gpu("GPU-0"), gpu("GPU-1", 1), nccl=nccl),
         now=NOW,
+        engine_verifications={"test": NOW},
     )
     requirements = HardwareRequirements(min_gpu_count=2, require_nccl=True)
 
