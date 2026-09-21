@@ -106,6 +106,8 @@ class WorkerControlPlane:
             health_json=raw.get("health_json"),
             nccl_evidence=nccl_evidence,
             topology_evidence=topology_evidence,
+            observed_at=int(raw.get("observed_at", 0)),
+            collector_identity=str(raw.get("collector_identity", "legacy_observation")),
         )
         if observation.digest() != payload.get("hardware_observation_digest"):
             raise PermissionError("worker hardware observation digest does not match payload")
