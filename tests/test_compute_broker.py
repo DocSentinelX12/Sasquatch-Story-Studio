@@ -105,8 +105,7 @@ def test_topology_sensitive_hardware_is_rejected_without_verified_placement_evid
             GpuDeviceObservation(0, "GPU-0", "Observed GPU", 96 * 1024, 0, "0000:01:00.0", "10.0"),
             GpuDeviceObservation(1, "GPU-1", "Observed GPU", 96 * 1024, 0, "0000:02:00.0", "10.0"),
         ),
-        topology_text="GPU0 GPU1
-GPU1 GPU0",
+        topology_text="GPU0 GPU1\\nGPU1 GPU0",
         dcgm_available=True,
         dcgm_version="observed",
         health_json='{"health":"pass"}',
