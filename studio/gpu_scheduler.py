@@ -6,7 +6,7 @@ from itertools import combinations
 
 from .gpu_capabilities import admit_gpu_workload, derive_gpu_capabilities
 from .gpu_infrastructure import GpuHostObservation
-from .hardware_requirements import GpuPlacement, HardwareRequirements
+from .hardware_requirements import GpuPlacement, HardwareRequirements, compute_capability_at_least
 
 
 def _topology_matrix(observation: GpuHostObservation) -> dict[tuple[str, str], str]:
@@ -76,7 +76,7 @@ def select_gpus(
         and gpu.memory_total_mib * 1024**2 >= requirements.min_vram_per_gpu_bytes
         and (
             requirements.min_compute_capability is None
-            or _compute_capability_at_least(gpu.compute_capability, requirements.min_compute_capability)
+            or _safe_compute_capability_at_least(gpu.compute_capability, requirements.min_compute_capability)
         )
         and (
             not requirements.required_gpu_models
@@ -113,10 +113,8 @@ def select_gpus(
     return admitted
 
 
-def _compute_capability_at_least(observed: str, required: str) -> bool:
+def _safe_compute_capability_at_least(observed: str, required: str) -> bool:
     try:
-        observed_parts = tuple(int(part) for part in observed.split("."))
-        required_parts = tuple(int(part) for part in required.split("."))
+        return compute_capability_at_least(observed, required)
     except ValueError:
         return False
-    return observed_parts >= required_parts
