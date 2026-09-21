@@ -43,7 +43,6 @@ def task(worker_id: str = "worker-a") -> WorkerTask:
     )
 
 
-
 def distributed_registry() -> WorkerRegistry:
     records = []
     for worker_id, offset in (("worker-a", 0), ("worker-b", 4)):
@@ -65,9 +64,9 @@ def distributed_registry() -> WorkerRegistry:
             cuda_supported_version="12.9",
             gpus=gpus,
             topology_text="observed",
-            dcgm_available=False,
-            dcgm_version=None,
-            health_json=None,
+            dcgm_available=True,
+            dcgm_version="test",
+            health_json="Overall Health: Healthy",
         )
         resource = ComputeResource(worker_id, 64, 256 * 1024**3, gpu_count=4, vram_bytes=320 * 1024**3, logical_slots=4, scratch_bytes=1024**12, power_budget_watts=2000)
         records.append(WorkerRecord(worker_id, resource, WorkerState.VERIFIED_AVAILABLE, observed_at=100, observation_source="test", hardware_observation=observation))
