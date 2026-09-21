@@ -103,46 +103,70 @@ class FabricScheduler:
         if len(eligible) < 2:
             raise RuntimeError("multi-node scheduling requires at least two eligible workers")
 
-        groups = []
-        for size in range(2, len(eligible) + 1):
-            for group in combinations(eligible, size):
-                provider_ids = {worker.provider_id for worker, _ in group}
-                if requirements.require_nccl and len(provider_ids) > 1:
-                    continue
-                if sum(len(gpus) for _, gpus in group) < requirements.min_gpu_count:
-                    continue
-                selected: list[tuple[str, tuple[str, ...]]] = []
-                remaining = requirements.min_gpu_count
-                for worker, gpus in sorted(group, key=lambda item: (-item[0].reliability_score, item[0].startup_seconds, item[0].provider_id, item[0].resource.resource_id)):
-                    take = min(len(gpus), remaining)
-                    if take:
-                        selected.append((worker.hardware.worker_id, gpus[:take]))
-                        remaining -= take
-                    if remaining == 0:
-                        break
-                if remaining:
-                    continue
-                total_vram = sum(
-                    gpu.memory_total_mib * 1024**2
-                    for worker, _ in group
-                    for gpu in worker.hardware.gpus
-                    if any(uuid == gpu.uuid for _, uuids in selected for uuid in uuids)
-                )
-                if total_vram < requirements.min_total_vram_bytes:
-                    continue
-                groups.append((group, tuple(sorted(selected)), total_vram))
+        def ranked_group(group: tuple[tuple[FabricWorker, tuple[str, ...]], ...]) -> FabricPlacement | None:
+            selected: list[tuple[str, tuple[str, ...]]] = []
+            remaining = requirements.min_gpu_count
+            ordered = sorted(
+                group,
+                key=lambda item: (
+                    -item[0].reliability_score,
+                    item[0].startup_seconds,
+                    item[0].provider_id,
+                    item[0].resource.resource_id,
+                ),
+            )
+            for worker, gpus in ordered:
+                take = min(len(gpus), remaining)
+                if take:
+                    selected.append((worker.hardware.worker_id, gpus[:take]))
+                    remaining -= take
+                if remaining == 0:
+                    break
+            if remaining:
+                return None
+            total_vram = sum(
+                gpu.memory_total_mib * 1024**2
+                for worker, _ in group
+                for gpu in worker.hardware.gpus
+                if any(uuid == gpu.uuid for _, uuids in selected for uuid in uuids)
+            )
+            if total_vram < requirements.min_total_vram_bytes:
+                return None
+            return FabricPlacement(
+                tuple(worker for worker, _ in ordered if any(worker.hardware.worker_id == wid for wid, _ in selected)),
+                tuple(sorted(selected)),
+            )
 
-        if not groups:
+        if requirements.require_nccl:
+            provider_groups = []
+            by_provider = {}
+            for item in eligible:
+                by_provider.setdefault(item[0].provider_id, []).append(item)
+            provider_groups = [tuple(items) for items in by_provider.values()]
+        else:
+            provider_groups = [tuple(eligible)]
+
+        best: FabricPlacement | None = None
+        for provider_group in provider_groups:
+            ordered = sorted(
+                provider_group,
+                key=lambda item: (
+                    -item[0].reliability_score,
+                    item[0].startup_seconds,
+                    item[0].provider_id,
+                    item[0].resource.resource_id,
+                ),
+            )
+            for size in range(2, len(ordered) + 1):
+                candidate = ranked_group(tuple(ordered[:size]))
+                if candidate is not None:
+                    best = candidate
+                    break
+            if best is not None:
+                break
+
+        if best is None:
             if requirements.require_nccl and len({worker.provider_id for worker, _ in eligible}) > 1:
                 raise RuntimeError("cross-provider distributed NCCL evidence is required before cross-provider allocation")
             raise RuntimeError("eligible providers cannot satisfy the distributed GPU requirement")
-
-        group, selected, _ = max(
-            groups,
-            key=lambda item: (
-                sum(worker.reliability_score for worker, _ in item[0]),
-                -sum(worker.startup_seconds for worker, _ in item[0]),
-                -len(item[0]),
-            ),
-        )
-        return FabricPlacement(tuple(worker for worker, _ in group), selected)
+        return best
