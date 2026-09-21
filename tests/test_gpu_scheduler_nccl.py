@@ -1,4 +1,5 @@
 from studio.gpu_infrastructure import GpuDeviceObservation, GpuHostObservation
+from studio.gpu_topology import GpuTopologyEvidence
 from studio.gpu_scheduler import select_gpus
 from studio.hardware_requirements import GpuPlacement, HardwareRequirements
 from studio.nccl_evidence import NCCLTestEvidence
@@ -17,7 +18,7 @@ def test_scheduler_accepts_nccl_requirement_only_with_matching_successful_eviden
         dcgm_available=True,
         dcgm_version="observed",
         health_json="Overall Health: Healthy",
-        nccl_evidence=NCCLTestEvidence(
+        topology_evidence=GpuTopologyEvidence(\n            gpu_uuids=("GPU-0", "GPU-1"),\n            gpu_matrix=(("X", "NV2"), ("NV2", "X")),\n            cpu_affinity=(("GPU-0", "0-31"), ("GPU-1", "32-63")),\n            nic_paths=(),\n            raw_text_sha256="c" * 64,\n        ),\n        nccl_evidence=NCCLTestEvidence(
             executable="all_reduce_perf",
             executable_sha256="a" * 64,
             command=("all_reduce_perf", "-g", "2"),
