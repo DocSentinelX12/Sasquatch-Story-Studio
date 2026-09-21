@@ -33,6 +33,7 @@ class WorkerRecord:
     observation_source: str = ""
     quota_note: str = ""
     hardware_observation: GpuHostObservation | None = None
+    gpu_capability_digest: str | None = None
 
     def __post_init__(self) -> None:
         if not self.id.strip():
