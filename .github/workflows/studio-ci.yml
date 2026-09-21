@@ -1,9 +1,10 @@
 name: Sasquatch Story Studio CI
 
 on:
-  push:
+  workflow_run:
+    workflows: ["Install All Studio Engines"]
+    types: [completed]
     branches: [main]
-  workflow_dispatch:
 
 permissions:
   contents: read
@@ -13,9 +14,12 @@ env:
 
 jobs:
   test:
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
       - uses: actions/setup-python@v6
         with:
           python-version: "3.11"
