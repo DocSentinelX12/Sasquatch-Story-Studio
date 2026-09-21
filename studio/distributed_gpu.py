@@ -18,6 +18,7 @@ from pathlib import Path
 import sqlite3
 
 from .gpu_capabilities import derive_gpu_capabilities
+from .fabric_scheduler import FabricPlacement
 from .gpu_infrastructure import GpuHostObservation
 from .hardware_requirements import HardwareRequirements, compute_capability_at_least
 from .nccl_evidence import validate_nccl_evidence
@@ -388,6 +389,90 @@ class DistributedGpuAllocator:
         except RuntimeError:
             return None
 
+    def reserve_placement(
+        self,
+        task_id: str,
+        requirements: HardwareRequirements,
+        placement: FabricPlacement,
+        now: int,
+        lease_seconds: int,
+        *,
+        distributed_nccl: DistributedNCCLEvidence | None = None,
+        gpu_direct_network: GpuDirectNetworkEvidence | None = None,
+    ) -> DistributedGpuAllocation:
+        """Atomically reserve the exact placement produced by FabricScheduler."""
+        if placement.node_count < 2 or placement.world_size < requirements.min_gpu_count:
+            raise RuntimeError("fabric placement does not satisfy the distributed GPU requirement")
+        if tuple(sorted(worker.hardware.worker_id for worker in placement.workers)) != tuple(
+            sorted(worker_id for worker_id, _ in placement.gpus_by_worker)
+        ):
+            raise RuntimeError("fabric placement worker mapping is not canonical")
+        if len({worker.hardware.worker_id for worker in placement.workers}) != placement.node_count:
+            raise RuntimeError("fabric placement contains duplicate worker identities")
+
+        with self._lock:
+            self.expire(now)
+            mapping = dict(placement.gpus_by_worker)
+            plan_workers = []
+            observation_digests = []
+            topology_digests = []
+            for fabric_worker in placement.workers:
+                worker_id = fabric_worker.hardware.worker_id
+                try:
+                    registered = self.registry.get(worker_id)
+                except KeyError as exc:
+                    raise RuntimeError("fabric placement references an unknown worker") from exc
+                if registered.state not in self._ACTIVE or not registered.resource.healthy:
+                    raise RuntimeError("fabric placement references a worker that is no longer active")
+                if registered.resource.state.value != "available":
+                    raise RuntimeError("fabric placement references a provider resource that is no longer available")
+                if registered.resource.provider_id != fabric_worker.provider_id:
+                    raise RuntimeError("fabric placement provider identity changed before reservation")
+                if registered.resource.resource_id != fabric_worker.resource.resource_id:
+                    raise RuntimeError("fabric placement resource identity changed before reservation")
+                observation = registered.hardware_observation
+                if observation is None or observation.digest() != fabric_worker.hardware.digest():
+                    raise RuntimeError("fabric placement hardware observation changed before reservation")
+                selected = mapping.get(worker_id)
+                if not selected:
+                    raise RuntimeError("fabric placement is missing a worker GPU mapping")
+                current_candidates = _candidate_gpus(
+                    registered,
+                    requirements,
+                    {gpu_uuid for (reserved_worker, gpu_uuid) in self._reserved if reserved_worker == worker_id},
+                    now=now,
+                )
+                if any(gpu_uuid not in current_candidates for gpu_uuid in selected):
+                    raise RuntimeError("fabric placement GPU is no longer eligible or available")
+                observation_digests.append((worker_id, observation.digest()))
+                if observation.topology_evidence is not None:
+                    topology_digests.append((worker_id, observation.topology_evidence.raw_text_sha256))
+                plan_workers.append(worker_id)
+
+            worker_ids = tuple(sorted(plan_workers))
+            gpus_by_worker = tuple((worker_id, mapping[worker_id]) for worker_id in worker_ids)
+            plan = DistributedGpuPlan(
+                task_id=task_id,
+                worker_ids=worker_ids,
+                gpus_by_worker=gpus_by_worker,
+                world_size=sum(len(gpus) for _, gpus in gpus_by_worker),
+                node_count=len(worker_ids),
+                hardware_observation_digests=tuple(sorted(observation_digests)),
+                topology_digests=tuple(sorted(topology_digests)),
+            )
+            if requirements.require_nccl:
+                self._validate_distributed_nccl(plan, distributed_nccl)
+            if requirements.require_gpu_direct_network:
+                self._validate_gpu_direct(plan, gpu_direct_network)
+            return self._reserve_plan(
+                plan,
+                requirements,
+                now,
+                lease_seconds,
+                distributed_nccl=distributed_nccl,
+                gpu_direct_network=gpu_direct_network,
+            )
+
     def reserve(
         self,
         task_id: str,
@@ -404,44 +489,62 @@ class DistributedGpuAllocator:
                 self._validate_distributed_nccl(plan, distributed_nccl)
             if requirements.require_gpu_direct_network:
                 self._validate_gpu_direct(plan, gpu_direct_network)
-
-            allocation_id = "alloc-" + secrets.token_hex(16)
-            epoch = self._next_fencing_epoch
-            self._next_fencing_epoch += 1
-            ranks = []
-            global_rank = 0
-            for node_rank, worker_id in enumerate(plan.worker_ids):
-                for local_rank, gpu_uuid in enumerate(dict(plan.gpus_by_worker)[worker_id]):
-                    ranks.append(RankAssignment(global_rank, node_rank, local_rank, worker_id, gpu_uuid))
-                    global_rank += 1
-
-            allocation = DistributedGpuAllocation(
-                allocation_id=allocation_id,
-                task_id=task_id,
-                worker_ids=plan.worker_ids,
-                gpus_by_worker=plan.gpus_by_worker,
-                ranks=tuple(ranks),
-                world_size=plan.world_size,
-                node_count=plan.node_count,
-                expires_at=now + lease_seconds,
-                fencing_epoch=epoch,
-                hardware_observation_digests=plan.hardware_observation_digests,
-                topology_digests=plan.topology_digests,
-                distributed_nccl=distributed_nccl if requirements.require_nccl else None,
-                gpu_direct_network=gpu_direct_network if requirements.require_gpu_direct_network else None,
+            return self._reserve_plan(
+                plan,
+                requirements,
+                now,
+                lease_seconds,
+                distributed_nccl=distributed_nccl,
+                gpu_direct_network=gpu_direct_network,
             )
-            for worker_id, gpus in plan.gpus_by_worker:
-                for gpu_uuid in gpus:
-                    key = (worker_id, gpu_uuid)
-                    if key in self._reserved:
-                        raise RuntimeError("GPU became reserved while allocation was being committed")
-            if self.store is not None:
-                self.store.reserve(allocation)
-            for worker_id, gpus in plan.gpus_by_worker:
-                for gpu_uuid in gpus:
-                    self._reserved[(worker_id, gpu_uuid)] = allocation_id
-            self._allocations[allocation_id] = allocation
-            return allocation
+
+    def _reserve_plan(
+        self,
+        plan: DistributedGpuPlan,
+        requirements: HardwareRequirements,
+        now: int,
+        lease_seconds: int,
+        *,
+        distributed_nccl: DistributedNCCLEvidence | None,
+        gpu_direct_network: GpuDirectNetworkEvidence | None,
+    ) -> DistributedGpuAllocation:
+        allocation_id = "alloc-" + secrets.token_hex(16)
+        epoch = self._next_fencing_epoch
+        self._next_fencing_epoch += 1
+        ranks = []
+        global_rank = 0
+        for node_rank, worker_id in enumerate(plan.worker_ids):
+            for local_rank, gpu_uuid in enumerate(dict(plan.gpus_by_worker)[worker_id]):
+                ranks.append(RankAssignment(global_rank, node_rank, local_rank, worker_id, gpu_uuid))
+                global_rank += 1
+
+        allocation = DistributedGpuAllocation(
+            allocation_id=allocation_id,
+            task_id=plan.task_id,
+            worker_ids=plan.worker_ids,
+            gpus_by_worker=plan.gpus_by_worker,
+            ranks=tuple(ranks),
+            world_size=plan.world_size,
+            node_count=plan.node_count,
+            expires_at=now + lease_seconds,
+            fencing_epoch=epoch,
+            hardware_observation_digests=plan.hardware_observation_digests,
+            topology_digests=plan.topology_digests,
+            distributed_nccl=distributed_nccl if requirements.require_nccl else None,
+            gpu_direct_network=gpu_direct_network if requirements.require_gpu_direct_network else None,
+        )
+        for worker_id, gpus in plan.gpus_by_worker:
+            for gpu_uuid in gpus:
+                key = (worker_id, gpu_uuid)
+                if key in self._reserved:
+                    raise RuntimeError("GPU became reserved while allocation was being committed")
+        if self.store is not None:
+            self.store.reserve(allocation)
+        for worker_id, gpus in plan.gpus_by_worker:
+            for gpu_uuid in gpus:
+                self._reserved[(worker_id, gpu_uuid)] = allocation_id
+        self._allocations[allocation_id] = allocation
+        return allocation
 
     def _validate_distributed_nccl(self, plan: DistributedGpuPlan, evidence: DistributedNCCLEvidence | None) -> None:
         if evidence is None:
