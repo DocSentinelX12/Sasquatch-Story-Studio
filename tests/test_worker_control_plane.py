@@ -1,5 +1,6 @@
 import json
 from studio.compute_broker import ComputeBroker
+from studio.gpu_capabilities import derive_gpu_capabilities
 from studio.gpu_infrastructure import GpuDeviceObservation, GpuHostObservation
 from studio.gpu_topology import GpuTopologyEvidence
 from studio.nccl_evidence import NCCLTestEvidence
@@ -66,6 +67,7 @@ def payload(obs: GpuHostObservation) -> dict:
         "worker_id": obs.worker_id,
         "hardware_observation_digest": obs.digest(),
         "hardware_identity_digest": identity_digest,
+        "gpu_capability_digest": derive_gpu_capabilities(obs, now=10).digest(),
         "hardware_observation": json.loads(obs.canonical_json()),
     }
 
