@@ -14,9 +14,7 @@ def test_scheduler_accepts_nccl_requirement_only_with_matching_successful_eviden
             GpuDeviceObservation(0, "GPU-0", "NVIDIA Test GPU", 81920, 0, "00000000:17:00.0", "10.0"),
             GpuDeviceObservation(1, "GPU-1", "NVIDIA Test GPU", 81920, 0, "00000000:18:00.0", "10.0"),
         ),
-        topology_text="GPU0 GPU1
-GPU0 X NV2
-GPU1 NV2 X",
+        topology_text="GPU0 GPU1\nGPU0 X NV2\nGPU1 NV2 X",
         dcgm_available=True,
         dcgm_version="observed",
         health_json="Overall Health: Healthy",
