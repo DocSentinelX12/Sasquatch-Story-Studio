@@ -41,7 +41,7 @@ jobs:
       - name: Install test tooling
         run: |
           python -m pip install --upgrade pip
-          python -m pip install pytest pyyaml
+          python -m pip install pytest pyyaml httpx
 
       - name: Install project and verify dependencies
         run: |
@@ -61,8 +61,14 @@ jobs:
         run: python scripts/install_huggingface.py
 
       - name: Compile verification modules and wrappers
-        run: |
-          python -m compileall -q             studio/gpu_runtime_verification.py             studio/nccl_runtime_verification.py             studio/gpu_direct_verification.py             scripts/verify_gpu_runtime.py             scripts/verify_nccl_runtime.py             scripts/verify_gpu_direct.py
+        run: >-
+          python -m compileall -q
+          studio/gpu_runtime_verification.py
+          studio/nccl_runtime_verification.py
+          studio/gpu_direct_verification.py
+          scripts/verify_gpu_runtime.py
+          scripts/verify_nccl_runtime.py
+          scripts/verify_gpu_direct.py
 
       - name: Validate Elastic Fabric workflow YAML
         run: python -c "import yaml; yaml.safe_load(open('.github/workflows/elastic-fabric.yml', encoding='utf-8'))"
@@ -135,8 +141,11 @@ jobs:
         env:
           GPU_DIRECT_COMMAND: ${{ inputs.gpu_direct_command }}
           GPU_DIRECT_MARKER: ${{ inputs.success_marker }}
-        run: |
-          python scripts/verify_gpu_direct.py             --command "$GPU_DIRECT_COMMAND"             --success-marker "$GPU_DIRECT_MARKER"             --output gpu-direct-evidence.json
+        run: >-
+          python scripts/verify_gpu_direct.py
+          --command "$GPU_DIRECT_COMMAND"
+          --success-marker "$GPU_DIRECT_MARKER"
+          --output gpu-direct-evidence.json
 
       - name: Upload physical GPU evidence
         uses: actions/upload-artifact@v6
