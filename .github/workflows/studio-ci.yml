@@ -4,7 +4,11 @@ on:
   workflow_run:
     workflows: ["Install All Studio Engines"]
     types: [completed]
-    branches: [main]
+    branches: [elastic-multi-provider-compute-fabric-impl]
+
+concurrency:
+  group: sasquatch-studio-ci-${{ github.event.workflow_run.head_branch }}
+  cancel-in-progress: true
 
 permissions:
   contents: read
