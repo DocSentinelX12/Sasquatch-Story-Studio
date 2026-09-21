@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from enum import StrEnum
 from typing import Mapping
 
-from .gpu_infrastructure import GpuHostObservation, TelemetryStatus
+from .gpu_infrastructure import GpuHostObservation, TelemetryStatus, classify_dcgm_health
 from .gpu_topology import GpuTopologyEvidence
 from .hardware_requirements import GpuPlacement, HardwareRequirements, compute_capability_at_least
 from .nccl_evidence import validate_nccl_evidence
@@ -125,12 +125,14 @@ def derive_gpu_capabilities(
         cuda_state = CapabilityState.VERIFIED if observation.cuda_supported_version.strip() and observation.driver_version.strip() else CapabilityState.FAILED
 
         health_evidence = gpu.telemetry.dcgm_health
-        if health_evidence.status is TelemetryStatus.OBSERVED and health_evidence.value == "healthy":
-            health = _evidence(CapabilityState.VERIFIED, "DCGM reported healthy", observation.digest(), observation.observed_at, None)
-        elif health_evidence.status is TelemetryStatus.OBSERVED and health_evidence.value == "warning":
-            health = _evidence(CapabilityState.DEGRADED, "DCGM reported warning", observation.digest(), observation.observed_at, None)
-        elif health_evidence.status is TelemetryStatus.OBSERVED and health_evidence.value == "failure":
-            health = _evidence(CapabilityState.FAILED, "DCGM reported failure", observation.digest(), observation.observed_at, None)
+        health_state = health_evidence.value if health_evidence.status is TelemetryStatus.OBSERVED else classify_dcgm_health(observation.health_json)
+        health_source = health_evidence.source if health_evidence.status is TelemetryStatus.OBSERVED else "dcgm_health_json"
+        if health_state == "healthy":
+            health = _evidence(CapabilityState.VERIFIED, f"DCGM reported healthy via {health_source}", observation.digest(), observation.observed_at, None)
+        elif health_state == "warning":
+            health = _evidence(CapabilityState.DEGRADED, f"DCGM reported warning via {health_source}", observation.digest(), observation.observed_at, None)
+        elif health_state == "failure":
+            health = _evidence(CapabilityState.FAILED, f"DCGM reported failure via {health_source}", observation.digest(), observation.observed_at, None)
         else:
             health = _evidence(CapabilityState.OBSERVED, "health evidence is not verified", None, None, None)
 
