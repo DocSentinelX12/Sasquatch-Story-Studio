@@ -60,3 +60,12 @@ def test_queue_pressure_reports_backlog_and_oldest_wait_without_inventing_capaci
     assert pressure.oldest_wait_seconds == 10
     assert pressure.capacity_slots == 1
     assert pressure.slot_pressure == 1.0
+    assert pressure.queued_memory_bytes == 64 * 1024**3
+    assert pressure.capacity_memory_bytes == 64 * 1024**3
+    assert pressure.memory_pressure == 1.0
+    assert pressure.queued_scratch_bytes == 100 * 1024**3
+    assert pressure.capacity_scratch_bytes == 100 * 1024**3
+    assert pressure.scratch_pressure == 1.0
+    assert pressure.queued_power_watts == 0
+    assert pressure.capacity_power_watts == 0
+    assert pressure.power_pressure == 0.0
