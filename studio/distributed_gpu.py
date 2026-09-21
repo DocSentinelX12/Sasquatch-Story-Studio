@@ -426,10 +426,6 @@ class DistributedGpuAllocator:
                     raise RuntimeError("fabric placement references a worker that is no longer active")
                 if registered.resource.state.value != "available":
                     raise RuntimeError("fabric placement references a provider resource that is no longer available")
-                if registered.resource.provider_id != fabric_worker.provider_id:
-                    raise RuntimeError("fabric placement provider identity changed before reservation")
-                if registered.resource.resource_id != fabric_worker.resource.resource_id:
-                    raise RuntimeError("fabric placement resource identity changed before reservation")
                 observation = registered.hardware_observation
                 if observation is None or observation.digest() != fabric_worker.hardware.digest():
                     raise RuntimeError("fabric placement hardware observation changed before reservation")
