@@ -17,6 +17,7 @@ from studio.gpu_infrastructure import (
 from studio.gpu_topology import GpuTopologyEvidence
 from studio.hardware_requirements import GpuPlacement, HardwareRequirements
 from studio.nccl_evidence import NCCLTestEvidence
+from studio.gpu_runtime_verification import CUDARuntimeEvidence
 
 
 NOW = 1_700_000_000
@@ -291,3 +292,43 @@ def test_default_freshness_window_marks_old_observation_stale():
 
     assert record.state(GpuCapabilityName.HEALTH) is GpuCapabilityState.STALE
     assert not record.production_eligible
+
+
+def test_real_cuda_evidence_promotes_cuda_capability():
+    observation_value = observation(gpu("GPU-0"))
+    evidence = CUDARuntimeEvidence(
+        recorded_at=NOW,
+        gpu_uuids=("GPU-0",),
+        runtime_gpu_uuids=("GPU-0",),
+        tensor_results=(3.0,),
+        torch_version="2.8.0",
+        torch_cuda_version="13.0",
+        driver_version=observation_value.driver_version,
+        cuda_supported_version=observation_value.cuda_supported_version,
+    )
+    capabilities = derive_gpu_capabilities(
+        observation_value,
+        now=NOW,
+        cuda_runtime_evidence=evidence,
+    )
+    assert capabilities.get("GPU-0").state(GpuCapabilityName.CUDA_RUNTIME) is GpuCapabilityState.VERIFIED
+
+
+def test_stale_real_cuda_evidence_cannot_promote_cuda_capability():
+    observation_value = observation(gpu("GPU-0"))
+    evidence = CUDARuntimeEvidence(
+        recorded_at=NOW,
+        gpu_uuids=("GPU-0",),
+        runtime_gpu_uuids=("GPU-0",),
+        tensor_results=(3.0,),
+        torch_version="2.8.0",
+        torch_cuda_version="13.0",
+        driver_version=observation_value.driver_version,
+        cuda_supported_version=observation_value.cuda_supported_version,
+    )
+    capabilities = derive_gpu_capabilities(
+        observation_value,
+        now=NOW + DEFAULT_GPU_EVIDENCE_FRESHNESS_SECONDS + 1,
+        cuda_runtime_evidence=evidence,
+    )
+    assert capabilities.get("GPU-0").state(GpuCapabilityName.CUDA_RUNTIME) is GpuCapabilityState.STALE
