@@ -7,7 +7,9 @@ import json
 import os
 import subprocess
 import sys
+import time
 from pathlib import Path
+from typing import Callable, TypeVar
 
 EVIDENCE = Path("engine-installations/huggingface/installation-evidence.json")
 # This repository/file is taken directly from the official Hugging Face download
@@ -15,6 +17,42 @@ EVIDENCE = Path("engine-installations/huggingface/installation-evidence.json")
 # pull a large model checkpoint.
 VERIFY_REPO = "google/pegasus-xsum"
 VERIFY_FILE = "config.json"
+RETRY_ATTEMPTS = 5
+RETRY_DELAY_SECONDS = 2.0
+T = TypeVar("T")
+
+
+def retry_operation(
+    operation: Callable[[], T],
+    *,
+    attempts: int = RETRY_ATTEMPTS,
+    delay_seconds: float = RETRY_DELAY_SECONDS,
+    is_retryable: Callable[[Exception], bool],
+    sleep_fn: Callable[[float], None] = time.sleep,
+) -> T:
+    if attempts < 1:
+        raise ValueError("retry attempts must be at least one")
+    last_error: Exception | None = None
+    for attempt in range(1, attempts + 1):
+        try:
+            return operation()
+        except Exception as exc:
+            last_error = exc
+            if attempt >= attempts or not is_retryable(exc):
+                raise
+            sleep_fn(delay_seconds * (2 ** (attempt - 1)))
+    assert last_error is not None
+    raise last_error
+
+
+def is_transient_huggingface_error(exc: Exception) -> bool:
+    # huggingface_hub uses httpx for its network transport. Keep the dependency
+    # import local so this script remains importable before installation.
+    try:
+        import httpx
+    except ImportError:
+        return False
+    return isinstance(exc, httpx.RequestError)
 
 
 def run(*args: str, timeout: int = 1200) -> subprocess.CompletedProcess[str]:
@@ -46,19 +84,25 @@ def main() -> int:
 
     token = os.environ.get("HF_TOKEN", "").strip() or False
     api = HfApi(token=token)
-    info = api.model_info(VERIFY_REPO, files_metadata=True, token=token)
+    info = retry_operation(
+        lambda: api.model_info(VERIFY_REPO, files_metadata=True, token=token),
+        is_retryable=is_transient_huggingface_error,
+    )
     if not getattr(info, "sha", None):
         raise RuntimeError("Hugging Face verification repository did not return a commit SHA")
 
     root = EVIDENCE.parent / "verification-download"
     root.mkdir(parents=True, exist_ok=True)
     path = Path(
-        hf_hub_download(
-            repo_id=VERIFY_REPO,
-            filename=VERIFY_FILE,
-            revision=info.sha,
-            local_dir=root,
-            token=token,
+        retry_operation(
+            lambda: hf_hub_download(
+                repo_id=VERIFY_REPO,
+                filename=VERIFY_FILE,
+                revision=info.sha,
+                local_dir=root,
+                token=token,
+            ),
+            is_retryable=is_transient_huggingface_error,
         )
     )
     if not path.is_file() or path.stat().st_size == 0:
