@@ -3,9 +3,9 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from .gpu_capabilities import admit_gpu_workload, derive_gpu_capabilities
 from .gpu_infrastructure import GpuHostObservation
-from .hardware_requirements import GpuPlacement, HardwareRequirements, compute_capability_at_least
-from .nccl_evidence import validate_nccl_evidence
+from .hardware_requirements import GpuPlacement, HardwareRequirements
 
 
 @dataclass(frozen=True)
@@ -18,57 +18,14 @@ class GpuPlacementDecision:
 def evaluate_gpu_placement(
     requirements: HardwareRequirements,
     observation: GpuHostObservation | None,
+    *,
+    now: int = 0,
 ) -> GpuPlacementDecision:
-    """Select only GPUs backed by explicit host observations and topology evidence."""
+    """Compatibility placement facade backed by canonical GPU capability admission."""
     if observation is None:
         return GpuPlacementDecision(False, (), "hardware observation is missing")
     if requirements.placement is GpuPlacement.MULTI_NODE:
         return GpuPlacementDecision(False, (), "multi-node placement requires the distributed group scheduler")
-
-    candidates = []
-    for gpu in sorted(observation.gpus, key=lambda item: (item.index, item.uuid)):
-        if requirements.min_vram_per_gpu_bytes and gpu.memory_total_mib * 1024**2 < requirements.min_vram_per_gpu_bytes:
-            continue
-        if requirements.min_compute_capability is not None:
-            try:
-                if not compute_capability_at_least(gpu.compute_capability, requirements.min_compute_capability):
-                    continue
-            except ValueError:
-                continue
-        if requirements.required_gpu_models and gpu.name not in requirements.required_gpu_models:
-            continue
-        candidates.append(gpu)
-
-    if len(candidates) < requirements.min_gpu_count:
-        return GpuPlacementDecision(False, (), "insufficient observed GPUs matching hardware requirements")
-
-    selected = tuple(candidates[: requirements.min_gpu_count])
-    total_vram = sum(gpu.memory_total_mib * 1024**2 for gpu in selected)
-    if total_vram < requirements.min_total_vram_bytes:
-        return GpuPlacementDecision(False, (), "insufficient total VRAM on selected GPUs")
-
-    if requirements.placement is GpuPlacement.SAME_NVLINK_DOMAIN:
-        topology = observation.topology_evidence
-        if topology is None:
-            return GpuPlacementDecision(False, (), "verified NVIDIA topology evidence is missing")
-        selected_uuids = tuple(gpu.uuid for gpu in selected)
-        if not topology.same_nvlink_domain(selected_uuids):
-            return GpuPlacementDecision(False, (), "selected GPUs are not verified in the same NVLink domain")
-
-    if requirements.require_nccl:
-        evidence = observation.nccl_evidence
-        if evidence is None:
-            return GpuPlacementDecision(False, (), "NCCL evidence is missing")
-        try:
-            validate_nccl_evidence(evidence)
-        except (ValueError, RuntimeError):
-            return GpuPlacementDecision(False, (), "NCCL evidence is invalid")
-        if tuple(evidence.gpu_uuids) != tuple(gpu.uuid for gpu in selected):
-            return GpuPlacementDecision(False, (), "NCCL evidence does not match selected GPUs")
-        if observation.topology_evidence is None:
-            return GpuPlacementDecision(False, (), "NCCL topology evidence is missing")
-
-    if requirements.require_gpu_direct_network:
-        return GpuPlacementDecision(False, (), "GPU-direct network evidence is not verified")
-
-    return GpuPlacementDecision(True, tuple(gpu.uuid for gpu in selected), "eligible")
+    capabilities = derive_gpu_capabilities(observation, now)
+    decision = admit_gpu_workload(requirements, capabilities, now)
+    return GpuPlacementDecision(decision.eligible, decision.gpu_uuids, decision.reason)
