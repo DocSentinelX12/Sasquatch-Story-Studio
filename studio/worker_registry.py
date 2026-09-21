@@ -82,6 +82,7 @@ class WorkerRegistry:
             current.observation_source,
             current.quota_note if quota_note is None else quota_note,
             current.hardware_observation,
+            current.gpu_capabilities,
         )
         self._records[worker_id] = updated
         return updated
