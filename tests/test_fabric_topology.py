@@ -30,10 +30,10 @@ def observation(worker_id: str, gpu_uuid: str) -> GpuHostObservation:
     )
 
 
-def resource(provider_id: str, worker_id: str) -> ProviderResource:
+def resource(provider_id: str, worker_id: str, resource_id: str | None = None) -> ProviderResource:
     return ProviderResource(
         provider_id=provider_id,
-        resource_id=worker_id,
+        resource_id=resource_id or worker_id,
         region="test-region",
         cost_class=ResourceCostClass.FREE,
         state=ProviderResourceState.AVAILABLE,
@@ -67,7 +67,7 @@ def test_registry_rejects_worker_identity_mismatch_between_resource_and_observat
         resource_id="resource-a",
         region="test-region",
         worker_id="worker-a",
-        resource=resource("provider-a", "worker-a"),
+        resource=resource("provider-a", "worker-a", "resource-a"),
         hardware_observation=observation("worker-b", "GPU-B"),
         observed_at=100,
     )
