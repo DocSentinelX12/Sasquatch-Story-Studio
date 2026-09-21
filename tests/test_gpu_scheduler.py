@@ -1,6 +1,7 @@
 import pytest
 
 from studio.gpu_infrastructure import GpuDeviceObservation, GpuHostObservation, GpuTelemetryEvidence, GpuTelemetryStatus, TelemetryValue
+from studio.gpu_topology import GpuTopologyEvidence
 from studio.gpu_scheduler import select_gpus
 from studio.hardware_requirements import GpuPlacement, HardwareRequirements
 
@@ -19,6 +20,13 @@ def host():
         collector="test",
         fields={"temperature_c": TelemetryValue(GpuTelemetryStatus.OBSERVED, 60, "fixture", 100)},
     )
+    topology = GpuTopologyEvidence(
+        gpu_uuids=("GPU-0", "GPU-1", "GPU-2"),
+        gpu_matrix=(("X", "NV2", "SYS"), ("NV2", "X", "NV2"), ("SYS", "NV2", "X")),
+        cpu_affinity=(("GPU-0", "0-31"), ("GPU-1", "0-31"), ("GPU-2", "0-31")),
+        nic_paths=(),
+        raw_text_sha256="",
+    )
     return GpuHostObservation(
         worker_id="worker-a",
         driver_version="580.95.05",
@@ -31,6 +39,7 @@ def host():
         dcgm_available=True,
         dcgm_version="test",
         health_json="Overall Health: Healthy",
+        topology_evidence=topology,
     )
 
 
