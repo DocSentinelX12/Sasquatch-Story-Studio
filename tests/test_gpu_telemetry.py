@@ -32,6 +32,12 @@ def test_probe_prefers_nvml_before_nvidia_smi(monkeypatch):
         def nvmlShutdown(self):
             calls.append("nvmlShutdown")
 
+        def nvmlSystemGetDriverVersion(self):
+            return "580.95.05"
+
+        def nvmlSystemGetCudaDriverVersion_v2(self):
+            return 13000
+
         def nvmlDeviceGetCount(self):
             calls.append("nvmlDeviceGetCount")
             return 1
