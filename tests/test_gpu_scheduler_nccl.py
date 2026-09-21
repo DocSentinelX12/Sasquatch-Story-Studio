@@ -16,7 +16,7 @@ def test_scheduler_accepts_nccl_requirement_only_with_matching_successful_eviden
         topology_text="GPU0 GPU1\nGPU0 X NV2\nGPU1 NV2 X",
         dcgm_available=True,
         dcgm_version="observed",
-        health_json="{\"health\":\"pass\"}",
+        health_json="Overall Health: Healthy",
         nccl_evidence=NCCLTestEvidence(
             executable="all_reduce_perf",
             executable_sha256="a" * 64,
