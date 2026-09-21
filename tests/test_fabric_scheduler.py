@@ -1,4 +1,7 @@
 from studio.compute_provider import ComputeProvider, ProviderResource, ProviderResourceState, ResourceCostClass
+from studio.distributed_gpu import DistributedNCCLEvidence
+from studio.fabric_topology import FabricTopologyRecord, FabricTopologyRegistry
+from studio.gpu_topology import GpuTopologyEvidence
 from studio.fabric_scheduler import FabricScheduler, FabricWorker
 from studio.gpu_capabilities import derive_gpu_capabilities
 from studio.gpu_infrastructure import GpuDeviceObservation, GpuHostObservation
@@ -17,6 +20,13 @@ def obs(worker_id, uuid, model="NVIDIA A100"):
         dcgm_available=True,
         dcgm_version="3",
         health_json="Overall Health: Healthy",
+        topology_evidence=GpuTopologyEvidence(
+            gpu_uuids=(uuid,),
+            gpu_matrix=(("X",),),
+            cpu_affinity=((uuid, "0-63"),),
+            nic_paths=((uuid, "mlx5_0", "PIX"),),
+            raw_text_sha256="a" * 64,
+        ),
     )
 
 
@@ -70,3 +80,41 @@ def test_scheduler_has_no_twelve_node_ceiling():
     requirements = HardwareRequirements(min_gpu_count=20, placement=GpuPlacement.MULTI_NODE, allow_multi_node=True)
     placement = FabricScheduler(workers).plan(requirements, now=10)
     assert placement.node_count == 20
+
+def test_scheduler_allows_cross_provider_nccl_when_exact_fabric_evidence_exists():
+    left = worker("a", "a-1", "GPU-A")
+    right = worker("b", "b-1", "GPU-B")
+    records = tuple(
+        FabricTopologyRecord(
+            provider_id=item.provider_id,
+            resource_id=item.resource.resource_id,
+            region=item.resource.region,
+            worker_id=item.hardware.worker_id,
+            resource=item.resource,
+            hardware_observation=item.hardware,
+            observed_at=10,
+        )
+        for item in (left, right)
+    )
+    evidence = DistributedNCCLEvidence(
+        worker_ids=("a-1", "b-1"),
+        gpu_uuids_by_worker=(("a-1", ("GPU-A",)), ("b-1", ("GPU-B",))),
+        world_size=2,
+        command=("all_reduce_perf_mpi",),
+        exit_code=0,
+        output_sha256="b" * 64,
+        rendezvous_id="rdzv-test",
+        topology_digests=tuple((item.worker_id, item.topology_digest) for item in records),
+    )
+    registry = FabricTopologyRegistry(tuple(item.with_distributed_nccl(evidence) for item in records))
+    requirements = HardwareRequirements(
+        min_gpu_count=2,
+        placement=GpuPlacement.MULTI_NODE,
+        allow_multi_node=True,
+        require_nccl=True,
+    )
+
+    placement = FabricScheduler((left, right), registry).plan(requirements, now=20)
+
+    assert placement.node_count == 2
+    assert {item.provider_id for item in placement.workers} == {"a", "b"}
