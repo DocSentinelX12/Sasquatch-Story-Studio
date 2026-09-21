@@ -117,6 +117,7 @@ def test_nvml_field_failure_uses_explicit_nvidia_smi_fallback_provenance():
     def fallback_runner(command):
         result = _smi_runner(command)
         if tuple(command) == ("nvidia-smi", "--query-gpu=index,power.draw", "--format=csv,noheader,nounits"):
+            result.returncode = 0
             result.stdout = "0, 225.5\n"
         return result
 
