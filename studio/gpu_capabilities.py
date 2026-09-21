@@ -283,6 +283,10 @@ def admit_gpu_workload(
     if total_vram < requirements.min_total_vram_bytes:
         return GpuAdmissionDecision(False, (), "selected GPUs do not satisfy total VRAM")
 
+    if "health" in freshness:
+        if any(_freshness_failure(item.health, "health", now, freshness["health"]) for item in selected):
+            return GpuAdmissionDecision(False, (), "health capability is missing, failed, degraded, or stale")
+
     if requirements.require_nccl:
         if any(_freshness_failure(item.nccl, "NCCL", now, freshness.get("nccl")) for item in selected):
             return GpuAdmissionDecision(False, (), "NCCL capability is missing, failed, or stale")
