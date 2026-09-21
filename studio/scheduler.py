@@ -59,6 +59,18 @@ class QueuePressure:
     capacity_slots: int
     oldest_wait_seconds: int
     slot_pressure: float
+    queued_memory_bytes: int
+    capacity_memory_bytes: int
+    memory_pressure: float
+    queued_vram_bytes: int
+    capacity_vram_bytes: int
+    vram_pressure: float
+    queued_scratch_bytes: int
+    capacity_scratch_bytes: int
+    scratch_pressure: float
+    queued_power_watts: int
+    capacity_power_watts: int
+    power_pressure: float
 
 
 class Scheduler:
@@ -185,14 +197,37 @@ class Scheduler:
         ]
         queued_slots = sum(job.requirements.slots for job in queued)
         capacity_slots = resources.healthy_compute_slots
-        slot_pressure = queued_slots / capacity_slots if capacity_slots else (1.0 if queued_slots else 0.0)
+        queued_memory_bytes = sum(job.requirements.memory_bytes for job in queued)
+        capacity_memory_bytes = sum(resource.memory_bytes for resource in resources.compute if resource.healthy)
+        queued_vram_bytes = sum(job.requirements.vram_bytes for job in queued)
+        capacity_vram_bytes = sum(resource.vram_bytes for resource in resources.compute if resource.healthy)
+        queued_scratch_bytes = sum(job.requirements.scratch_bytes for job in queued)
+        capacity_scratch_bytes = sum(resource.scratch_bytes for resource in resources.compute if resource.healthy)
+        queued_power_watts = sum(job.requirements.power_watts for job in queued)
+        capacity_power_watts = resources.healthy_power_watts
+
+        def pressure(demand: int, capacity: int) -> float:
+            return demand / capacity if capacity else (1.0 if demand else 0.0)
+
         return QueuePressure(
             queued_jobs=len(queued),
             leased_jobs=len(leased),
             queued_slots=queued_slots,
             capacity_slots=capacity_slots,
             oldest_wait_seconds=max(waits, default=0),
-            slot_pressure=slot_pressure,
+            slot_pressure=pressure(queued_slots, capacity_slots),
+            queued_memory_bytes=queued_memory_bytes,
+            capacity_memory_bytes=capacity_memory_bytes,
+            memory_pressure=pressure(queued_memory_bytes, capacity_memory_bytes),
+            queued_vram_bytes=queued_vram_bytes,
+            capacity_vram_bytes=capacity_vram_bytes,
+            vram_pressure=pressure(queued_vram_bytes, capacity_vram_bytes),
+            queued_scratch_bytes=queued_scratch_bytes,
+            capacity_scratch_bytes=capacity_scratch_bytes,
+            scratch_pressure=pressure(queued_scratch_bytes, capacity_scratch_bytes),
+            queued_power_watts=queued_power_watts,
+            capacity_power_watts=capacity_power_watts,
+            power_pressure=pressure(queued_power_watts, capacity_power_watts),
         )
 
     def snapshot(self) -> tuple[Job, ...]:
