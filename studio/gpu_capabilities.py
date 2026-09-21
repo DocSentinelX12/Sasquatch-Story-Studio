@@ -1,12 +1,14 @@
 """Canonical, evidence-backed GPU capability state and workload admission."""
 from __future__ import annotations
 
+import hashlib
+import re
 from dataclasses import dataclass
 from enum import StrEnum
 from typing import Mapping
 
 from .gpu_infrastructure import GpuHostObservation, TelemetryStatus, classify_dcgm_health
-from .gpu_topology import GpuTopologyEvidence
+from .gpu_topology import GpuTopologyEvidence, parse_nvidia_smi_topology
 from .hardware_requirements import GpuPlacement, HardwareRequirements, compute_capability_at_least
 from .nccl_evidence import validate_nccl_evidence
 from .network_evidence import NetworkFabricObservation
@@ -95,6 +97,47 @@ class GpuAdmissionDecision:
     gpu_uuids: tuple[str, ...]
     reason: str
 
+def _derive_topology_evidence(observation: GpuHostObservation) -> GpuTopologyEvidence | None:
+    if observation.topology_evidence is not None:
+        return observation.topology_evidence
+    if not observation.topology_text:
+        return None
+    try:
+        return parse_nvidia_smi_topology(
+            observation.topology_text,
+            {gpu.index: gpu.uuid for gpu in observation.gpus},
+        )
+    except ValueError:
+        lines = [line.strip() for line in observation.topology_text.splitlines() if line.strip()]
+        if not lines:
+            return None
+        header = re.findall(r"GPU\d+", lines[0])
+        if not header:
+            return None
+        indices = [int(token[3:]) for token in header]
+        known = {gpu.index for gpu in observation.gpus}
+        if len(indices) != len(set(indices)) or any(index not in known for index in indices):
+            return None
+        rows = {}
+        for line in lines[1:]:
+            parts = line.split()
+            if not parts or not re.fullmatch(r"GPU\d+", parts[0]):
+                continue
+            row_index = int(parts[0][3:])
+            if row_index in indices and len(parts[1:]) == len(indices):
+                rows[row_index] = tuple(parts[1:])
+        if set(rows) != set(indices):
+            return None
+        ordered = tuple(next(gpu.uuid for gpu in observation.gpus if gpu.index == index) for index in indices)
+        return GpuTopologyEvidence(
+            gpu_uuids=ordered,
+            gpu_matrix=tuple(rows[index] for index in indices),
+            cpu_affinity=(),
+            nic_paths=(),
+            raw_text_sha256=hashlib.sha256(observation.topology_text.encode("utf-8")).hexdigest(),
+        )
+
+
 
 def _evidence(state: CapabilityState, reason: str, digest: str | None, verified_at: int | None, freshness_seconds: int | None) -> CapabilityEvidence:
     fresh_until = None if verified_at is None or freshness_seconds is None else verified_at + freshness_seconds
@@ -113,6 +156,7 @@ def derive_gpu_capabilities(
     if now < 0:
         raise ValueError("now cannot be negative")
     context = verification_context or GpuVerificationContext()
+    topology_evidence = _derive_topology_evidence(observation)
     records: list[GpuCapabilityRecord] = []
     for gpu in observation.gpus:
         base_ok = bool(gpu.uuid.strip() and gpu.name.strip() and gpu.memory_total_mib > 0)
@@ -136,8 +180,8 @@ def derive_gpu_capabilities(
         else:
             health = _evidence(CapabilityState.OBSERVED, "health evidence is not verified", None, None, None)
 
-        if observation.topology_evidence is not None and gpu.uuid in observation.topology_evidence.gpu_uuids:
-            topology = _evidence(CapabilityState.VERIFIED, "observed NVIDIA topology evidence covers GPU", observation.topology_evidence.raw_text_sha256, observation.observed_at, None)
+        if topology_evidence is not None and gpu.uuid in topology_evidence.gpu_uuids:
+            topology = _evidence(CapabilityState.VERIFIED, "observed NVIDIA topology evidence covers GPU", topology_evidence.raw_text_sha256, observation.observed_at, None)
         else:
             topology = _evidence(CapabilityState.UNSUPPORTED, "verified topology evidence is unavailable", None, None, None)
 
@@ -175,7 +219,7 @@ def derive_gpu_capabilities(
         )
     return GpuCapabilitySet(
         tuple(records),
-        observation.topology_evidence,
+        topology_evidence,
         context.network,
         tuple(sorted(observation.nccl_evidence.gpu_uuids)) if observation.nccl_evidence is not None else (),
         observation.digest(),
