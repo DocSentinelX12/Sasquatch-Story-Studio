@@ -176,7 +176,7 @@ class RemoteWorkerExecutor:
 
         def fetch_chunk(chunk):
             return self.transport.get_bytes(
-                f"/v1/worker/artifacts/{digest}/chunks/{chunk.index}",
+                f"/v1/worker/artifacts/{self.access.worker_id}/{digest}/chunks/{chunk.index}",
                 bearer_token=self.access.access_token,
                 expected_digest=chunk.digest or hashlib.sha256(b"").hexdigest(),
                 offset=chunk.offset,
