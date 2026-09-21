@@ -23,6 +23,7 @@ if TYPE_CHECKING:
 
 from .gpu_capabilities import derive_gpu_capabilities
 from .gpu_infrastructure import GpuHostObservation
+from .gpu_topology import topology_digest
 from .hardware_requirements import HardwareRequirements, compute_capability_at_least
 from .nccl_evidence import validate_nccl_evidence
 from .worker_registry import WorkerRecord, WorkerRegistry, WorkerState
@@ -427,6 +428,17 @@ class DistributedGpuAllocator:
                     raise RuntimeError("fabric placement references an unknown worker") from exc
                 if registered.state not in self._ACTIVE or not registered.resource.healthy:
                     raise RuntimeError("fabric placement references a worker that is no longer active")
+                if fabric_worker.resource.state.value != "available":
+                    raise RuntimeError("fabric placement references a provider resource that is no longer available")
+                if fabric_worker.resource.worker_id != worker_id:
+                    raise RuntimeError("fabric placement provider resource is not bound to its worker")
+                if fabric_worker.resource.expires_at is not None and now > fabric_worker.resource.expires_at:
+                    raise RuntimeError("fabric placement provider resource has expired")
+                if (
+                    fabric_worker.resource.capability_digest is not None
+                    and fabric_worker.resource.capability_digest != registered.gpu_capability_digest
+                ):
+                    raise RuntimeError("fabric placement provider capability evidence changed before reservation")
                 observation = registered.hardware_observation
                 if observation is None or observation.digest() != fabric_worker.hardware.digest():
                     raise RuntimeError("fabric placement hardware observation changed before reservation")
@@ -443,7 +455,7 @@ class DistributedGpuAllocator:
                     raise RuntimeError("fabric placement GPU is no longer eligible or available")
                 observation_digests.append((worker_id, observation.digest()))
                 if observation.topology_evidence is not None:
-                    topology_digests.append((worker_id, observation.topology_evidence.raw_text_sha256))
+                    topology_digests.append((worker_id, topology_digest(observation.topology_evidence)))
                 plan_workers.append(worker_id)
 
             worker_ids = tuple(sorted(plan_workers))
