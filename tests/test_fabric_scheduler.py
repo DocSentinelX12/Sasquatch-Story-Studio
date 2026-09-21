@@ -1,5 +1,5 @@
 from studio.compute_provider import ComputeProvider, ProviderResource, ProviderResourceState, ResourceCostClass
-from studio.distributed_gpu import DistributedNCCLEvidence
+from studio.distributed_gpu import DistributedGpuAllocator, DistributedNCCLEvidence
 from studio.nccl_evidence import NCCLTestEvidence
 from studio.fabric_topology import FabricTopologyRecord, FabricTopologyRegistry
 from studio.gpu_topology import GpuTopologyEvidence
@@ -7,7 +7,7 @@ from studio.fabric_scheduler import FabricScheduler, FabricWorker
 from studio.gpu_capabilities import derive_gpu_capabilities
 from studio.gpu_infrastructure import GpuDeviceObservation, GpuHostObservation
 from studio.hardware_requirements import GpuPlacement, HardwareRequirements
-from studio.worker_registry import WorkerState
+from studio.worker_registry import WorkerRecord, WorkerRegistry, WorkerState
 from studio.resources import ComputeResource
 
 
@@ -128,3 +128,63 @@ def test_scheduler_allows_cross_provider_nccl_when_exact_fabric_evidence_exists(
 
     assert placement.node_count == 2
     assert {item.provider_id for item in placement.workers} == {"a", "b"}
+
+
+def test_exact_scheduled_nccl_placement_reaches_allocator_with_same_topology_digest():
+    left = worker("a", "a-1", "GPU-A")
+    right = worker("b", "b-1", "GPU-B")
+    records = tuple(
+        FabricTopologyRecord(
+            provider_id=item.provider_id,
+            resource_id=item.resource.resource_id,
+            region=item.resource.region,
+            worker_id=item.hardware.worker_id,
+            resource=item.resource,
+            hardware_observation=item.hardware,
+            observed_at=10,
+        )
+        for item in (left, right)
+    )
+    evidence = DistributedNCCLEvidence(
+        worker_ids=("a-1", "b-1"),
+        gpu_uuids_by_worker=(("a-1", ("GPU-A",)), ("b-1", ("GPU-B",))),
+        world_size=2,
+        command=("all_reduce_perf_mpi",),
+        exit_code=0,
+        output_sha256="d" * 64,
+        rendezvous_id="rdzv-test",
+        topology_digests=tuple((item.worker_id, item.topology_digest) for item in records),
+    )
+    topology_registry = FabricTopologyRegistry(tuple(item.with_distributed_nccl(evidence) for item in records))
+    requirements = HardwareRequirements(
+        min_gpu_count=2,
+        placement=GpuPlacement.MULTI_NODE,
+        allow_multi_node=True,
+        require_nccl=True,
+    )
+    placement = FabricScheduler((left, right), topology_registry).plan(requirements, now=20)
+
+    worker_records = tuple(
+        WorkerRecord(
+            item.hardware.worker_id,
+            ComputeResource(item.hardware.worker_id, 32, 128 * 1024**3, gpu_count=1, vram_bytes=80_000 * 1024**2),
+            WorkerState.VERIFIED_AVAILABLE,
+            observed_at=20,
+            observation_source="test",
+            hardware_observation=item.hardware,
+        )
+        for item in (left, right)
+    )
+    allocation = DistributedGpuAllocator(WorkerRegistry(worker_records)).reserve_placement(
+        "task-topology",
+        requirements,
+        placement,
+        now=20,
+        lease_seconds=60,
+        distributed_nccl=evidence,
+    )
+
+    assert allocation.topology_digests == tuple(
+        (worker_id, topology_registry.get(worker_id).topology_digest)
+        for worker_id in allocation.worker_ids
+    )
