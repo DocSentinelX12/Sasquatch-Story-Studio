@@ -108,7 +108,7 @@ def test_topology_sensitive_hardware_is_rejected_without_verified_placement_evid
         topology_text="GPU0 GPU1\\nGPU1 GPU0",
         dcgm_available=True,
         dcgm_version="observed",
-        health_json='{"health":"pass"}',
+        health_json="Overall Health: Healthy",
     )
     registry = WorkerRegistry((record("gpu", vram=192 * 1024**3, hardware=hardware),))
     broker = ComputeBroker(Scheduler(), registry)
@@ -130,7 +130,7 @@ def test_lease_binds_the_requested_task_and_exact_gpu_allocation():
         topology_text="GPU0 GPU0",
         dcgm_available=True,
         dcgm_version="observed",
-        health_json='{"health":"pass"}',
+        health_json="Overall Health: Healthy",
     )
     scheduler = Scheduler()
     registry = WorkerRegistry((record("gpu", vram=96 * 1024**3, hardware=hardware),))
@@ -173,7 +173,7 @@ def test_multi_node_task_uses_authoritative_distributed_allocator():
             topology_text="GPU0 GPU0",
             dcgm_available=True,
             dcgm_version="observed",
-            health_json='{"health":"pass"}',
+            health_json="Overall Health: Healthy",
         )
         return record(worker_id, vram=96 * 1024**3, hardware=hardware)
 
@@ -213,7 +213,7 @@ def test_multi_node_task_never_falls_back_to_single_worker_lease():
         topology_text="GPU0 GPU0",
         dcgm_available=True,
         dcgm_version="observed",
-        health_json='{"health":"pass"}',
+        health_json="Overall Health: Healthy",
     )
     scheduler = Scheduler()
     registry = WorkerRegistry((record("gpu", vram=96 * 1024**3, hardware=hardware),))
