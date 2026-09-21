@@ -197,3 +197,43 @@ def test_single_gpu_workload_does_not_require_nccL_without_explicit_requirement(
         now=NOW,
         required_engine_id="blender",
     ) == ("GPU-0",)
+
+
+def test_failed_nccl_evidence_invalidates_only_nccl_capability():
+    failed_nccl = NCCLTestEvidence(
+        executable="/opt/nccl-tests/all_reduce_perf",
+        executable_sha256=SHA,
+        command=("all_reduce_perf",),
+        exit_code=1,
+        output_sha256=SHA,
+        gpu_uuids=("GPU-0", "GPU-1"),
+        topology_digest=SHA,
+    )
+    capabilities = derive_gpu_capabilities(
+        observation(gpu("GPU-0"), gpu("GPU-1", 1), nccl=failed_nccl),
+        now=NOW,
+        engine_verifications={"test": NOW},
+    )
+
+    assert capabilities.get("GPU-0").state(GpuCapabilityName.NCCL) is GpuCapabilityState.FAILED
+    assert capabilities.get("GPU-0").state(GpuCapabilityName.HEALTH) is GpuCapabilityState.VERIFIED
+
+
+def test_gpu_direct_capability_requires_exact_verified_gpu_set():
+    capabilities = derive_gpu_capabilities(
+        observation(gpu("GPU-0"), gpu("GPU-1", 1)),
+        now=NOW,
+        engine_verifications={"test": NOW},
+        gpu_direct_gpu_sets=(("GPU-0", "GPU-1"),),
+    )
+    requirements = HardwareRequirements(
+        min_gpu_count=2,
+        require_gpu_direct_network=True,
+    )
+
+    assert admit_gpu_workload(
+        requirements,
+        capabilities,
+        selected_gpu_uuids=("GPU-0", "GPU-1"),
+        now=NOW,
+    ) == ("GPU-0", "GPU-1")
