@@ -12,6 +12,8 @@ from .hardware_requirements import GpuPlacement, HardwareRequirements, compute_c
 from .nccl_evidence import validate_nccl_evidence
 
 
+DEFAULT_GPU_EVIDENCE_FRESHNESS_SECONDS = 60
+
 class GpuCapabilityName(StrEnum):
     BASE_GPU = "base_gpu"
     CUDA_RUNTIME = "cuda_runtime"
@@ -167,7 +169,7 @@ def derive_gpu_capabilities(
     observation: GpuHostObservation,
     *,
     now: int,
-    freshness_window_seconds: int | None = None,
+    freshness_window_seconds: int | None = DEFAULT_GPU_EVIDENCE_FRESHNESS_SECONDS,
     engine_verifications: Mapping[str, object] | None = None,
     gpu_direct_gpu_sets: tuple[tuple[str, ...], ...] = (),
 ) -> GpuCapabilitySet:
