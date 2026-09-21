@@ -90,19 +90,9 @@ class GpuWorkerAgent:
             default=0,
         )
         capabilities = derive_gpu_capabilities(observation, now=capability_now)
-        capability_now = max(
-            (
-                gpu.telemetry.collected_at
-                for gpu in observation.gpus
-                if gpu.telemetry is not None
-            ),
-            default=0,
-        )
-        capabilities = derive_gpu_capabilities(observation, now=capability_now)
         return {
             "worker_id": self.worker_id,
             "hardware_observation_digest": observation.digest(),
-            "gpu_capability_digest": capabilities.digest(),
             "gpu_capability_digest": capabilities.digest(),
             "hardware_identity_digest": self._identity_digest(observation),
             "driver_version": observation.driver_version,
@@ -123,6 +113,13 @@ class GpuWorkerAgent:
         return {
             "worker_id": self.worker_id,
             "hardware_observation_digest": observation.digest(),
+            "gpu_capability_digest": derive_gpu_capabilities(
+                observation,
+                now=max(
+                    (gpu.telemetry.collected_at for gpu in observation.gpus if gpu.telemetry is not None),
+                    default=0,
+                ),
+            ).digest(),
             "hardware_identity_digest": self._identity_digest(observation),
             "gpu_count": observation.gpu_count,
             "gpu_uuids": tuple(gpu.uuid for gpu in observation.gpus),
