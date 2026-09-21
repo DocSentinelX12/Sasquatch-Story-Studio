@@ -9,7 +9,7 @@ from __future__ import annotations
 import argparse
 import json
 import time
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
 from pathlib import Path
 
 from .gpu_infrastructure import probe_nvidia_host
@@ -101,8 +101,19 @@ def verify_cuda_runtime(*, output_path: str | Path) -> dict:
     if any(result != 3.0 for result in results):
         raise RuntimeError(f"CUDA verification returned inconsistent per-GPU results: {results}")
 
+    runtime_evidence = CUDARuntimeEvidence(
+        recorded_at=int(time.time()),
+        gpu_uuids=tuple(observed_uuids),
+        runtime_gpu_uuids=tuple(runtime_uuids),
+        tensor_results=tuple(results),
+        torch_version=str(torch.__version__),
+        torch_cuda_version=str(torch.version.cuda),
+        driver_version=observation.driver_version,
+        cuda_supported_version=observation.cuda_supported_version,
+    )
     evidence = {
         "verification": "real_cuda_runtime",
+        "cuda_runtime_evidence": asdict(runtime_evidence),
         "recorded_at": int(time.time()),
         "torch_version": str(torch.__version__),
         "torch_cuda_version": str(torch.version.cuda),
