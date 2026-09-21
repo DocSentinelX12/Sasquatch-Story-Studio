@@ -1,0 +1,48 @@
+name: Real GPU Runtime Verification
+
+on:
+  workflow_dispatch:
+    inputs:
+      gpu_direct_command:
+        description: "Configured physical GPU-direct probe command. It must print the success marker on verified success."
+        required: true
+        type: string
+      success_marker:
+        description: "Exact success marker emitted by the GPU-direct probe."
+        required: false
+        default: "GPU_DIRECT_VERIFIED"
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: [self-hosted, linux, x64, gpu]
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+      - name: Install package
+        run: python -m pip install -e .
+      - name: Verify real CUDA runtime
+        run: python scripts/verify_gpu_runtime.py --output gpu-runtime-evidence.json
+      - name: Verify real NCCL runtime
+        run: python scripts/verify_nccl_runtime.py --output nccl-runtime-evidence.json
+      - name: Verify real GPU-direct path
+        env:
+          GPU_DIRECT_COMMAND: ${{ inputs.gpu_direct_command }}
+          GPU_DIRECT_MARKER: ${{ inputs.success_marker }}
+        run: |
+          python scripts/verify_gpu_direct.py             --command "$GPU_DIRECT_COMMAND"             --success-marker "$GPU_DIRECT_MARKER"             --output gpu-direct-evidence.json
+      - name: Upload physical GPU evidence
+        uses: actions/upload-artifact@v6
+        with:
+          name: real-gpu-runtime-evidence
+          path: |
+            gpu-runtime-evidence.json
+            nccl-runtime-evidence.json
+            gpu-direct-evidence.json
+          if-no-files-found: error
