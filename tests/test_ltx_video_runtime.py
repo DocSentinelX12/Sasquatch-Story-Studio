@@ -27,7 +27,7 @@ def test_ltx_provenance_is_pinned():
 def test_ltx_requires_official_frame_contract():
     validate_num_frames(121)
     validate_num_frames(9)
-    with pytest.raises(ValueError, match="8N\+1"):
+    with pytest.raises(ValueError, match=r"8N\+1"):
         validate_num_frames(120)
 
 
