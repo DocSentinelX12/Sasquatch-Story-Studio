@@ -1,7 +1,9 @@
 """Canonical evidence-backed GPU capability derivation and workload admission."""
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
+import hashlib
+import json
 from enum import StrEnum
 from typing import Mapping
 
@@ -87,6 +89,28 @@ class GpuCapabilitySet:
         uuids = tuple(record.gpu_uuid for record in self.records)
         if len(set(uuids)) != len(uuids):
             raise ValueError("GPU capability UUIDs must be unique")
+
+    def canonical_json(self) -> str:
+        payload = {
+            "records": [
+                {
+                    "worker_id": record.worker_id,
+                    "gpu_uuid": record.gpu_uuid,
+                    "observation_digest": record.observation_digest,
+                    "memory_total_mib": record.memory_total_mib,
+                    "name": record.name,
+                    "compute_capability": record.compute_capability,
+                    "capabilities": [asdict(capability) for capability in record.capabilities],
+                    "nccl_gpu_sets": [list(group) for group in record.nccl_gpu_sets],
+                    "gpu_direct_gpu_sets": [list(group) for group in record.gpu_direct_gpu_sets],
+                }
+                for record in self.records
+            ]
+        }
+        return json.dumps(payload, sort_keys=True, separators=(",", ":"))
+
+    def digest(self) -> str:
+        return hashlib.sha256(self.canonical_json().encode("utf-8")).hexdigest()
 
     def get(self, gpu_uuid: str) -> GpuCapabilityRecord:
         for record in self.records:
