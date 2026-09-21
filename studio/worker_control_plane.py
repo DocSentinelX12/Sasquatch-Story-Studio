@@ -164,13 +164,13 @@ class WorkerControlPlane:
     @staticmethod
     def _state(observation: GpuHostObservation, now: int) -> WorkerState:
         capabilities = derive_gpu_capabilities(observation, now=now)
-        health_states = {
+        states = {
             capabilities.get(gpu.uuid).state(GpuCapabilityName.HEALTH)
             for gpu in observation.gpus
         }
-        if GpuCapabilityState.FAILED in health_states:
+        if GpuCapabilityState.FAILED in states or GpuCapabilityState.STALE in states:
             return WorkerState.TEMPORARILY_UNAVAILABLE
-        if health_states == {GpuCapabilityState.VERIFIED}:
+        if all(capabilities.get(gpu.uuid).production_eligible for gpu in observation.gpus):
             return WorkerState.VERIFIED_AVAILABLE
         return WorkerState.VERIFIED_LIMITED
 
@@ -186,12 +186,14 @@ class WorkerControlPlane:
             vram_bytes=sum(gpu.memory_total_mib for gpu in observation.gpus) * 1024 * 1024,
             healthy=state in {WorkerState.VERIFIED_AVAILABLE, WorkerState.VERIFIED_LIMITED},
         )
+        capabilities = derive_gpu_capabilities(observation, now=now)
         updated = replace(
             record,
             resource=resource,
             state=state,
             observed_at=now,
             observation_source="authenticated_gpu_worker_agent",
+            gpu_capability_digest=capabilities.digest(),
             quota_note="" if state != WorkerState.TEMPORARILY_UNAVAILABLE else "DCGM health failure",
             hardware_observation=observation,
         )
