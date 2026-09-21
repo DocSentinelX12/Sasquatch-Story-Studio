@@ -55,6 +55,7 @@ class GpuCapabilityRecord:
     topology: CapabilityEvidence
     nccl: CapabilityEvidence
     gpu_direct: CapabilityEvidence
+    engine_runtime: CapabilityEvidence
     observation_digest: str
     observed_at: int
 
@@ -74,6 +75,7 @@ class GpuVerificationContext:
     network: NetworkFabricObservation | None = None
     engine_verified: bool = False
     engine_id: str | None = None
+    engine_evidence_digest: str | None = None
 
 
 @dataclass(frozen=True)
@@ -200,6 +202,17 @@ def derive_gpu_capabilities(
         else:
             gpu_direct = _evidence(CapabilityState.OBSERVED, "GPU-direct evidence is not verified", None, None, None)
 
+        if context.engine_verified and context.engine_id and context.engine_evidence_digest:
+            engine_runtime = _evidence(
+                CapabilityState.VERIFIED,
+                f"engine runtime evidence verified for {context.engine_id}",
+                context.engine_evidence_digest,
+                observation.observed_at,
+                None,
+            )
+        else:
+            engine_runtime = _evidence(CapabilityState.OBSERVED, "engine runtime evidence is not verified", None, None, None)
+
         records.append(
             GpuCapabilityRecord(
                 worker_id=observation.worker_id,
@@ -213,6 +226,7 @@ def derive_gpu_capabilities(
                 topology=topology,
                 nccl=nccl,
                 gpu_direct=gpu_direct,
+                engine_runtime=engine_runtime,
                 observation_digest=observation.digest(),
                 observed_at=observation.observed_at,
             )
