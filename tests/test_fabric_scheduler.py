@@ -1,5 +1,6 @@
 from studio.compute_provider import ComputeProvider, ProviderResource, ProviderResourceState, ResourceCostClass
 from studio.distributed_gpu import DistributedNCCLEvidence
+from studio.nccl_evidence import NCCLTestEvidence
 from studio.fabric_topology import FabricTopologyRecord, FabricTopologyRegistry
 from studio.gpu_topology import GpuTopologyEvidence
 from studio.fabric_scheduler import FabricScheduler, FabricWorker
@@ -26,6 +27,15 @@ def obs(worker_id, uuid, model="NVIDIA A100"):
             cpu_affinity=((uuid, "0-63"),),
             nic_paths=((uuid, "mlx5_0", "PIX"),),
             raw_text_sha256="a" * 64,
+        ),
+        nccl_evidence=NCCLTestEvidence(
+            executable="all_reduce_perf",
+            executable_sha256="b" * 64,
+            command=("all_reduce_perf",),
+            exit_code=0,
+            output_sha256="c" * 64,
+            gpu_uuids=(uuid,),
+            topology_digest="a" * 64,
         ),
     )
 
