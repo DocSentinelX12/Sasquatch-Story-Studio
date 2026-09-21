@@ -360,6 +360,8 @@ def admit_gpu_workload(
         return ()
     if any(not _requirements_match_gpu(requirements, record) for record in records):
         return ()
+    if requirements.placement is not GpuPlacement.MULTI_NODE and len({record.worker_id for record in records}) != 1:
+        return ()
 
     if sum(record.memory_total_mib * 1024 * 1024 for record in records) < requirements.min_total_vram_bytes:
         return ()
