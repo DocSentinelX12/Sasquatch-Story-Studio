@@ -50,9 +50,15 @@ def is_transient_huggingface_error(exc: Exception) -> bool:
     # import local so this script remains importable before installation.
     try:
         import httpx
+        from huggingface_hub.utils import HfHubHTTPError
     except ImportError:
         return False
-    return isinstance(exc, httpx.RequestError)
+    if isinstance(exc, httpx.RequestError):
+        return True
+    if isinstance(exc, HfHubHTTPError):
+        status = getattr(getattr(exc, "response", None), "status_code", None)
+        return status == 429 or (isinstance(status, int) and 500 <= status < 600)
+    return False
 
 
 def run(*args: str, timeout: int = 1200) -> subprocess.CompletedProcess[str]:
