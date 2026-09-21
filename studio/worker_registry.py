@@ -74,13 +74,14 @@ class WorkerRegistry:
             raise ValueError("mark_unavailable requires an unavailable worker state")
         current = self.get(worker_id)
         updated = WorkerRecord(
-            current.id,
-            current.resource,
-            state,
-            observed_at,
-            current.observation_source,
-            current.quota_note if quota_note is None else quota_note,
-            current.hardware_observation,
+            id=current.id,
+            resource=current.resource,
+            state=state,
+            observed_at=observed_at,
+            observation_source=current.observation_source,
+            quota_note=current.quota_note if quota_note is None else quota_note,
+            hardware_observation=current.hardware_observation,
+            gpu_capability_digest=current.gpu_capability_digest,
         )
         self._records[worker_id] = updated
         return updated
