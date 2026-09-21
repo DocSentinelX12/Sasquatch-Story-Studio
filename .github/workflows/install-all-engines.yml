@@ -27,14 +27,14 @@ jobs:
           - ltx-video
           - ace-step-1.5
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: "3.11"
       - name: Install engine from official source and record evidence
         run: python scripts/install_engine.py "${{ matrix.engine }}"
       - name: Publish installation evidence
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: engine-install-${{ matrix.engine }}
           path: engine-installations/${{ matrix.engine }}/installation-evidence.json
@@ -44,14 +44,14 @@ jobs:
     name: Install Hugging Face Hub
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: "3.11"
       - name: Install and verify official Hugging Face Hub client
         run: python scripts/install_huggingface.py
       - name: Publish Hugging Face installation evidence
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: huggingface-hub-installation
           path: engine-installations/huggingface/installation-evidence.json
