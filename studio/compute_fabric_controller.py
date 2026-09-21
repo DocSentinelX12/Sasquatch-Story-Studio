@@ -94,7 +94,10 @@ class ComputeFabricController:
         now: int,
     ) -> ComputeFabricCapacityResult:
         """Acquire and immediately reconcile resources into verified capacity."""
-        resources = capacity.ensure_minimum(now=now)
+        resources = capacity.acquisition.acquire_free_capacity(
+            minimum_nodes=capacity.target_nodes,
+            now=now,
+        )
         reconciliation = self.reconcile(resources, now=now)
         snapshot = CapacitySnapshot(
             target_nodes=capacity.target_nodes,
