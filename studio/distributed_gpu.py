@@ -17,6 +17,7 @@ from enum import StrEnum
 from pathlib import Path
 import sqlite3
 
+from .gpu_capabilities import derive_gpu_capabilities
 from .gpu_infrastructure import GpuHostObservation
 from .hardware_requirements import HardwareRequirements, compute_capability_at_least
 from .nccl_evidence import validate_nccl_evidence
@@ -230,13 +231,16 @@ def _sha256(value: str, field: str) -> None:
         raise ValueError(f"{field} must be a SHA-256 hex digest")
 
 
-def _candidate_gpus(worker: WorkerRecord, requirements: HardwareRequirements, reserved: set[str]) -> tuple[str, ...]:
+def _candidate_gpus(worker: WorkerRecord, requirements: HardwareRequirements, reserved: set[str], *, now: int) -> tuple[str, ...]:
     observation = worker.hardware_observation
     if observation is None:
         return ()
+    capabilities = derive_gpu_capabilities(observation, now=now)
     candidates = []
     for gpu in sorted(observation.gpus, key=lambda item: (item.index, item.uuid)):
         if gpu.uuid in reserved:
+            continue
+        if not capabilities.get(gpu.uuid).production_eligible:
             continue
         if gpu.memory_total_mib * 1024**2 < requirements.min_vram_per_gpu_bytes:
             continue
@@ -276,14 +280,17 @@ class DistributedGpuAllocator:
                         self._reserved[(worker_id, gpu_uuid)] = allocation.allocation_id
         self._next_fencing_epoch = max((item.fencing_epoch for item in persisted), default=0) + 1
 
-    def _available_workers(self, requirements: HardwareRequirements) -> list[tuple[str, tuple[str, ...]]]:
+    def _available_workers(self, requirements: HardwareRequirements, *, now: int) -> list[tuple[str, tuple[str, ...]]]:
         result = []
         for worker in self.registry.snapshot():
             if worker.state not in self._ACTIVE or not worker.resource.healthy:
                 continue
-            candidates = _candidate_gpus(worker, requirements, {
-                gpu_uuid for (worker_id, gpu_uuid) in self._reserved if worker_id == worker.id
-            })
+            candidates = _candidate_gpus(
+                worker,
+                requirements,
+                {gpu_uuid for (worker_id, gpu_uuid) in self._reserved if worker_id == worker.id},
+                now=now,
+            )
             if candidates:
                 result.append((worker.id, candidates))
         return result
@@ -302,7 +309,7 @@ class DistributedGpuAllocator:
 
         with self._lock:
             self.expire(now)
-            available = self._available_workers(requirements)
+            available = self._available_workers(requirements, now=now)
             if len(available) < 2:
                 raise RuntimeError("distributed allocation requires at least two eligible workers")
 
