@@ -7,12 +7,23 @@ from studio.distributed_gpu import (
     SQLiteDistributedGpuAllocationStore,
     GpuDirectNetworkEvidence,
 )
-from studio.gpu_infrastructure import GpuDeviceObservation, GpuHostObservation
+from studio.gpu_infrastructure import GpuDeviceObservation, GpuHostObservation, GpuTelemetryEvidence, GpuTelemetryStatus, TelemetryValue
 from studio.gpu_topology import GpuTopologyEvidence
 from studio.hardware_requirements import GpuPlacement, HardwareRequirements
 from studio.nccl_evidence import NCCLTestEvidence
 from studio.resources import ComputeResource
 from studio.worker_registry import WorkerRecord, WorkerRegistry, WorkerState
+
+
+def telemetry():
+    return GpuTelemetryEvidence(
+        source="fixture",
+        collected_at=100,
+        collector="test",
+        fields={
+            "temperature_c": TelemetryValue(GpuTelemetryStatus.OBSERVED, 60, "fixture", 100),
+        },
+    )
 
 
 def host(worker_id: str, start: int) -> GpuHostObservation:
@@ -25,6 +36,7 @@ def host(worker_id: str, start: int) -> GpuHostObservation:
             memory_used_mib=0,
             pci_bus_id=f"0000:{start + index:02x}:00.0",
             compute_capability="9.0",
+            telemetry=telemetry(),
         )
         for index in range(4)
     )
@@ -34,9 +46,9 @@ def host(worker_id: str, start: int) -> GpuHostObservation:
         cuda_supported_version="12.9",
         gpus=gpus,
         topology_text="observed",
-        dcgm_available=False,
-        dcgm_version=None,
-        health_json=None,
+        dcgm_available=True,
+        dcgm_version="test",
+        health_json="Overall Health: Healthy",
     )
 
 
@@ -153,9 +165,9 @@ def test_nccl_requirement_requires_exact_distributed_collective_evidence():
                 cuda_supported_version="12.9",
                 gpus=registry_value.get("A").hardware_observation.gpus,
                 topology_text="observed",
-                dcgm_available=False,
-                dcgm_version=None,
-                health_json=None,
+                dcgm_available=True,
+                dcgm_version="test",
+                health_json="Overall Health: Healthy",
                 nccl_evidence=local_nccl("A"),
                 topology_evidence=topology("A"),
             ),
