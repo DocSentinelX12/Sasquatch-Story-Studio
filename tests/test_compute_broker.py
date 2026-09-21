@@ -1,7 +1,8 @@
 import pytest
 
 from studio.compute_broker import ComputeBroker, ProductionTask
-from studio.gpu_infrastructure import GpuDeviceObservation, GpuHostObservation
+from studio.gpu_infrastructure import GpuDeviceObservation, GpuHostObservation, GpuTelemetryEvidence, GpuTelemetryStatus, TelemetryValue
+from studio.gpu_topology import GpuTopologyEvidence
 from studio.hardware_requirements import GpuPlacement, HardwareRequirements
 from studio.resources import ComputeResource
 from studio.scheduler import Job, JobRequirements, JobState, Scheduler
