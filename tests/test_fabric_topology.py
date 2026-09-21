@@ -62,19 +62,16 @@ def test_registry_keeps_provider_scoped_worker_identity_and_snapshot_determinist
 
 
 def test_registry_rejects_worker_identity_mismatch_between_resource_and_observation():
-    bad = FabricTopologyRecord(
-        provider_id="provider-a",
-        resource_id="resource-a",
-        region="test-region",
-        worker_id="worker-a",
-        resource=resource("provider-a", "worker-a", "resource-a"),
-        hardware_observation=observation("worker-b", "GPU-B"),
-        observed_at=100,
-    )
-
     with pytest.raises(ValueError, match="worker identity"):
-        FabricTopologyRegistry((bad,))
-
+        FabricTopologyRecord(
+            provider_id="provider-a",
+            resource_id="resource-a",
+            region="test-region",
+            worker_id="worker-a",
+            resource=resource("provider-a", "worker-a", "resource-a"),
+            hardware_observation=observation("worker-b", "GPU-B"),
+            observed_at=100,
+        )
 
 def test_registry_requires_fresh_topology_evidence_for_distributed_groups():
     registry = FabricTopologyRegistry((record("provider-a", "worker-a", "GPU-A", observed_at=100), record("provider-b", "worker-b", "GPU-B", observed_at=100)))
