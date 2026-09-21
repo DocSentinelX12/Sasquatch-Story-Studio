@@ -125,3 +125,35 @@ def test_http_body_parser_rejects_non_object_json():
     service, _, _ = server()
     with pytest.raises(ValueError, match="JSON object"):
         service.decode_json_body(json.dumps([1, 2, 3]).encode("utf-8"))
+
+
+
+def test_authenticated_artifact_chunk_serves_exact_last_chunk(tmp_path):
+    service, _, authority = server()
+    source = tmp_path / "artifact.bin"
+    source.write_bytes(b"x" * (4 * 1024 * 1024 + 37))
+    access = authority.register("worker-a", "enrollment-secret", now=10)
+    digest = __import__("hashlib").sha256(source.read_bytes()).hexdigest()
+    service._artifact_provider = lambda worker_id, requested_digest: source if worker_id == "worker-a" and requested_digest == digest else None
+
+    data = service.get_artifact_chunk(
+        f"/v1/worker/artifacts/worker-a/{digest}/chunks/1?offset={4 * 1024 * 1024}&size=37",
+        f"Bearer {access.access_token}",
+    )
+
+    assert data == b"x" * 37
+
+
+def test_artifact_chunk_rejects_other_worker_token(tmp_path):
+    service, _, authority = server()
+    source = tmp_path / "artifact.bin"
+    source.write_bytes(b"payload")
+    access = authority.register("worker-a", "enrollment-secret", now=10)
+    digest = __import__("hashlib").sha256(source.read_bytes()).hexdigest()
+    service._artifact_provider = lambda worker_id, requested_digest: source
+
+    with pytest.raises(PermissionError):
+        service.get_artifact_chunk(
+            f"/v1/worker/artifacts/worker-b/{digest}/chunks/0?offset=0&size=7",
+            f"Bearer {access.access_token}",
+        )
