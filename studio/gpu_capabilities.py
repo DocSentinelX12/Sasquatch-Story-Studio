@@ -31,6 +31,15 @@ class CapabilityEvidence:
     verified_at: int | None
     fresh_until: int | None
 
+    def __post_init__(self) -> None:
+        if self.verified_at is not None and self.verified_at < 0:
+            raise ValueError("verified_at cannot be negative")
+        if self.fresh_until is not None and self.fresh_until < 0:
+            raise ValueError("fresh_until cannot be negative")
+        if self.evidence_digest is not None:
+            if len(self.evidence_digest) != 64 or any(c not in "0123456789abcdef" for c in self.evidence_digest.lower()):
+                raise ValueError("evidence_digest must be SHA-256")
+
     def is_admissible(self, now: int, freshness_seconds: int | None = None) -> bool:
         if self.state is not CapabilityState.VERIFIED:
             return False
