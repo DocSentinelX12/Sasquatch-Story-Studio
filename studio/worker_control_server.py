@@ -9,6 +9,7 @@ from __future__ import annotations
 import json
 import time
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Any, Callable, Mapping
 
 from .distributed_execution import DistributedLaunchSpec, DistributedProcessExecutor, _parse_lease as _parse_distributed_lease
@@ -58,11 +59,13 @@ class WorkerControlServer:
         execute: Callable[[Mapping[str, Any], RemoteLease, WorkerAccess, int], Mapping[str, Any]] | None = None,
         distributed_allocation: Callable[[str], Any] | None = None,
         execute_distributed: Callable[[Mapping[str, Any], Any, WorkerAccess, int], Mapping[str, Any]] | None = None,
+        artifact_provider: Callable[[str, str], str | Path | None] | None = None,
     ):
         self.control_plane = control_plane
         self._execute = execute
         self._distributed_allocation = distributed_allocation
         self._execute_distributed = execute_distributed
+        self._artifact_provider = artifact_provider
 
     @staticmethod
     def decode_json_body(body: bytes) -> dict[str, Any]:
@@ -151,6 +154,35 @@ class WorkerControlServer:
             raise ValueError("distributed worker execution callback must return an object")
         return self._json(200, result)
 
+    def get_artifact_chunk(self, path: str, authorization: str | None) -> bytes:
+        token = _bearer(authorization)
+        if self._artifact_provider is None:
+            raise RuntimeError("artifact service is not configured")
+        parts = path.split("/")
+        if len(parts) != 7 or parts[:4] != ["", "v1", "worker", "artifacts"] or parts[5] != "chunks":
+            raise ValueError("invalid artifact endpoint")
+        worker_id, digest, chunk_text = parts[4], parts[6], parts[6]
+        digest = parts[4]
+        worker_id = parts[4]
+        # Endpoint: /v1/worker/artifacts/<worker_id>/<digest>/chunks/<index>
+        worker_id, digest, chunk_text = parts[4], parts[5], parts[6]
+        if not worker_id.strip() or len(digest) != 64 or any(c not in "0123456789abcdef" for c in digest):
+            raise ValueError("invalid artifact identity")
+        try: chunk_index = int(chunk_text)
+        except ValueError as exc: raise ValueError("invalid artifact chunk index") from exc
+        if chunk_index < 0: raise ValueError("invalid artifact chunk index")
+        access = WorkerAccess(worker_id, token)
+        self.control_plane.authority.authorize(access)
+        source = self._artifact_provider(worker_id, digest)
+        if source is None: raise FileNotFoundError(digest)
+        source_path = Path(source).expanduser().resolve()
+        if not source_path.is_file(): raise FileNotFoundError(digest)
+        chunk_size = 4 * 1024 * 1024
+        offset = chunk_index * chunk_size
+        with source_path.open("rb") as handle:
+            handle.seek(0, 2); total = handle.tell()
+            if offset >= total: raise ValueError("artifact chunk is outside the source object")
+            handle.seek(offset); return handle.read(chunk_size)
     def dispatch(self, method: str, path: str, body: bytes, authorization: str | None, *, now: int | None = None) -> ControlResponse:
         if method.upper() != "POST":
             return self._json(405, {"error": "method not allowed"})
