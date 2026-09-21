@@ -59,7 +59,7 @@ def test_runtime_config_uses_dynamic_image_and_prompt_tokens(tmp_path: Path):
 
 
 def test_frame_count_must_match_official_8n_plus_1_contract(tmp_path: Path):
-    with pytest.raises(ValueError, match="8N\+1"):
+    with pytest.raises(ValueError, match=r"8N\+1"):
         build_cogvideox15_i2v_command(
             python_executable="python",
             repository=tmp_path / "CogVideo",
